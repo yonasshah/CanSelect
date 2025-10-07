@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Batch: {{ batch.DisplayName }}</h2>
+  <a class="btn btn-outline-secondary" href="{% url 'batch_list' %}">Back to list</a>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <p><strong>DataSet:</strong> {{ batch.DataSet.DisplayName }}</p>
+    <p><strong>Description:</strong> {{ batch.Description|default:"—" }}</p>
+    <p><strong>Admin Notes:</strong> {{ batch.AdminNotes|default:"—" }}</p>
+    <p><strong>Public View:</strong> {{ batch.PublicView }}</p>
+    <p><strong>Active:</strong> {{ batch.Active }}</p>
+    <p><strong>Vote Expire:</strong> {{ batch.VoteExpire|date:"Y-m-d H:i" }}</p>
+    <p><strong>Highlight Before:</strong> {{ batch.HighlightBefore|date:"Y-m-d H:i" }}</p>
+    <p><strong>RoundId:</strong> {{ batch.RoundId }}</p>
+  </div>
+</div>
+
+<a href="{% url 'batch_edit' batch.pk %}" class="btn btn-primary mt-3">Edit</a>
+{% endblock %}

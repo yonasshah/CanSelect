@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>DataSets</h2>
+<a href="{% url 'dataset_create' %}" class="btn btn-primary mb-3">New DataSet</a>
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Display Name</th>
+      <th>Program ID</th>
+      <th>Public View</th>
+      <th>Active</th>
+        <th></th>
+        <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for d in datasets %}
+      <tr>
+        <td>{{ d.DisplayName }}</td>
+        <td>{{ d.ProgramId }}</td>
+        <td>{{ d.PublicView }}</td>
+        <td>{{ d.Active }}</td>
+        <td><a href="{% url 'dataset_detail' d.pk %}">View</a></td>
+        <td><a href="{% url 'dataset_edit' d.pk %}">Edit</a></td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="4">No datasets found.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

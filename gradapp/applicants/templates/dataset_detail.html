@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>DataSet: {{ dataset.DisplayName }}</h2>
+  <a class="btn btn-outline-secondary" href="{% url 'dataset_list' %}">Back to list</a>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <div class="mb-3">
+      <h5 class="card-title mb-1">Description</h5>
+      <p class="card-text">{{ dataset.Description|default:"—" }}</p>
+    </div>
+
+    <div class="mb-3">
+      <h6 class="mb-1">Admin Notes</h6>
+      <p class="card-text text-muted">{{ dataset.AdminNotes|default:"—" }}</p>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-md-3">
+        <span class="fw-semibold">Program ID:</span> {{ dataset.ProgramId|default:"—" }}
+      </div>
+      <div class="col-md-3">
+        <span class="fw-semibold">Public View:</span>
+        {% if dataset.PublicView %}
+          <span class="badge text-bg-success">Yes</span>
+        {% else %}
+          <span class="badge text-bg-secondary">No</span>
+        {% endif %}
+      </div>
+      <div class="col-md-3">
+        <span class="fw-semibold">Active:</span>
+        {% if dataset.Active %}
+          <span class="badge text-bg-success">Active</span>
+        {% else %}
+          <span class="badge text-bg-danger">Inactive</span>
+        {% endif %}
+      </div>
+      <div class="col-md-3">
+        <span class="fw-semibold">Updated:</span> {{ dataset.UpdatedAt|date:"Y-m-d H:i" }}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
