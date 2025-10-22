@@ -1,29 +1,95 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Batches</h2> 
-<a href="{% url 'batch_create' %}" class="btn btn-primary mb-3">New Batch</a>
-<table class="table table-striped">
-  <thead>
-    <tr>
-      <th>Display Name</th>
-      <th>DataSet</th>
-      <th>Active</th>
-      <th>Public</th>
-      <th>Vote Expire</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for b in batches %}
-      <tr>
-        <td><a href="{% url 'batch_detail' b.pk %}">{{ b.DisplayName }}</a></td>
-        <td>{{ b.DataSet.DisplayName }}</td>
-        <td>{{ b.Active }}</td>
-        <td>{{ b.PublicView }}</td>
-        <td>{{ b.VoteExpire|date:"Y-m-d H:i" }}</td>
-      </tr>
-    {% empty %}
-      <tr><td colspan="5">No batches found.</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Batches</h2>
+  <div>
+    {% if user.profile.role == 'ADMIN' %}
+    <a href="{% url 'batch_create' %}" class="btn btn-primary">Add New Batch</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <form method="get" id="filter-form">
+      <div class="row g-2">
+        <div class="col-md-4">
+          <label for="dataset" class="form-label">Filter by Dataset</label>
+          <select name="dataset" class="form-select">
+            <option value="">All Datasets</option>
+            {% for ds in datasets %}
+            <option value="{{ ds.pk }}" {% if ds.pk|stringformat:"s" == selected_dataset_id %}selected{% endif %}>
+              {{ ds.DisplayName }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <button type="submit" class="btn btn-outline-secondary w-100">Filter</button>
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <a href="{% url 'batch_list' %}" class="btn btn-outline-danger w-100">Clear</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <table class="table table-hover">
+      <thead class="table-dark">
+        <tr>
+          <th>Name</th>
+          <th>Dataset</th>
+          <th>Description</th>
+          <th>Vote Expiration</th>
+          {% if user.profile.role == 'ADMIN' %}
+          <th></th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for batch in page_obj %}
+        <tr class="clickable-row" data-href="{% url 'batch_detail' batch.pk %}">
+          <td>{{ batch.DisplayName }}</td>
+          <td>{{ batch.DataSet.DisplayName }}</td>
+          <td>{{ batch.Description|default:"—"|truncatewords:20 }}</td>
+          <td>{{ batch.VoteExpire|date:"Y-m-d"|default:"—" }}</td>
+          {% if user.profile.role == 'ADMIN' %}
+          <td class="text-end">
+            <a href="{% url 'batch_edit' batch.pk %}" class="btn btn-outline-primary btn-sm">Edit</a>
+          </td>
+          {% endif %}
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="text-center text-muted">No batches found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% if page_obj.has_other_pages %}
+  <nav aria-label="Page navigation" class="mt-4">
+    <ul class="pagination justify-content-center">
+      
+      {% if page_obj.has_previous %}
+        <li class="page-item"><a class="page-link" href="?page=1&{{ request.GET.urlencode | cut:'page=' }}">&laquo; First</a></li>
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&{{ request.GET.urlencode | cut:'page=' }}">Previous</a></li>
+      {% endif %}
+
+      <li class="page-item active" aria-current="page">
+        <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+      </li>
+
+      {% if page_obj.has_next %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&{{ request.GET.urlencode | cut:'page=' }}">Next</a></li>
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}&{{ request.GET.urlencode | cut:'page=' }}">Last &raquo;</a></li>
+      {% endif %}
+      
+    </ul>
+  </nav>
+{% endif %}
 {% endblock %}

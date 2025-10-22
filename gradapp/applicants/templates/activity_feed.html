@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="mb-4">System Activity Feed</h2>
+<div class="card">
+    <div class="card-header">
+        <p class="mb-0 text-muted">Showing the last 50 activities.</p>
+    </div>
+    <div class="card-body">
+        <ul class="list-group list-group-flush">
+            {% for activity in activities %}
+            <li class="list-group-item">
+                <div class="d-flex w-100 justify-content-between">
+                    <div>
+                        {% if activity.action_type == 'vote_cast' %}
+                            <i class="bi bi-person-check-fill me-2 text-primary"></i>
+                        {% elif activity.action_type == 'comment_added' %}
+                            <i class="bi bi-chat-dots-fill me-2 text-info"></i>
+                        {% endif %}
+
+                        <strong>{{ activity.actor.username }}</strong>
+                        {{ activity.details }}
+                        <a href="{% url 'applicant_detail' activity.target_applicant.pk %}">
+                            {{ activity.target_applicant.first_name }} {{ activity.target_applicant.last_name }}
+                        </a>
+                    </div>
+                    <small class="text-muted">{{ activity.created_at|timesince }} ago</small>
+                </div>
+            </li>
+            {% empty %}
+            <li class="list-group-item text-muted">No system activity has been recorded yet.</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}

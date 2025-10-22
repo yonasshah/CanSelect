@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Comparing {{ applicants|length }} Applicants</h2>
+  <a href="{% url 'applicant_list' %}" class="btn btn-outline-secondary">Back to List</a>
+</div>
+
+<div class="row g-4">
+  {% for applicant in applicants %}
+    <div class="{{ col_class }}">
+      <div class="card h-100 shadow-sm">
+        <div class="card-header bg-light">
+          <h4 class="mb-0 text-center">
+            <a href="{% url 'applicant_detail' applicant.pk %}">
+              {{ applicant.first_name }} {{ applicant.last_name }}
+            </a>
+          </h4>
+        </div>
+        <div class="card-body">
+          <h5 class="card-title text-muted">Demographics</h5>
+          <p><strong>Email:</strong> {{ applicant.email }}</p>
+          <p><strong>Age:</strong> {{ applicant.age }}</p>
+          <p><strong>DataSet:</strong> {{ applicant.dataset.DisplayName|default:"—" }}</p>
+          <p><strong>Round:</strong> {{ applicant.round.DisplayName|default:"—" }}</p>
+
+          <hr>
+          
+          <h5 class="card-title text-muted">Votes</h5>
+          <p class="text-center">
+            <span class="badge bg-success fs-6" title="Accepts">Accept: {{ applicant.votes_summary.accept }}</span>
+            <span class="badge bg-danger fs-6" title="Denials">Deny: {{ applicant.votes_summary.deny }}</span>
+            <span class="badge bg-warning text-dark fs-6" title="Waitlists">Waitlist: {{ applicant.votes_summary.waitlist }}</span>
+          </p>
+
+          <hr>
+
+          <h5 class="card-title text-muted">Recent Comments</h5>
+          <ul class="list-group list-group-flush small">
+            {% for comment in applicant.comments.all|slice:":2" %}
+              <li class="list-group-item">
+                "{{ comment.text|truncatechars:80 }}"
+                <div class="text-end text-muted">&mdash; {{ comment.author.username }}</div>
+              </li>
+            {% empty %}
+              <li class="list-group-item text-muted">No comments yet.</li>
+            {% endfor %}
+          </ul>
+        </div>
+        <div class="card-footer text-center">
+            <a href="{% url 'applicant_detail' applicant.pk %}" class="btn btn-sm btn-outline-primary">View Full Profile</a>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

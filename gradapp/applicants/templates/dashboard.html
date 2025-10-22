@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="mb-4">Dashboard</h2>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card text-center card-hover">
+            <div class="card-body">
+                <h5 class="card-title">Total Applicants</h5>
+                <p class="card-text fs-2 fw-bold">{{ applicant_count }}</p>
+                <a href="{% url 'applicant_list' %}" class="btn btn-primary">View All</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center card-hover">
+            <div class="card-body">
+                <h5 class="card-title">Total DataSets</h5>
+                <p class="card-text fs-2 fw-bold">{{ dataset_count }}</p>
+                <a href="{% url 'dataset_list' %}" class="btn btn-primary">View All</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center card-hover">
+            <div class="card-body">
+                <h5 class="card-title">Total Batches</h5>
+                <p class="card-text fs-2 fw-bold">{{ batch_count }}</p>
+                <a href="{% url 'batch_list' %}" class="btn btn-primary">View All</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h4>Recent Applicants</h4>
+    </div>
+    <div class="card-body">
+        <table class="table table-striped table-hover align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Dataset</th>
+                    <th>Submitted</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in recent_applicants %}
+                <tr>
+                    <td>
+                        <a href="#" data-bs-toggle="modal" data-bs-target="#applicantModal" data-profile-url="{% url 'applicant_profile_partial' a.pk %}">
+                            {{ a.last_name }}, {{ a.first_name }}
+                        </a>
+                    </td>
+                    <td>{{ a.email }}</td>
+                    <td>{{ a.dataset.DisplayName|default:"—" }}</td>
+                    <td>{{ a.created_at|date:"Y-m-d H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center text-muted">No applicants yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if user.profile.role == 'ADMIN' %}
+<div class="card mt-4">
+    <div class="card-header">
+        <h4 class="mb-0">Recent Activity</h4>
+    </div>
+    <div class="card-body">
+        <ul class="list-group list-group-flush">
+            {% for activity in recent_activities %}
+            <li class="list-group-item">
+                <div class="d-flex w-100 justify-content-between">
+                    <div>
+                        <i class="bi bi-person-check-fill me-2 text-primary"></i>
+                        <strong>{{ activity.actor.username }}</strong>
+                        {{ activity.details }}
+                        <a href="#" data-bs-toggle="modal" data-bs-target="#applicantModal" data-profile-url="{% url 'applicant_profile_partial' activity.target_applicant.pk %}">
+                            {{ activity.target_applicant.first_name }} {{ activity.target_applicant.last_name }}
+                        </a>
+                    </div>
+                    <small class="text-muted">{{ activity.created_at|timesince }} ago</small>
+                </div>
+            </li>
+            {% empty %}
+            <li class="list-group-item text-muted">No votes have been cast recently.</li>
+            {% endfor %}
+        </ul>
+    </div>
+    <div class="card-footer text-center">
+        <a href="{% url 'activity_feed' %}">View Full Activity Feed</a>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -3,7 +3,9 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h2>{{ applicant.first_name }} {{ applicant.last_name }}</h2>
   <div>
+    {% if user.profile.role == 'ADMIN' %}
     <a href="{% url 'applicant_edit' applicant.pk %}" class="btn btn-primary btn-sm">Edit</a>
+    {% endif %}
     <a href="{% url 'applicant_list' %}" class="btn btn-outline-secondary btn-sm">Back</a>
   </div>
 </div>
@@ -37,23 +39,45 @@
 <div class="card mb-4">
   <div class="card-body">
     <h5 class="card-title">Uploaded Files</h5>
-    <ul class="list-group">
-      {% for f in applicant.files.all %}
-        <li class="list-group-item d-flex justify-content-between align-items-center">
-          <a href="{{ f.file.url }}" target="_blank">{{ f.file.name|cut:"applicants/" }}</a>
-          <small class="text-muted">{{ f.uploaded_at|date:"Y-m-d H:i" }}</small>
+
+    {% for video in video_files %}
+      <div class="mb-3 video-player-container">
+        <h6 class="text-muted">{{ video.file.name|cut:"applicants/" }}</h6>
+        <video id="applicant-video-{{ video.pk }}" class="w-100 rounded bg-dark" controls>
+          <source src="{{ video.file.url }}" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+        <div class="mt-2 speed-controls-container">
+          <label class="form-label me-2 small text-muted">Playback Speed:</label>
+          <button class="btn btn-outline-secondary btn-sm speed-control" data-video-id="applicant-video-{{ video.pk }}" data-speed="0.5">0.5x</button>
+          <button class="btn btn-secondary btn-sm speed-control active" data-video-id="applicant-video-{{ video.pk }}" data-speed="1">1x</button>
+          <button class="btn btn-outline-secondary btn-sm speed-control" data-video-id="applicant-video-{{ video.pk }}" data-speed="1.5">1.5x</button>
+          <button class="btn btn-outline-secondary btn-sm speed-control" data-video-id="applicant-video-{{ video.pk }}" data-speed="2">2x</button>
+        </div>
+      </div>
+    {% endfor %}
+
+    {% if video_files and other_files %}<hr class="my-4">{% endif %}
+
+    {% if other_files %}
+      <h6 class="text-muted">Other Documents</h6>
+      <ul class="list-group list-group-flush">
+      {% for doc in other_files %}
+        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+          <a href="{{ doc.file.url }}" target="_blank">{{ doc.file.name|cut:"applicants/" }}</a>
+          <small class="text-muted">{{ doc.uploaded_at|date:"Y-m-d H:i" }}</small>
         </li>
-      {% empty %}
-        <li class="list-group-item text-muted">No files uploaded.</li>
       {% endfor %}
-    </ul>
+      </ul>
+    {% endif %}
+
+    {% if not video_files and not other_files %}
+      <p class="text-muted">No files have been uploaded for this applicant.</p>
+    {% endif %}
 
     {% if user.is_authenticated %}
     <form method="post" action="{% url 'add_files' applicant.pk %}" enctype="multipart/form-data" class="mt-3">
-      {% csrf_token %}
-      <div class="mb-2">
-        <input type="file" name="files" multiple class="form-control">
-      </div>
+      {% csrf_token %}<div class="mb-2"><input type="file" name="files" multiple class="form-control"></div>
       <button class="btn btn-outline-primary btn-sm">Upload More Files</button>
     </form>
     {% endif %}
@@ -80,4 +104,38 @@
     {% endif %}
   </div>
 </div>
+
+<div class="card mt-4">
+    <div class="card-header">
+        <h4 class="mb-0">Comments</h4>
+        {% if user.profile.role != 'ADMIN' %}
+            <p class="mb-0 text-muted small">You are only seeing comments you have posted.</p>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        <form method="post" class="mb-4">
+            {% csrf_token %}
+            <div class="mb-2">
+                {{ comment_form.text }}
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Post Comment</button>
+        </form>
+
+        <ul class="list-group">
+            {% for comment in comments %}
+            <li class="list-group-item">
+                <p class="mb-1"><em>"{{ comment.text|linebreaksbr }}"</em></p>
+                <small class="text-muted">
+                    <i class="bi bi-person-circle me-1"></i>
+                    <strong>{{ comment.author.username }}</strong>
+                    &bull; {{ comment.created_at|timesince }} ago
+                </small>
+            </li>
+            {% empty %}
+            <li class="list-group-item text-muted">No comments to display.</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
 {% endblock %}

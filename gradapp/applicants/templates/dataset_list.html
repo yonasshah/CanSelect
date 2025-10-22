@@ -1,31 +1,76 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>DataSets</h2>
-<a href="{% url 'dataset_create' %}" class="btn btn-primary mb-3">New DataSet</a>
-<table class="table table-striped">
-  <thead>
-    <tr>
-      <th>Display Name</th>
-      <th>Program ID</th>
-      <th>Public View</th>
-      <th>Active</th>
-        <th></th>
-        <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for d in datasets %}
-      <tr>
-        <td>{{ d.DisplayName }}</td>
-        <td>{{ d.ProgramId }}</td>
-        <td>{{ d.PublicView }}</td>
-        <td>{{ d.Active }}</td>
-        <td><a href="{% url 'dataset_detail' d.pk %}">View</a></td>
-        <td><a href="{% url 'dataset_edit' d.pk %}">Edit</a></td>
-      </tr>
-    {% empty %}
-      <tr><td colspan="4">No datasets found.</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Datasets</h2>
+  <div>
+    {% if user.profile.role == 'ADMIN' %}
+    <a href="{% url 'dataset_create' %}" class="btn btn-primary">Add New Dataset</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <table class="table table-hover">
+      <thead class="table-dark">
+        <tr>
+          <th>Name</th>
+          <th>Description</th>
+          <th class="text-center">Applicants</th>
+          <th class="text-center">Status</th>
+          {% if user.profile.role == 'ADMIN' %}
+          <th></th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for dataset in page_obj %}
+        <tr class="clickable-row" data-href="{% url 'dataset_detail' dataset.pk %}">
+          <td>{{ dataset.DisplayName }}</td>
+          <td>{{ dataset.Description|default:"—"|truncatewords:20 }}</td>
+          <td class="text-center">{{ dataset.applicants.count }}</td>
+          <td class="text-center">
+            {% if dataset.IsLive %}
+            <span class="badge bg-success">Live</span>
+            {% else %}
+            <span class="badge bg-secondary">Offline</span>
+            {% endif %}
+          </td>
+          {% if user.profile.role == 'ADMIN' %}
+          <td class="text-end">
+            <a href="{% url 'dataset_edit' dataset.pk %}" class="btn btn-outline-primary btn-sm">Edit</a>
+          </td>
+          {% endif %}
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="text-center text-muted">No datasets found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+  <nav aria-label="Page navigation" class="mt-4">
+    <ul class="pagination justify-content-center">
+      
+      {% if page_obj.has_previous %}
+        <li class="page-item"><a class="page-link" href="?page=1&{{ request.GET.urlencode | cut:'page=' }}">&laquo; First</a></li>
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&{{ request.GET.urlencode | cut:'page=' }}">Previous</a></li>
+      {% endif %}
+
+      <li class="page-item active" aria-current="page">
+        <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+      </li>
+
+      {% if page_obj.has_next %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&{{ request.GET.urlencode | cut:'page=' }}">Next</a></li>
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}&{{ request.GET.urlencode | cut:'page=' }}">Last &raquo;</a></li>
+      {% endif %}
+      
+    </ul>
+  </nav>
+{% endif %}
 {% endblock %}

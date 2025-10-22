@@ -1,6 +1,10 @@
+import os
 from django.db import models
 from django.contrib.auth.models import User
 from django.contrib.auth.models import AbstractUser
+from django.conf import settings
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 class Applicant(models.Model):
     first_name = models.CharField(max_length=100)
@@ -9,7 +13,7 @@ class Applicant(models.Model):
     age = models.PositiveIntegerField()
     gender = models.CharField(max_length=50)
     ethnicity = models.CharField(max_length=100, blank=True)
-    round = models.CharField(max_length=100, blank=True, null=True)
+    round = models.ForeignKey("Batch", on_delete=models.SET_NULL, null=True, blank=True)
     dataset = models.ForeignKey("DataSet", on_delete=models.SET_NULL, null=True, blank=True, related_name="applicants")
     description = models.TextField(blank=True, max_length=100000)
     street = models.TextField(blank=True, max_length=100000)
@@ -33,6 +37,18 @@ class ApplicantFile(models.Model):
     applicant = models.ForeignKey(Applicant, related_name="files", on_delete=models.CASCADE)
     file = models.FileField(upload_to="applicants/")
     uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def is_video(self):
+        # You can add more video extensions to this list if you need to
+        video_extensions = ['.mp4', '.mov', '.webm', '.avi', '.mkv', '.wmv']
+        try:
+            # os.path.splitext splits the filename into its name and extension
+            name, extension = os.path.splitext(self.file.name)
+            return extension.lower() in video_extensions
+        except:
+            # If there's any error, safely assume it's not a video
+            return False
 
 class Vote(models.Model):
     VOTE_CHOICES = (
@@ -83,3 +99,62 @@ class Batch(models.Model):
 
     def __str__(self):
         return f"{self.DisplayName} (Dataset: {self.DataSet.DisplayName})"
+    
+class Profile(models.Model):
+    class Role(models.TextChoices):
+        ADMIN = 'ADMIN', 'Admin'
+        COMMITTEE_MEMBER = 'COMMITTEE_MEMBER', 'Committee Member'
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    role = models.CharField(
+        max_length=50,
+        choices=Role.choices,
+        default=Role.COMMITTEE_MEMBER
+    )
+
+    def __str__(self):
+        return f"{self.user.username} - {self.get_role_display()}"
+
+# This signal automatically creates a Profile when a User is created
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    if created:
+        Profile.objects.create(user=instance)
+
+@receiver(post_save, sender=User)
+def save_user_profile(sender, instance, **kwargs):
+    instance.profile.save()
+    
+class Activity(models.Model):
+    VOTE_CAST = 'vote_cast'
+    COMMENT_ADDED = 'comment_added'
+
+    ACTION_CHOICES = [
+        (VOTE_CAST, 'Vote Cast'),
+        (COMMENT_ADDED, 'Comment Added'),
+    ]
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    action_type = models.CharField(max_length=50, choices=ACTION_CHOICES)
+    details = models.TextField()
+    target_applicant = models.ForeignKey(Applicant, on_delete=models.CASCADE, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name_plural = "Activities"
+
+    def __str__(self):
+        actor_name = self.actor.username if self.actor else 'System'
+        return f"{actor_name} - {self.get_action_type_display()}"
+    
+class Comment(models.Model):
+    applicant = models.ForeignKey(Applicant, on_delete=models.CASCADE, related_name='comments')
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Comment by {self.author.username} on {self.applicant}"

@@ -17,6 +17,7 @@
     <p><strong>RoundId:</strong> {{ batch.RoundId }}</p>
   </div>
 </div>
-
+{% if user.profile.role == 'ADMIN' %}
 <a href="{% url 'batch_edit' batch.pk %}" class="btn btn-primary mt-3">Edit</a>
+{% endif %}
 {% endblock %}

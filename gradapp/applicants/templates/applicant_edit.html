@@ -5,10 +5,52 @@
   <a class="btn btn-outline-secondary btn-sm" href="{% url 'applicant_detail' applicant.pk %}">Cancel</a>
 </div>
 
-<form method="post" class="row g-3">
+<form method="post">
   {% csrf_token %}
-  {{ form.as_p }}
-  <div class="col-12 mt-2">
+  
+  <div class="row g-3">
+    <div class="col-md-6">
+      <label for="{{ form.first_name.id_for_label }}" class="form-label">First name</label>
+      {{ form.first_name }}
+    </div>
+    <div class="col-md-6">
+      <label for="{{ form.last_name.id_for_label }}" class="form-label">Last name</label>
+      {{ form.last_name }}
+    </div>
+    <div class="col-md-6">
+      <label for="{{ form.email.id_for_label }}" class="form-label">Email</label>
+      {{ form.email }}
+    </div>
+    <div class="col-md-6">
+      <label for="{{ form.age.id_for_label }}" class="form-label">Age</label>
+      {{ form.age }}
+    </div>
+    <div class="col-md-6">
+      <label for="{{ form.gender.id_for_label }}" class="form-label">Gender</label>
+      {{ form.gender }}
+    </div>
+    <div class="col-md-6">
+      <label for="{{ form.ethnicity.id_for_label }}" class="form-label">Ethnicity</label>
+      {{ form.ethnicity }}
+    </div>
+    <div class="col-md-6">
+      <label for="{{ form.dataset.id_for_label }}" class="form-label">Dataset</label>
+      {{ form.dataset }}
+    </div>
+    <div class="col-md-6">
+      <label for="{{ form.round.id_for_label }}" class="form-label">Round</label>
+      {{ form.round }}
+    </div>
+    <div class="col-12">
+      <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
+      {{ form.description }}
+    </div>
+    <div class="col-12">
+      <label for="{{ form.street.id_for_label }}" class="form-label">Street</label>
+      {{ form.street }}
+    </div>
+  </div>
+  <div class="col-12 mt-3">
     <button type="submit" class="btn btn-success">💾 Save Changes</button>
     <a href="{% url 'applicant_detail' applicant.pk %}" class="btn btn-outline-secondary">Cancel</a>
   </div>

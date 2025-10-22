@@ -1,0 +1,110 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4>{{ applicant.first_name }} {{ applicant.last_name }}</h4>
+  {% if user.profile.role == 'ADMIN' %}
+  <a href="{% url 'applicant_edit' applicant.pk %}" class="btn btn-primary btn-sm">Edit Full Profile</a>
+  {% endif %}
+</div>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <h5 class="card-title">Demographics</h5>
+    <div class="row">
+      <div class="col-md-6">
+        <p><strong>Dataset:</strong> 
+        {% if applicant.dataset %}
+          {{ applicant.dataset.DisplayName }}
+        {% else %}
+          —
+        {% endif %}
+      </p>
+        <p><strong>Email:</strong> {{ applicant.email }}</p>
+        <p><strong>Age:</strong> {{ applicant.age }}</p>
+        <p><strong>Gender:</strong> {{ applicant.gender }}</p>
+        <p><strong>Round:</strong> {{ applicant.round.DisplayName|default:"—" }}</p>
+        <p><strong>Description:</strong> {{ applicant.description|linebreaksbr|default:"—" }}</p>
+      </div>
+      <div class="col-md-6">
+        <p><strong>Ethnicity:</strong> {{ applicant.ethnicity }}</p>
+        <p><strong>Submitted:</strong> {{ applicant.created_at|date:"Y-m-d H:i" }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <h5 class="card-title">Uploaded Files</h5>
+
+    {% for video in video_files %}
+      <div class="mb-3 video-player-container">
+        <h6 class="text-muted">{{ video.file.name|cut:"applicants/" }}</h6>
+        <video id="applicant-modal-video-{{ video.pk }}" class="w-100 rounded bg-dark" controls>
+          <source src="{{ video.file.url }}" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+        <div class="mt-2 speed-controls-container">
+          <label class="form-label me-2 small text-muted">Playback Speed:</label>
+          <button class="btn btn-outline-secondary btn-sm speed-control" data-video-id="applicant-modal-video-{{ video.pk }}" data-speed="0.5">0.5x</button>
+          <button class="btn btn-secondary btn-sm speed-control active" data-video-id="applicant-modal-video-{{ video.pk }}" data-speed="1">1x</button>
+          <button class="btn btn-outline-secondary btn-sm speed-control" data-video-id="applicant-modal-video-{{ video.pk }}" data-speed="1.5">1.5x</button>
+          <button class="btn btn-outline-secondary btn-sm speed-control" data-video-id="applicant-modal-video-{{ video.pk }}" data-speed="2">2x</button>
+        </div>
+      </div>
+    {% endfor %}
+
+    {% if video_files and other_files %}<hr class="my-4">{% endif %}
+
+    {% if other_files %}
+      <h6 class="text-muted">Other Documents</h6>
+      <ul class="list-group list-group-flush">
+      {% for doc in other_files %}
+        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+          <a href="{{ doc.file.url }}" target="_blank">{{ doc.file.name|cut:"applicants/" }}</a>
+          <small class="text-muted">{{ doc.uploaded_at|date:"Y-m-d H:i" }}</small>
+        </li>
+      {% endfor %}
+      </ul>
+    {% endif %}
+
+    {% if not video_files and not other_files %}
+      <p class="text-muted">No files have been uploaded for this applicant.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <h5 class="card-title">Votes</h5>
+    {% with votes=applicant.votes_summary %}
+      <p>
+        <span class="badge bg-success">Accept: {{ votes.accept }}</span>
+        <span class="badge bg-danger">Deny: {{ votes.deny }}</span>
+        <span class="badge bg-warning text-dark">Waitlist: {{ votes.waitlist }}</span>
+      </p>
+    {% endwith %}
+  </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Comments</h5>
+        {% if user.profile.role != 'ADMIN' %}
+            <p class="mb-0 text-muted small">You are only seeing your own comments.</p>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        <ul class="list-group list-group-flush">
+            {% for comment in comments %}
+            <li class="list-group-item px-0">
+                <div class="d-flex w-100 justify-content-between">
+                    <p class="mb-1">{{ comment.text|linebreaksbr }}</p>
+                    <small class="text-muted">{{ comment.created_at|timesince }} ago</small>
+                </div>
+                <small class="text-muted">by <strong>{{ comment.author.username }}</strong></small>
+            </li>
+            {% empty %}
+            <li class="list-group-item px-0 text-muted">No comments to display.</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>

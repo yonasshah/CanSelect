@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Applicant, DataSet, Batch
+from .models import Applicant, DataSet, Batch, Profile
 
 @admin.register(DataSet)
 class DataSetAdmin(admin.ModelAdmin):
@@ -13,3 +13,8 @@ class BatchAdmin(admin.ModelAdmin):
 @admin.register(Applicant)
 class ApplicantAdmin(admin.ModelAdmin):
     list_display = ("first_name", "last_name", "email", "age", "gender", "ethnicity", "created_at")
+    
+@admin.register(Profile)
+class ProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'role')
+    list_filter = ('role',)
