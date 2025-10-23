@@ -1,6 +1,8 @@
 # applicants/views.py
 import csv
-from django.db.models import Q
+from django.db.models import Count, Q
+import json
+from django.utils.safestring import mark_safe
 from django.http import HttpResponse
 from django.core.paginator import Paginator
 from django.shortcuts import render, redirect, get_object_or_404
@@ -259,12 +261,28 @@ def batch_edit(request, pk):
 
 @login_required
 def dashboard(request):
-    # Get overall counts
+    # --- 1. Get filter ID and all datasets for the dropdown ---
+    selected_dataset_id = request.GET.get('dataset')
+    all_datasets = DataSet.objects.all().order_by('DisplayName')
+    selected_dataset = None
+
+    # --- 2. Create base querysets that can be filtered ---
+    applicants_qs = Applicant.objects.all()
+    
+    if selected_dataset_id:
+        try:
+            selected_dataset = all_datasets.get(pk=selected_dataset_id)
+            # Filter the base applicant query
+            applicants_qs = applicants_qs.filter(dataset_id=selected_dataset_id)
+        except DataSet.DoesNotExist:
+            pass # Ignore if the ID is invalid
+
+    # --- 3. Get overall counts (these can stay unfiltered) ---
     applicant_count = Applicant.objects.count()
-    dataset_count = DataSet.objects.count()
+    dataset_count = all_datasets.count()
     batch_count = Batch.objects.count()
 
-    # Get the 5 most recent applicants
+    # Get the 5 most recent applicants (also unfiltered)
     recent_applicants = Applicant.objects.order_by('-created_at')[:5]
 
     # Get recent activities, but only if the user is an Admin
@@ -274,12 +292,38 @@ def dashboard(request):
             action_type__in=[Activity.VOTE_CAST, Activity.COMMENT_ADDED]
         ).select_related('actor', 'target_applicant')[:7]
 
+    # --- 4. Run queries for charts *using the filtered applicants_qs* ---
+    
+    # Data for Vote Summary Chart
+    vote_summary = Vote.objects.filter(applicant__in=applicants_qs).aggregate(
+        accept_count=Count('pk', filter=Q(value=1)),
+        deny_count=Count('pk', filter=Q(value=-1)),
+        waitlist_count=Count('pk', filter=Q(value=0))
+    )
+    
+    # Data for Demographics (Gender)
+    gender_distribution = applicants_qs.values('gender').annotate(
+        count=Count('id')
+    ).order_by()
+
+    # Prepare data for Chart.js
+    gender_labels = json.dumps([item['gender'] or 'Not Specified' for item in gender_distribution])
+    gender_data = json.dumps([item['count'] for item in gender_distribution])
+
     context = {
         'applicant_count': applicant_count,
         'dataset_count': dataset_count,
         'batch_count': batch_count,
         'recent_applicants': recent_applicants,
         'recent_activities': recent_activities,
+        
+        'vote_summary': vote_summary,
+        'gender_labels': mark_safe(gender_labels),
+        'gender_data': mark_safe(gender_data),
+
+        # --- 5. Add new context for the filter dropdown ---
+        'all_datasets': all_datasets,
+        'selected_dataset': selected_dataset,
     }
     return render(request, "dashboard.html", context)
 
@@ -377,3 +421,4 @@ def activity_feed(request):
         'activities': activities
     }
     return render(request, "activity_feed.html", context)
+

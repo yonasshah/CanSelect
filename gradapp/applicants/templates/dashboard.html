@@ -32,6 +32,54 @@
     </div>
 </div>
 
+{% if user.profile.role == 'ADMIN' %}
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" action="{% url 'dashboard' %}" class="row g-3 align-items-center">
+            <div class="col-md-6">
+                <label for="datasetFilter" class="form-label fw-bold">Filter by DataSet</label>
+                <select class="form-select" name="dataset" id="datasetFilter" onchange="this.form.submit()">
+                    <option value="">All DataSets</option>
+                    {% for ds in all_datasets %}
+                        <option value="{{ ds.pk }}" {% if selected_dataset.pk == ds.pk %}selected{% endif %}>
+                            {{ ds.DisplayName }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-6 align-self-end">
+                {% if selected_dataset %}
+                    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Clear Filter</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                Vote Summary
+            </div>
+            <div class="card-body">
+                <canvas id="voteChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                Demographics (Gender)
+            </div>
+            <div class="card-body">
+                <canvas id="genderChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 <div class="card">
     <div class="card-header">
         <h4>Recent Applicants</h4>
@@ -100,4 +148,83 @@
 </div>
 {% endif %}
 
+{% endblock %}
+
+
+{% block extra_js %}
+
+{% if user.profile.role == 'ADMIN' %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    // --- 1. Vote Summary Chart (Doughnut) ---
+    const voteCtx = document.getElementById('voteChart');
+    if (voteCtx) {
+        new Chart(voteCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Accept', 'Deny', 'Waitlist'],
+                datasets: [{
+                    label: 'Votes',
+                    data: [
+                        {{ vote_summary.accept_count }},
+                        {{ vote_summary.deny_count }},
+                        {{ vote_summary.waitlist_count }}
+                    ],
+                    backgroundColor: [
+                        '#198754',  // Bootstrap Success (Green)
+                        '#dc3545',  // Bootstrap Danger (Red)
+                        '#ffc107'   // Bootstrap Warning (Yellow)
+                    ],
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    }
+                }
+            }
+        });
+    }
+
+    // --- 2. Gender Chart (Horizontal Bar) ---
+    const genderCtx = document.getElementById('genderChart');
+    if (genderCtx) {
+        new Chart(genderCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ gender_labels }},
+                datasets: [{
+                    label: 'Count',
+                    data: {{ gender_data }},
+                    backgroundColor: 'rgba(13, 110, 253, 0.6)', // Bootstrap Primary (Blue)
+                    borderColor: 'rgba(13, 110, 253, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                indexAxis: 'y', 
+                plugins: {
+                    legend: {
+                        display: false 
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: {
+                            
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+    }
+</script>
+{% endif %}
 {% endblock %}
