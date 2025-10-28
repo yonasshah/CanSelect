@@ -58,6 +58,8 @@ def applicant_list(request):
 def applicant_detail(request, pk):
     applicant = get_object_or_404(Applicant, pk=pk)
     comment_form = CommentForm()
+    
+    current_user_vote = Vote.objects.filter(applicant=applicant, voter=request.user).first()
 
     # Fetches comments based on user role
     if request.user.profile.role == 'ADMIN':
@@ -84,7 +86,7 @@ def applicant_detail(request, pk):
         'applicant': applicant,
         'comments': comments,
         'comment_form': comment_form,
-        # --- Add the new file lists to the context ---
+        'current_user_vote': current_user_vote,
         'video_files': video_files,
         'other_files': other_files,
     }
