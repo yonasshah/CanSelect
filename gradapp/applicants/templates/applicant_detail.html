@@ -96,18 +96,29 @@
     {% endwith %}
 
     {% if user.is_authenticated %}
-      <a href="{% url 'vote' applicant.pk 1 %}" 
-      class="btn btn-sm {% if current_user_vote.value == 1 %}btn-success{% else %}btn-outline-success{% endif %}">
-      Accept
-      </a>
-      <a href="{% url 'vote' applicant.pk -1 %}" 
-      class="btn btn-sm {% if current_user_vote.value == -1 %}btn-danger{% else %}btn-outline-danger{% endif %}">
-      Deny
-      </a>
-      <a href="{% url 'vote' applicant.pk 0 %}" 
-      class="btn btn-sm {% if current_user_vote.value == 0 %}btn-warning{% else %}btn-outline-warning{% endif %}">
-      Waitlist
-      </a>
+      <form action="{% url 'vote' applicant.pk '1' %}" method="POST" style="display: inline;">
+        {% csrf_token %}
+        <button type="submit" 
+                class="btn btn-sm {% if current_user_vote.value == 1 %}btn-success{% else %}btn-outline-success{% endif %}">
+            Accept
+        </button>
+    </form>
+
+    <form action="{% url 'vote' applicant.pk '-1' %}" method="POST" style="display: inline;">
+        {% csrf_token %}
+        <button type="submit" 
+                class="btn btn-sm {% if current_user_vote.value == -1 %}btn-danger{% else %}btn-outline-danger{% endif %}">
+            Deny
+        </button>
+    </form>
+
+    <form action="{% url 'vote' applicant.pk '0' %}" method="POST" style="display: inline;">
+        {% csrf_token %}
+        <button type="submit" 
+                class="btn btn-sm {% if current_user_vote.value == 0 %}btn-warning{% else %}btn-outline-warning{% endif %}">
+            Waitlist
+        </button>
+    </form>
     {% else %}
       <p><a href="{% url 'login' %}">Login to vote</a></p>
     {% endif %}

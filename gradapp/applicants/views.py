@@ -31,7 +31,8 @@ def applicant_list(request):
     selected_dataset_id = request.GET.get('dataset')
     search_query = request.GET.get('q', '')
 
-    applicants_list = Applicant.objects.order_by("-created_at") 
+    applicants_list = Applicant.objects.select_related('dataset', 'round').order_by("-created_at") 
+    
 
     if selected_dataset_id:
         applicants_list = applicants_list.filter(dataset_id=selected_dataset_id)
@@ -125,22 +126,13 @@ def applicant_edit(request, pk):
 
 @login_required
 def vote(request, pk, value):
-    applicant = get_object_or_404(Applicant, pk=pk)
-    if value not in ["1", "-1", "0"]:   # 1=Accept, -1=Deny, 0=Waitlist
-        return redirect("applicant_detail", pk=pk)
-    Vote.objects.update_or_create(
-        applicant=applicant, voter=request.user, defaults={"value": int(value)}
-    )
-    return redirect("applicant_detail", pk=pk)
-
-@login_required
-def add_files(request, pk):
-    applicant = get_object_or_404(Applicant, pk=pk)
     if request.method == "POST":
-        f_form = UploadManyFilesForm(request.POST, request.FILES)
-        if f_form.is_valid():
-            for f in request.FILES.getlist("files"):
-                ApplicantFile.objects.create(applicant=applicant, file=f)
+        applicant = get_object_or_404(Applicant, pk=pk)
+        if value not in ["1", "-1", "0"]:   # 1=Accept, -1=Deny, 0=Waitlist
+            return redirect("applicant_detail", pk=pk)
+        Vote.objects.update_or_create(
+            applicant=applicant, voter=request.user, defaults={"value": int(value)}
+        )
     return redirect("applicant_detail", pk=pk)
 
 @login_required
