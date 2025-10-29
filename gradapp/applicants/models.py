@@ -6,7 +6,13 @@ from django.conf import settings
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-class Applicant(models.Model):
+class Applicant(models.Model):   
+    class Status(models.TextChoices):
+        NEW = 'NEW', 'New'
+        UNDER_REVIEW = 'REVIEW', 'Under Review'
+        INTERVIEW = 'INTERVIEW', 'Interview'
+        DECIDED = 'DECIDED', 'Decision Made'
+        
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     email = models.EmailField()
@@ -18,6 +24,13 @@ class Applicant(models.Model):
     description = models.TextField(blank=True, max_length=100000)
     street = models.TextField(blank=True, max_length=100000)
     created_at = models.DateTimeField(auto_now_add=True)
+    
+    status = models.CharField(
+        max_length=50,
+        choices=Status.choices,
+        default=Status.NEW,
+        db_index=True  # Good for filtering
+    )
 
     def votes_summary(self):
         counts = {"accept": 0, "deny": 0, "waitlist": 0}
@@ -80,6 +93,28 @@ class DataSet(models.Model):
 
     def __str__(self):
         return self.DisplayName
+    
+class Score(models.Model):
+    SCORE_CHOICES = [
+        (1, '1 - Poor'),
+        (2, '2 - Fair'),
+        (3, '3 - Good'),
+        (4, '4 - Very Good'),
+        (5, '5 - Excellent'),
+    ]
+    applicant = models.ForeignKey(Applicant, related_name="scores", on_delete=models.CASCADE)
+    voter = models.ForeignKey(User, on_delete=models.CASCADE)
+    research_score = models.PositiveSmallIntegerField(choices=SCORE_CHOICES, null=True, blank=True)
+    statement_score = models.PositiveSmallIntegerField(choices=SCORE_CHOICES, null=True, blank=True)
+    overall_score = models.PositiveSmallIntegerField(choices=SCORE_CHOICES, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('applicant', 'voter') # Each user can only score an applicant once
+
+    def __str__(self):
+        return f"Score by {self.voter.username} for {self.applicant}"
 
 class Batch(models.Model):
     DataSet = models.ForeignKey("DataSet", related_name="batches", on_delete=models.CASCADE)

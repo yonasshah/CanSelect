@@ -47,6 +47,10 @@
               <a class="nav-link {% if 'batch' in request.resolver_match.url_name|default:'' %}active{% endif %}" 
                  href="{% url 'batch_list' %}"><i class="bi bi-collection-fill me-2"></i>Batches</a>
             </li>
+            <li class="nav-item">
+              <a class="nav-link {% if request.resolver_match.url_name == 'applicant_queue' %}active{% endif %}" 
+                href="{% url 'applicant_queue' %}">My Queue</a>
+            </li>
           </ul>
           <ul class="navbar-nav ms-auto">
           {% if user.is_authenticated %}
@@ -125,35 +129,39 @@
     </script>
     
     <script>
-      document.addEventListener('DOMContentLoaded', function() {
-        const checkboxes = document.querySelectorAll('.applicant-checkbox');
-        const compareBtn = document.getElementById('compare-btn');
-        const compareForm = document.getElementById('compare-form');
+document.addEventListener("DOMContentLoaded", function() {
+    const checkboxes = document.querySelectorAll('.applicant-checkbox');
+    const batchActionContainer = document.getElementById('batch-action-container'); // For Admins
+    const compareBtn = document.getElementById('compare-btn'); // For Everyone
+    
+    function toggleButtons() {
+        const checkedCount = document.querySelectorAll('.applicant-checkbox:checked').length;
 
-        // This function shows and hides the button
-        function toggleCompareButton() {
-          if (compareBtn) {
-            const checkedCount = document.querySelectorAll('.applicant-checkbox:checked').length;
-            compareBtn.style.display = (checkedCount >= 2) ? 'inline-block' : 'none';
-          }
+        // Control Admin Batch Actions (show if 1+ selected)
+        if (batchActionContainer) { 
+            if (checkedCount >= 1) { 
+                batchActionContainer.style.display = 'inline';
+            } else {
+                batchActionContainer.style.display = 'none';
+            }
         }
 
-        // Makes the button submit the form
-        if (compareBtn && compareForm) {
-          compareBtn.addEventListener('click', function() {
-            compareForm.submit();
-          });
+        // Control Compare Button (show if 2+ selected)
+        if (compareBtn) {
+            if (checkedCount >= 2) {
+                compareBtn.style.display = 'inline';
+            } else {
+                compareBtn.style.display = 'none';
+            }
         }
+    }
 
-        checkboxes.forEach(checkbox => {
-          checkbox.addEventListener('change', toggleCompareButton);
-        });
-        
-        // Run on page load
-        toggleCompareButton(); 
-      });
-    </script>
-    <script>
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', toggleButtons);
+    });
+});
+</script>
+<script>
   document.body.addEventListener('click', function(event) {
     if (event.target.classList.contains('speed-control')) {
       event.preventDefault();

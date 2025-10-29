@@ -1,12 +1,28 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h2>Applicants</h2>
-  <div>
-    <button type="button" id="compare-btn" class="btn btn-info" style="display: none;">
-      <i class="bi bi-layout-split me-2"></i>Compare Selected
-    </button>
+  <h2>{% if is_queue_page %}My Review Queue{% else %}Applicants{% endif %}</h2>
+  <h2>Applicants</h2> 
+  
+  <div class="d-flex align-items-center justify-content-end flex-wrap gap-2">
+    
+    {% if user.profile.role == 'ADMIN' %}
+    <div id="batch-action-container" style="display: none; display: inline;">
+      <select name="action" class="form-select-sm" form="batch-form">
+        <option value="">Batch Action...</option>
+        <option value="set_status_review">Set Status: Under Review</option>
+        <option value="set_status_interview">Set Status: Interview</option>
+        <option value="set_status_decided">Set Status: Decision Made</option>
+      </select>
+      <button type="submit" class="btn btn-primary btn-sm" form="batch-form">Apply</button>
+    </div>
+    {% endif %}
 
+    <button type="submit" class="btn btn-info btn-sm" id="compare-btn" style="display: none;"
+            form="batch-form" formaction="{% url 'compare_applicants' %}" formmethod="GET">
+      <i class="bi bi-layout-split me-2"></i>Compare
+    </button>
+  
     <a href="{% url 'export_applicants_csv' %}?dataset={{ selected_dataset_id|default:'' }}&q={{ search_query|default:'' }}" class="btn btn-success btn-sm">
         <i class="bi bi-file-earmark-spreadsheet-fill me-2"></i>Export to CSV
     </a>
@@ -14,8 +30,8 @@
     {% if user.profile.role == 'ADMIN' %}
       <a href="{% url 'applicant_create' %}" class="btn btn-primary btn-sm">➕ New Applicant</a>
     {% endif %}
+    </div>
   </div>
-</div>
 
 <div class="card mb-3">
   <div class="card-body">
@@ -49,8 +65,8 @@
   </div>
 </div>
 
-<form id="compare-form" action="{% url 'compare_applicants' %}" method="get">
-  <div class="card">
+<form id="batch-form" action="{% url 'batch_action' %}" method="POST">
+  {% csrf_token %} <div class="card">
     <div class="card-body">
       <table class="table table-striped table-hover align-middle">
         <thead class="table-dark">
@@ -60,8 +76,14 @@
             <th>Email</th>
             <th>Dataset</th>
             <th>Round</th>
-            <th class="text-center">Votes</th>
-          </tr>
+            <th>Status</th>
+
+            {% if user.profile.role == 'ADMIN' %}
+              <th class="text-center">Votes & Score</th>
+            {% else %}
+              <th class="text-center">My Vote Status</th>
+            {% endif %}
+            </tr>
         </thead>
         <tbody>
           {% for a in page_obj %}
@@ -77,17 +99,50 @@
               <td>{{ a.email }}</td>
               <td>{{ a.dataset.DisplayName|default:"—" }}</td>
               <td>{{ a.round.DisplayName|default:"—" }}</td>
-              <td class="text-center">
-                {% with votes=a.votes_summary %}
-                  <span class="badge bg-success">Accept {{ votes.accept }}</span>
-                  <span class="badge bg-danger">Deny {{ votes.deny }}</span>
-                  <span class="badge bg-warning text-dark">Waitlist {{ votes.waitlist }}</span>
-                {% endwith %}
+
+              <td>
+                <span class="badge 
+                  {% if a.status == 'NEW' %}bg-secondary
+                  {% elif a.status == 'REVIEW' %}bg-primary
+                  {% elif a.status == 'INTERVIEW' %}bg-info text-dark
+                  {% elif a.status == 'DECIDED' %}bg-success
+                  {% endif %}">
+                  {{ a.get_status_display }}
+                </span>
               </td>
-            </tr>
+              
+              <td class="text-center">
+                {% if user.profile.role == 'ADMIN' %}
+                  {% if a.avg_score %}
+                    <span class="badge bg-primary fs-6">
+                      {{ a.avg_score|floatformat:2 }} / 5.0
+                    </span>
+                  {% else %}
+                    <span class="badge bg-light text-dark">N/A</span>
+                  {% endif %}
+                  
+                  <hr class="my-1 mx-3"> {% with votes=a.votes_summary %}
+                    <span class="badge bg-success">A: {{ votes.accept }}</span>
+                    <span class="badge bg-danger">D: {{ votes.deny }}</span>
+                    <span class="badge bg-warning text-dark">W: {{ votes.waitlist }}</span>
+                  {% endwith %}
+
+                {% else %}
+                  {% if a.user_has_voted %}
+                    <span class="badge bg-success">
+                      <i class="bi bi-check-circle-fill"></i> Voted
+                    </span>
+                  {% else %}
+                    <span class="badge bg-light text-dark">
+                      <i class="bi bi-circle"></i> Pending
+                    </span>
+                  {% endif %}
+                {% endif %}
+              </td>
+              </tr>
           {% empty %}
             <tr>
-              <td colspan="6" class="text-center text-muted">No applicants yet.</td>
+              <td colspan="7" class="text-center text-muted">No applicants yet.</td>
             </tr>
           {% endfor %}
         </tbody>
@@ -95,6 +150,7 @@
     </div>
   </div>
 </form> 
+
 {% if page_obj.has_other_pages %}
   <nav aria-label="Page navigation" class="mt-4">
     <ul class="pagination justify-content-center">

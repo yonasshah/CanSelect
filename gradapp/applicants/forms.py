@@ -1,6 +1,6 @@
 # applicants/forms.py
 from django import forms
-from .models import Applicant
+from .models import Applicant, Score
 from .models import DataSet
 from .models import Batch
 from .models import Comment
@@ -67,6 +67,23 @@ class BatchForm(BootstrapFormMixin, forms.ModelForm):
             "RoundId",
         ]
         
+        
+class ScoreForm(BootstrapFormMixin, forms.ModelForm):
+    class Meta:
+        model = Score
+        # Add any other criteria you defined in the model
+        fields = ['research_score', 'statement_score', 'overall_score']
+        widgets = {
+            'research_score': forms.Select(attrs={'class': 'form-select mb-3'}),
+            'statement_score': forms.Select(attrs={'class': 'form-select mb-3'}),
+            'overall_score': forms.Select(attrs={'class': 'form-select mb-3'}),
+        }
+        
+class ApplicantStatusForm(BootstrapFormMixin, forms.ModelForm):
+    class Meta:
+        model = Applicant
+        fields = ['status']
+        
 class CommentForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = Comment
@@ -74,3 +91,4 @@ class CommentForm(BootstrapFormMixin, forms.ModelForm):
         widgets = {
             'text': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Leave a comment...'}),
         }
+        

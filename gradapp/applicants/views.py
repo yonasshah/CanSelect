@@ -1,7 +1,9 @@
 # applicants/views.py
 import csv
-from django.db.models import Count, Q
+import random
+from django.db.models import Count, Q, Avg, Exists, OuterRef
 import json
+from itertools import cycle
 from django.utils.safestring import mark_safe
 from django.http import HttpResponse
 from django.core.paginator import Paginator
@@ -11,8 +13,8 @@ from django.contrib import messages
 from .decorators import admin_required
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
-from .models import Activity, Applicant, ApplicantFile, Vote, DataSet, Batch
-from .forms import ApplicantForm, UploadManyFilesForm, EmailLoginForm,DataSetForm, BatchForm, CommentForm
+from .models import Activity, Applicant, ApplicantFile, Score, Vote, DataSet, Batch
+from .forms import ApplicantForm, ApplicantStatusForm, BatchAssignmentForm, UploadManyFilesForm, EmailLoginForm,DataSetForm, BatchForm, CommentForm, ScoreForm
 
 def email_login(request):
     if request.method == "POST":
@@ -30,8 +32,16 @@ def applicant_list(request):
     datasets = DataSet.objects.all()
     selected_dataset_id = request.GET.get('dataset')
     search_query = request.GET.get('q', '')
+    
+    user_has_voted_subquery = Vote.objects.filter(
+    applicant=OuterRef('pk'),
+    voter=request.user
+)
 
-    applicants_list = Applicant.objects.select_related('dataset', 'round').order_by("-created_at") 
+    applicants_list = Applicant.objects.select_related('dataset', 'round').annotate(
+        avg_score=Avg('scores__overall_score'),
+        user_has_voted=Exists(user_has_voted_subquery)
+    ).order_by("-created_at")
     
 
     if selected_dataset_id:
@@ -58,6 +68,16 @@ def applicant_list(request):
 @login_required
 def applicant_detail(request, pk):
     applicant = get_object_or_404(Applicant, pk=pk)
+    user_score, _ = Score.objects.get_or_create(applicant=applicant, voter=request.user)
+    score_form = ScoreForm(instance=user_score)
+    status_form = ApplicantStatusForm(instance=applicant)
+    
+    avg_scores = Score.objects.filter(applicant=applicant).aggregate(
+        avg_research=Avg('research_score'),
+        avg_statement=Avg('statement_score'),
+        avg_overall=Avg('overall_score')
+    )
+    
     comment_form = CommentForm()
     
     current_user_vote = Vote.objects.filter(applicant=applicant, voter=request.user).first()
@@ -90,6 +110,9 @@ def applicant_detail(request, pk):
         'current_user_vote': current_user_vote,
         'video_files': video_files,
         'other_files': other_files,
+        'score_form': score_form,
+        'status_form': status_form,
+        'avg_scores': avg_scores,
     }
     return render(request, "applicant_detail.html", context)
 
@@ -416,3 +439,124 @@ def activity_feed(request):
     }
     return render(request, "activity_feed.html", context)
 
+@login_required
+@admin_required
+def update_status(request, pk):
+    applicant = get_object_or_404(Applicant, pk=pk)
+    if request.method == 'POST':
+        form = ApplicantStatusForm(request.POST, instance=applicant)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Status for {applicant} updated to {applicant.get_status_display()}.")
+    return redirect('applicant_detail', pk=pk)
+
+@login_required
+def update_score(request, pk):
+    applicant = get_object_or_404(Applicant, pk=pk)
+    score, _ = Score.objects.get_or_create(applicant=applicant, voter=request.user)
+    if request.method == 'POST':
+        form = ScoreForm(request.POST, instance=score)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Your score has been saved.")
+    return redirect('applicant_detail', pk=pk)
+
+@login_required
+def applicant_queue(request):
+    datasets = DataSet.objects.all()
+    selected_dataset_id = request.GET.get('dataset')
+    search_query = request.GET.get('q', '')
+
+    user_has_voted_subquery = Vote.objects.filter(
+    applicant=OuterRef('pk'),
+    voter=request.user
+)
+
+    user_batches = request.user.assigned_batches.all()
+    
+    applicants_list = Applicant.objects.filter(
+        round__in=user_batches
+    ).exclude( 
+        votes__voter=request.user
+    ).select_related('dataset', 'round').annotate( 
+        avg_score=Avg('scores__overall_score'),
+        user_has_voted=Exists(user_has_voted_subquery)
+    ).order_by("-created_at")
+    
+    if selected_dataset_id:
+        applicants_list = applicants_list.filter(dataset_id=selected_dataset_id)
+
+    if search_query:
+        applicants_list = applicants_list.filter(
+            Q(first_name__icontains=search_query) |
+            Q(last_name__icontains=search_query)
+        )
+        
+    paginator = Paginator(applicants_list, 25)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'page_obj': page_obj, 
+        'datasets': datasets,
+        'selected_dataset_id': selected_dataset_id,
+        'search_query': search_query,
+        'is_queue_page': True, 
+    }
+    return render(request, "applicant_list.html", context)
+
+@login_required
+@admin_required
+def batch_action(request):
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        applicant_ids = request.POST.getlist('ids')
+        
+        if not applicant_ids:
+            messages.warning(request, "You didn't select any applicants.")
+            return redirect('applicant_list')
+
+        queryset = Applicant.objects.filter(pk__in=applicant_ids)
+        
+        if action == 'set_status_review':
+            count = queryset.update(status=Applicant.Status.UNDER_REVIEW)
+            messages.success(request, f"Updated {count} applicants to 'Under Review'.")
+        elif action == 'set_status_interview':
+            count = queryset.update(status=Applicant.Status.INTERVIEW)
+            messages.success(request, f"Updated {count} applicants to 'Interview'.")
+        elif action == 'set_status_decided':
+            count = queryset.update(status=Applicant.Status.DECIDED)
+            messages.success(request, f"Updated {count} applicants to 'Decision Made'.")
+        
+        else:
+            messages.error(request, "No valid action selected.")
+
+    return redirect('applicant_list')
+
+@login_required
+@admin_required
+def batch_assign_reviewers(request, pk):
+    batch = get_object_or_404(Batch, pk=pk)
+    
+    if request.method == 'POST':
+        form = BatchAssignmentForm(request.POST, instance=batch)
+        if form.is_valid():
+            selected_reviewers = form.cleaned_data['reviewers']
+            batch.assigned_reviewers.set(selected_reviewers)
+            messages.success(request, f"Reviewer assignments updated for {batch.DisplayName}.")
+            return redirect('batch_list')
+        
+        else:
+            # If the form is invalid, display errors
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"Error in '{field}': {error}")
+                    
+    else:
+        form = BatchAssignmentForm(instance=batch)
+
+    context = {
+        'form': form,
+        'batch': batch,
+    }
+    return render(request, 'batch_assign_reviewers.html', context)
