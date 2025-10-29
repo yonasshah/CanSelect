@@ -4,6 +4,8 @@ from .models import Applicant, Score
 from .models import DataSet
 from .models import Batch
 from .models import Comment
+from django.contrib.auth.models import User
+from .models import Profile
 
 
 
@@ -92,3 +94,19 @@ class CommentForm(BootstrapFormMixin, forms.ModelForm):
             'text': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Leave a comment...'}),
         }
         
+    
+class BatchAssignmentForm(BootstrapFormMixin, forms.Form):
+    reviewers = forms.ModelMultipleChoiceField(
+        queryset=User.objects.filter(profile__role=Profile.Role.COMMITTEE_MEMBER).order_by('username'),
+        widget=forms.CheckboxSelectMultiple,
+        required=False,
+        label="Assign Committee Member(s) to this batch:"
+    )
+        
+    def __init__(self, *args, **kwargs):
+        instance = kwargs.pop('instance', None)
+        
+        super().__init__(*args, **kwargs)
+        
+        if instance and instance.pk:
+            self.fields['reviewers'].initial = instance.assigned_reviewers.all()

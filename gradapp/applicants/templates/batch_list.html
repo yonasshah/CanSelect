@@ -59,6 +59,9 @@
           {% if user.profile.role == 'ADMIN' %}
           <td class="text-end">
             <a href="{% url 'batch_edit' batch.pk %}" class="btn btn-outline-primary btn-sm">Edit</a>
+            <a href="{% url 'batch_assign_reviewers' batch.pk %}" class="btn btn-warning btn-sm">
+        <i class="bi bi-people-fill"></i> Assign
+      </a>
           </td>
           {% endif %}
         </tr>

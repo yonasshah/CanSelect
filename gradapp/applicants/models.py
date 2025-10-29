@@ -6,6 +6,21 @@ from django.conf import settings
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
+class Profile(models.Model):
+    class Role(models.TextChoices):
+        ADMIN = 'ADMIN', 'Admin'
+        COMMITTEE_MEMBER = 'COMMITTEE_MEMBER', 'Committee Member'
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    role = models.CharField(
+        max_length=50,
+        choices=Role.choices,
+        default=Role.COMMITTEE_MEMBER
+    )
+
+    def __str__(self):
+        return f"{self.user.username} - {self.get_role_display()}"
+
 class Applicant(models.Model):   
     class Status(models.TextChoices):
         NEW = 'NEW', 'New'
@@ -29,7 +44,14 @@ class Applicant(models.Model):
         max_length=50,
         choices=Status.choices,
         default=Status.NEW,
-        db_index=True  # Good for filtering
+        db_index=True  
+    )
+    
+    assigned_reviewers = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name="assigned_applicants",
+        blank=True,
+        limit_choices_to={'profile__role': Profile.Role.COMMITTEE_MEMBER}
     )
 
     def votes_summary(self):
@@ -128,6 +150,13 @@ class Batch(models.Model):
     RoundId = models.IntegerField(blank=True, null=True)
     CreatedAt = models.DateTimeField(auto_now_add=True)
     UpdatedAt = models.DateTimeField(auto_now=True)
+    
+    assigned_reviewers = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name="assigned_batches",
+        blank=True,
+        limit_choices_to={'profile__role': Profile.Role.COMMITTEE_MEMBER}
+    )
 
     class Meta:
         ordering = ["DisplayName"]
@@ -135,20 +164,6 @@ class Batch(models.Model):
     def __str__(self):
         return f"{self.DisplayName} (Dataset: {self.DataSet.DisplayName})"
     
-class Profile(models.Model):
-    class Role(models.TextChoices):
-        ADMIN = 'ADMIN', 'Admin'
-        COMMITTEE_MEMBER = 'COMMITTEE_MEMBER', 'Committee Member'
-
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    role = models.CharField(
-        max_length=50,
-        choices=Role.choices,
-        default=Role.COMMITTEE_MEMBER
-    )
-
-    def __str__(self):
-        return f"{self.user.username} - {self.get_role_display()}"
 
 # This signal automatically creates a Profile when a User is created
 @receiver(post_save, sender=User)
