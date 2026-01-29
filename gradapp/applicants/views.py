@@ -6,6 +6,8 @@ import json
 from itertools import cycle
 from django.utils.safestring import mark_safe
 from django.http import HttpResponse
+from django.views.decorators.http import require_POST
+from django.contrib import messages
 from django.core.paginator import Paginator
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login
@@ -29,8 +31,8 @@ def email_login(request):
     return render(request, "login.html", {"form": form})
 
 def applicant_list(request):
-    datasets = DataSet.objects.all()
-    selected_dataset_id = request.GET.get('dataset')
+    batches = Batch.objects.all()
+    selected_batch_id = request.GET.get('batch')
     search_query = request.GET.get('q', '')
     
     user_has_voted_subquery = Vote.objects.filter(
@@ -44,8 +46,8 @@ def applicant_list(request):
     ).order_by("-created_at")
     
 
-    if selected_dataset_id:
-        applicants_list = applicants_list.filter(dataset_id=selected_dataset_id)
+    if selected_batch_id:
+        applicants_list = applicants_list.filter(dataset_id=selected_batch_id)
 
     if search_query:
         applicants_list = applicants_list.filter(
@@ -59,8 +61,8 @@ def applicant_list(request):
 
     context = {
         'page_obj': page_obj, 
-        'datasets': datasets,
-        'selected_dataset_id': selected_dataset_id,
+        'batches': batches,
+        'selected_batch_id': selected_batch_id,
         'search_query': search_query,
     }
     return render(request, "applicant_list.html", context)
@@ -120,7 +122,7 @@ def applicant_detail(request, pk):
 @admin_required
 def applicant_create(request):
     if request.method == "POST":
-        a_form = ApplicantForm(request.POST)
+        a_form = ApplicantForm(request.POST, request.FILES)
         f_form = UploadManyFilesForm(request.POST, request.FILES)
         if a_form.is_valid() and f_form.is_valid():
             applicant = a_form.save()
@@ -138,7 +140,7 @@ def applicant_create(request):
 def applicant_edit(request, pk):
     applicant = get_object_or_404(Applicant, pk=pk)
     if request.method == "POST":
-        form = ApplicantForm(request.POST, instance=applicant)
+        form = ApplicantForm(request.POST, request.FILES, instance=applicant)
         if form.is_valid():
             form.save()
             return redirect("applicant_detail", pk=applicant.pk)
@@ -198,16 +200,22 @@ def dataset_create(request):
 @login_required
 def dataset_detail(request, pk):
     dataset = get_object_or_404(DataSet, pk=pk)
+    
+    selected_batch_id = request.GET.get('batch')
+    batches = dataset.batches.all()
 
     applicants = Applicant.objects.filter(
         Q(dataset=dataset) | Q(round__DataSet=dataset)
     ).distinct()
 
-    batches = dataset.batches.all()
+    if selected_batch_id:
+        applicants = applicants.filter(round_id=selected_batch_id)
+
     context = {
         "dataset": dataset,
         "applicants": applicants,
         "batches": batches,
+        "selected_batch_id": selected_batch_id, 
     }
     return render(request, "dataset_detail.html", context)
 
@@ -227,24 +235,26 @@ def dataset_edit(request, pk):
 
 @login_required
 def batch_list(request):
-    datasets = DataSet.objects.all()
-    selected_dataset_id = request.GET.get('dataset')
+    search_query = request.GET.get('q', '')
+    status_filter = request.GET.get('status', 'all')
 
-    if selected_dataset_id:
-        batches_list = Batch.objects.filter(DataSet_id=selected_dataset_id).select_related("DataSet")
-    else:
-        batches_list = Batch.objects.select_related("DataSet").all()
+    batches_list = Batch.objects.select_related("DataSet").all()
 
-    paginator = Paginator(batches_list, 25) # Show 25 batches per page
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
+    if search_query:
+        batches_list = batches_list.filter(DisplayName__icontains=search_query)
+    if status_filter == 'active':
+        batches_list = batches_list.filter(Active=True)
+    elif status_filter == 'inactive':
+        batches_list = batches_list.filter(Active=False)
 
-    context = {
-        'page_obj': page_obj,  
-        'datasets': datasets,
-        'selected_dataset_id': selected_dataset_id
-    }
-    return render(request, "batch_list.html", context)
+    paginator = Paginator(batches_list, 25)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    return render(request, "batch_list.html", {
+        'page_obj': page_obj,
+        'search_query': search_query,
+        'status_filter': status_filter
+    })
 
 @login_required
 @admin_required
@@ -261,7 +271,8 @@ def batch_create(request):
 @login_required
 def batch_detail(request, pk):
     batch = get_object_or_404(Batch, pk=pk)
-    return render(request, "batch_detail.html", {"batch": batch})
+    applicants = Applicant.objects.filter(round=batch).order_by('last_name') 
+    return render(request, "batch_detail.html", {"batch": batch, "applicants": applicants})
 
 @login_required
 @admin_required
@@ -463,8 +474,8 @@ def update_score(request, pk):
 
 @login_required
 def applicant_queue(request):
-    datasets = DataSet.objects.all()
-    selected_dataset_id = request.GET.get('dataset')
+    batches = Batch.objects.all()
+    selected_batch_id = request.GET.get('batch')
     search_query = request.GET.get('q', '')
 
     user_has_voted_subquery = Vote.objects.filter(
@@ -483,8 +494,8 @@ def applicant_queue(request):
         user_has_voted=Exists(user_has_voted_subquery)
     ).order_by("-created_at")
     
-    if selected_dataset_id:
-        applicants_list = applicants_list.filter(dataset_id=selected_dataset_id)
+    if selected_batch_id:
+        applicants_list = applicants_list.filter(round_id=selected_batch_id)
 
     if search_query:
         applicants_list = applicants_list.filter(
@@ -498,8 +509,8 @@ def applicant_queue(request):
 
     context = {
         'page_obj': page_obj, 
-        'datasets': datasets,
-        'selected_dataset_id': selected_dataset_id,
+        'batches': batches,
+        'selected_batch_id': selected_batch_id,
         'search_query': search_query,
         'is_queue_page': True, 
     }
@@ -560,3 +571,17 @@ def batch_assign_reviewers(request, pk):
         'batch': batch,
     }
     return render(request, 'batch_assign_reviewers.html', context)
+
+@login_required
+@require_POST
+def toggle_applicant_flag(request, pk):
+    applicant = get_object_or_404(Applicant, pk=pk)
+
+    if request.user in applicant.flagged_by.all():
+        applicant.flagged_by.remove(request.user)
+        messages.success(request, "Your flag has been removed.")
+    else:
+        applicant.flagged_by.add(request.user)
+        messages.success(request, f"You flagged {applicant.first_name} for discussion.")
+
+    return redirect('applicant_detail', pk=applicant.pk)

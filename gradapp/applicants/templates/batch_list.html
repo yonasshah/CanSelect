@@ -14,14 +14,15 @@
     <form method="get" id="filter-form">
       <div class="row g-2">
         <div class="col-md-4">
-          <label for="dataset" class="form-label">Filter by Dataset</label>
-          <select name="dataset" class="form-select">
-            <option value="">All Datasets</option>
-            {% for ds in datasets %}
-            <option value="{{ ds.pk }}" {% if ds.pk|stringformat:"s" == selected_dataset_id %}selected{% endif %}>
-              {{ ds.DisplayName }}
-            </option>
-            {% endfor %}
+          <label for="q" class="form-label">Search Batches</label>
+          <input type="text" name="q" class="form-control" value="{{ search_query }}" placeholder="Batch name...">
+        </div>
+        <div class="col-md-4">
+          <label for="status" class="form-label">Status</label>
+          <select name="status" class="form-select">
+            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+            <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active Only</option>
+            <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Archived / Inactive</option>
           </select>
         </div>
         <div class="col-md-2 d-flex align-items-end">
@@ -32,7 +33,7 @@
         </div>
       </div>
     </form>
-  </div>
+    </div>
 </div>
 
 <div class="card">

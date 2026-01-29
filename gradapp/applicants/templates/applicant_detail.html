@@ -1,7 +1,26 @@
 {% extends "base.html" %}
 {% load widget_tweaks %} {% block content %}
+
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h2>{{ applicant.first_name }} {{ applicant.last_name }}</h2>
+  <div class="d-flex align-items-center">
+    {% if applicant.profile_picture %}
+      <img src="{{ applicant.profile_picture.url }}" alt="Profile" class="rounded-circle me-3" style="width: 60px; height: 60px; object-fit: cover;">
+    {% endif %}
+    <h2 class="mb-0">{{ applicant.first_name }} {{ applicant.last_name }}
+      
+      {% if request.user in applicant.flagged_by.all or request.user.profile.role == 'ADMIN' and applicant.flagged_by.exists %}
+        <span class="badge bg-danger fs-6 align-middle ms-2">
+            <i class="bi bi-flag-fill"></i> 
+            {% if request.user in applicant.flagged_by.all %}
+                Flagged by You
+            {% else %}
+                Flagged by {{ applicant.flagged_by.count }} reviewer(s)
+            {% endif %}
+        </span>
+      {% endif %}
+
+    </h2>
+  </div>
   <div>
     {% if user.profile.role == 'ADMIN' %}
     <a href="{% url 'applicant_edit' applicant.pk %}" class="btn btn-primary btn-sm">Edit</a>
@@ -158,6 +177,26 @@
     {% endif %}
   </div>
 </div>
+
+<div class="card mb-4 border-danger">
+  <div class="card-body">
+    <h5 class="card-title text-danger"><i class="bi bi-flag-fill"></i> Flag for Discussion</h5>
+    <p class="card-text text-muted small">Flag this applicant if you believe the committee needs to discuss their application.</p>
+    <form action="{% url 'toggle_applicant_flag' applicant.pk %}" method="post">
+      {% csrf_token %}
+      {% if request.user in applicant.flagged_by.all %}
+          <button type="submit" class="btn btn-danger w-100">
+            <i class="bi bi-flag-fill"></i> Unflag (You have flagged this applicant)
+          </button>
+      {% else %}
+          <button type="submit" class="btn btn-outline-danger w-100">
+            <i class="bi bi-flag"></i> Flag for Discussion
+          </button>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
 <div class="card mt-4">
     <div class="card-header">
         <h4 class="mb-0">Comments</h4>

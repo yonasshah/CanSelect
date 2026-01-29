@@ -39,6 +39,8 @@ class Applicant(models.Model):
     description = models.TextField(blank=True, max_length=100000)
     street = models.TextField(blank=True, max_length=100000)
     created_at = models.DateTimeField(auto_now_add=True)
+    profile_picture = models.ImageField(upload_to='applicant_profiles/', blank=True, null=True)
+    flagged_by = models.ManyToManyField(User, blank=True, related_name='flagged_applicants')
     
     status = models.CharField(
         max_length=50,

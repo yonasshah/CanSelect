@@ -38,6 +38,12 @@
       <label for="{{ form.round.id_for_label }}" class="form-label">Round</label>
       {{ form.round }}
     </div>
+    
+    <div class="col-md-6">
+      <label for="{{ form.profile_picture.id_for_label }}" class="form-label">Profile Picture (Optional)</label>
+      {{ form.profile_picture }}
+    </div>
+
     <div class="col-12">
       <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
       {{ form.description }}
@@ -48,7 +54,7 @@
     </div>
     <hr class="my-4">
     <div class="col-12">
-       <label for="{{ file_form.files.id_for_label }}" class="form-label">Upload Files</label>
+       <label for="{{ file_form.files.id_for_label }}" class="form-label">Upload Additional Files (Resumes, Videos, etc.)</label>
        {{ file_form.files }}
        <div class="form-text">{{ file_form.files.help_text }}</div>
     </div>

@@ -1,13 +1,10 @@
+{# templates/applicants/create.html #}
 {% extends "base.html" %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h2>Edit Applicant: {{ applicant.first_name }} {{ applicant.last_name }}</h2>
-  <a class="btn btn-outline-secondary btn-sm" href="{% url 'applicant_detail' applicant.pk %}">Cancel</a>
-</div>
-
-<form method="post">
+<h2>New Applicant</h2>
+<form method="post" enctype="multipart/form-data" class="mt-3">
   {% csrf_token %}
-  
+
   <div class="row g-3">
     <div class="col-md-6">
       <label for="{{ form.first_name.id_for_label }}" class="form-label">First name</label>
@@ -41,6 +38,12 @@
       <label for="{{ form.round.id_for_label }}" class="form-label">Round</label>
       {{ form.round }}
     </div>
+    
+    <div class="col-md-6">
+      <label for="{{ form.profile_picture.id_for_label }}" class="form-label">Profile Picture (Optional)</label>
+      {{ form.profile_picture }}
+    </div>
+
     <div class="col-12">
       <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
       {{ form.description }}
@@ -49,10 +52,13 @@
       <label for="{{ form.street.id_for_label }}" class="form-label">Street</label>
       {{ form.street }}
     </div>
+    <hr class="my-4">
+    <div class="col-12">
+       <label for="{{ file_form.files.id_for_label }}" class="form-label">Upload Additional Files (Resumes, Videos, etc.)</label>
+       {{ file_form.files }}
+       <div class="form-text">{{ file_form.files.help_text }}</div>
+    </div>
   </div>
-  <div class="col-12 mt-3">
-    <button type="submit" class="btn btn-success">💾 Save Changes</button>
-    <a href="{% url 'applicant_detail' applicant.pk %}" class="btn btn-outline-secondary">Cancel</a>
-  </div>
+  <button type="submit" class="btn btn-primary mt-3">Submit</button>
 </form>
 {% endblock %}

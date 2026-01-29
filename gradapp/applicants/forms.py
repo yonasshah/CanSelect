@@ -46,7 +46,7 @@ class EmailLoginForm(forms.Form):
 class ApplicantForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = Applicant
-        fields = ["first_name", "last_name", "email", "age", "gender", "ethnicity", "dataset", "round", "description", "street"]
+        fields = ["first_name", "last_name", "email", "age", "gender", "ethnicity", "dataset", "round", "description", "street", "profile_picture"]
 
 
 class DataSetForm(BootstrapFormMixin, forms.ModelForm):

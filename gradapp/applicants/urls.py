@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from .views import toggle_applicant_flag
 
 urlpatterns = [
     path("applicant/", views.applicant_list, name="applicant_list"),
@@ -27,4 +28,5 @@ urlpatterns = [
     path("batches/<int:pk>/edit/", views.batch_edit, name="batch_edit"),
     path("batches/<int:pk>/assign/", views.batch_assign_reviewers, name="batch_assign_reviewers"),
     path("queue/", views.applicant_queue, name="applicant_queue"),
+    path('<int:pk>/toggle-flag/', toggle_applicant_flag, name='toggle_applicant_flag'),
 ]
