@@ -29,4 +29,5 @@ urlpatterns = [
     path("batches/<int:pk>/assign/", views.batch_assign_reviewers, name="batch_assign_reviewers"),
     path("queue/", views.applicant_queue, name="applicant_queue"),
     path('<int:pk>/toggle-flag/', toggle_applicant_flag, name='toggle_applicant_flag'),
+    path("bulk-upload/", views.bulk_upload_applicants, name="bulk_upload"),
 ]

@@ -110,3 +110,15 @@ class BatchAssignmentForm(BootstrapFormMixin, forms.Form):
         
         if instance and instance.pk:
             self.fields['reviewers'].initial = instance.assigned_reviewers.all()
+            
+class BulkUploadForm(forms.Form):
+    folder_files = forms.FileField(
+        # Use the MultiFileInput class you already defined
+        widget=MultiFileInput(attrs={
+            'multiple': True, 
+            'webkitdirectory': True, 
+            'directory': True
+        }),
+        required=True,
+        help_text="Select a folder containing subdirectories for each candidate."
+    )

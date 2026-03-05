@@ -12,11 +12,13 @@ from django.core.paginator import Paginator
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login
 from django.contrib import messages
+import pypdf
+import re
 from .decorators import admin_required
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from .models import Activity, Applicant, ApplicantFile, Score, Vote, DataSet, Batch
-from .forms import ApplicantForm, ApplicantStatusForm, BatchAssignmentForm, UploadManyFilesForm, EmailLoginForm,DataSetForm, BatchForm, CommentForm, ScoreForm
+from .forms import ApplicantForm, ApplicantStatusForm, BatchAssignmentForm, BulkUploadForm, UploadManyFilesForm, EmailLoginForm,DataSetForm, BatchForm, CommentForm, ScoreForm
 
 def email_login(request):
     if request.method == "POST":
@@ -585,3 +587,69 @@ def toggle_applicant_flag(request, pk):
         messages.success(request, f"You flagged {applicant.first_name} for discussion.")
 
     return redirect('applicant_detail', pk=applicant.pk)
+
+@login_required
+@admin_required
+def bulk_upload_applicants(request):
+    if request.method == "POST":
+        form = BulkUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            files = request.FILES.getlist('folder_files')
+            
+            # Group files by their parent directory name (candidate name/ID)
+            candidate_groups = {}
+            for f in files:
+                # The relative path is often preserved in the file name or via metadata
+                # depending on the browser/Django environment
+                folder_name = f.name.split('/')[0] if '/' in f.name else "Unknown"
+                if folder_name not in candidate_groups:
+                    candidate_groups[folder_name] = []
+                candidate_groups[folder_name].append(f)
+
+            for folder, group_files in candidate_groups.items():
+                first_name = folder
+                last_name = "Bulk"
+                email = "unknown@example.com"
+                
+                # Try to extract info from PDF files in the group
+                for f in group_files:
+                    if f.name.endswith('.pdf'):
+                        try:
+                            reader = pypdf.PdfReader(f)
+                            text = ""
+                            for page in reader.pages:
+                                text += page.extract_text()
+                            
+                            # Simple regex for email extraction
+                            email_match = re.search(r'[\w\.-]+@[\w\.-]+', text)
+                            if email_match:
+                                email = email_match.group(0)
+                            
+                            # Example: Assume the first line of the PDF might be the name
+                            lines = text.split('\n')
+                            if lines and len(lines[0].split()) >= 2:
+                                name_parts = lines[0].split()
+                                first_name = name_parts[0]
+                                last_name = " ".join(name_parts[1:])
+                        except Exception as e:
+                            print(f"Error parsing PDF {f.name}: {e}")
+
+                # Create the Applicant
+                applicant = Applicant.objects.create(
+                    first_name=first_name,
+                    last_name=last_name,
+                    email=email,
+                    age=0, # Placeholder
+                    gender="Not Specified" # Placeholder
+                )
+
+                # Attach all files in that folder to the new applicant
+                for f in group_files:
+                    ApplicantFile.objects.create(applicant=applicant, file=f)
+            
+            messages.success(request, f"Processed {len(candidate_groups)} candidates.")
+            return redirect('applicant_list')
+    else:
+        form = BulkUploadForm()
+    
+    return render(request, "bulk_upload.html", {"form": form})

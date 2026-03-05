@@ -10,6 +10,8 @@ class Profile(models.Model):
     class Role(models.TextChoices):
         ADMIN = 'ADMIN', 'Admin'
         COMMITTEE_MEMBER = 'COMMITTEE_MEMBER', 'Committee Member'
+        
+        # test 
 
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     role = models.CharField(
