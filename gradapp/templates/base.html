@@ -28,7 +28,7 @@
   <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
       <div class="container-fluid">
-        <a class="navbar-brand d-flex align-items-center" href="{% url 'dashboard' %}">
+        <a class="navbar-brand d-flex align-items-center" href="{% if user.is_authenticated and user.profile.role == 'ADMIN' %}{% url 'dashboard' %}{% elif user.is_authenticated %}{% url 'committee_dashboard' %}{% else %}{% url 'login' %}{% endif %}">
       <img src="{% static 'temple_logo.png' %}" alt="Temple University Kornberg School of Dentistry" height="50" class="me-2">
       <span class="border-start border-secondary ms-3 ps-3 fs-5 fw-light text-white">Kornberg Admissions Portal</span>
     </a>
@@ -38,24 +38,52 @@
         </button>
 
         <div class="collapse navbar-collapse" id="navbarNav">
-          <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-            <li class="nav-item">
-              <a class="nav-link {% if request.resolver_match.url_name|default:'' == 'applicant_list' %}active{% endif %}" 
-                 href="{% url 'applicant_list' %}"><i class="bi bi-people-fill me-2"></i>Applicants</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link {% if 'dataset' in request.resolver_match.url_name|default:'' %}active{% endif %}" 
-                 href="{% url 'dataset_list' %}"><i class="bi bi-stack me-2"></i>DataSets</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link {% if 'batch' in request.resolver_match.url_name|default:'' %}active{% endif %}" 
-                 href="{% url 'batch_list' %}"><i class="bi bi-collection-fill me-2"></i>Batches</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link {% if request.resolver_match.url_name == 'applicant_queue' %}active{% endif %}" 
-                href="{% url 'applicant_queue' %}">My Queue</a>
-            </li>
-          </ul>
+  <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+  {% if user.profile.role == 'ADMIN' %}
+    <li class="nav-item">
+      <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"
+         href="{% url 'dashboard' %}"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if request.resolver_match.url_name == 'applicant_list' %}active{% endif %}"
+   href="{% url 'applicant_list' %}">
+  <i class="bi bi-people-fill me-2"></i>Applicants
+</a>
+    <li class="nav-item">
+      <a class="nav-link {% if 'dataset' in request.resolver_match.url_name|default:'' %}active{% endif %}"
+         href="{% url 'dataset_list' %}"><i class="bi bi-stack me-2"></i>DataSets</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if 'batch' in request.resolver_match.url_name|default:'' %}active{% endif %}"
+         href="{% url 'batch_list' %}"><i class="bi bi-collection-fill me-2"></i>Batches</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if request.resolver_match.url_name == 'applicant_queue' %}active{% endif %}"
+         href="{% url 'applicant_queue' %}"><i class="bi bi-inbox-fill me-2"></i>My Queue</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if request.resolver_match.url_name == 'bulk_upload' %}active{% endif %}"
+         href="{% url 'bulk_upload' %}"><i class="bi bi-folder2-open me-2"></i>Bulk Upload</a>
+    </li>
+  {% else %}
+    <li class="nav-item">
+      <a class="nav-link {% if request.resolver_match.url_name == 'committee_dashboard' %}active{% endif %}"
+         href="{% url 'committee_dashboard' %}"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if request.resolver_match.url_name == 'applicant_queue' %}active{% endif %}"
+         href="{% url 'applicant_queue' %}"><i class="bi bi-inbox-fill me-2"></i>My Queue</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if request.resolver_match.url_name == 'my_reviews' %}active{% endif %}"
+         href="{% url 'my_reviews' %}"><i class="bi bi-star-fill me-2"></i>My Reviews</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if request.resolver_match.url_name == 'my_activity' %}active{% endif %}"
+         href="{% url 'my_activity' %}"><i class="bi bi-clock-history me-2"></i>My Activity</a>
+    </li>
+  {% endif %}
+</ul>
           <ul class="navbar-nav ms-auto">
           {% if user.is_authenticated %}
             <li class="nav-item">

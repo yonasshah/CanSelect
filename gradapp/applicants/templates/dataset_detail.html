@@ -1,119 +1,144 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h2>DataSet: {{ dataset.DisplayName }}</h2>
-  <a class="btn btn-outline-secondary" href="{% url 'dataset_list' %}">Back to list</a>
+
+{% include "partials/breadcrumbs.html" with crumbs=crumbs %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <div class="d-flex align-items-center gap-2">
+      <h2 class="mb-0">{{ dataset.DisplayName }}</h2>
+      {% if dataset.IsLive %}
+        <span class="badge bg-success fs-6">Live</span>
+      {% else %}
+        <span class="badge bg-secondary fs-6">Offline</span>
+      {% endif %}
+    </div>
+    {% if dataset.Description %}
+      <p class="text-muted mb-0 mt-1">{{ dataset.Description }}</p>
+    {% endif %}
+  </div>
+  {% if user.profile.role == 'ADMIN' %}
+    <a href="{% url 'dataset_edit' dataset.pk %}" class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-pencil me-1"></i>Edit Dataset
+    </a>
+  {% endif %}
 </div>
 
-<div class="card">
-  <div class="card-body">
-    <div class="mb-3">
-      <h5 class="card-title mb-1">Description</h5>
-      <p class="card-text">{{ dataset.Description|default:"—" }}</p>
+<!-- Stats Row -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card text-center border-0 bg-light">
+      <div class="card-body py-3">
+        <div class="fs-3 fw-bold text-primary">{{ applicant_count }}</div>
+        <div class="text-muted small">Total Applicants</div>
+      </div>
     </div>
-
-    <div class="mb-3">
-      <h6 class="mb-1">Admin Notes</h6>
-      <p class="card-text text-muted">{{ dataset.AdminNotes|default:"—" }}</p>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center border-0 bg-light">
+      <div class="card-body py-3">
+        <div class="fs-3 fw-bold text-primary">{{ batches.count }}</div>
+        <div class="text-muted small">Batches</div>
+      </div>
     </div>
-
-    <div class="row g-3">
-      <div class="col-md-3">
-        <span class="fw-semibold">Program ID:</span> {{ dataset.ProgramId|default:"—" }}
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center border-0 bg-light">
+      <div class="card-body py-3">
+        <div class="fs-3 fw-bold text-primary">{{ dataset.ProgramId|default:"—" }}</div>
+        <div class="text-muted small">Program ID</div>
       </div>
-      <div class="col-md-3">
-        <span class="fw-semibold">Public View:</span>
-        {% if dataset.PublicView %}
-          <span class="badge text-bg-success">Yes</span>
-        {% else %}
-          <span class="badge text-bg-secondary">No</span>
-        {% endif %}
-      </div>
-      <div class="col-md-3">
-        <span class="fw-semibold">Active:</span>
-        {% if dataset.Active %}
-          <span class="badge text-bg-success">Active</span>
-        {% else %}
-          <span class="badge text-bg-danger">Inactive</span>
-        {% endif %}
-      </div>
-      <div class="col-md-3">
-        <span class="fw-semibold">Updated:</span> {{ dataset.UpdatedAt|date:"Y-m-d H:i" }}
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center border-0 bg-light">
+      <div class="card-body py-3">
+        <div class="fs-3 fw-bold text-primary">{{ dataset.UpdatedAt|date:"M d" }}</div>
+        <div class="text-muted small">Last Updated</div>
       </div>
     </div>
   </div>
 </div>
-<div class="card mt-4">
-    <div class="card-header">
-        <h4>Batches</h4>
-    </div>
-    <div class="card-body">
-        <table class="table table-striped">
-            <thead class="table-dark">
-                <tr>
-                    <th>Display Name</th>
-                    <th>Active</th>
-                    <th>Public</th>
-                    <th>Vote Expire</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for b in batches %}
-                <tr>
-                    <td><a href="{% url 'batch_detail' b.pk %}">{{ b.DisplayName }}</a></td>
-                    <td>{{ b.Active }}</td>
-                    <td>{{ b.PublicView }}</td>
-                    <td>{{ b.VoteExpire|date:"Y-m-d H:i" }}</td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="4">No batches found in this dataset.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+
+{% if dataset.AdminNotes and user.profile.role == 'ADMIN' %}
+<div class="alert alert-info mb-4">
+  <i class="bi bi-sticky me-2"></i><strong>Admin Notes:</strong> {{ dataset.AdminNotes }}
+</div>
+{% endif %}
+
+<!-- Batches -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0">Batches</h4>
+  {% if user.profile.role == 'ADMIN' %}
+    <a href="{% url 'batch_create' %}" class="btn btn-sm btn-primary">
+      <i class="bi bi-plus-lg me-1"></i>New Batch
+    </a>
+  {% endif %}
 </div>
 
-<div class="card mt-4">
-    <div class="card-header">
-        <h4>Applicants</h4>
+<div class="row g-3">
+  {% for batch in batches %}
+  <div class="col-md-6">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <h6 class="card-title mb-0">
+            <a href="{% url 'batch_detail' batch.pk %}" class="text-decoration-none text-dark">
+              {{ batch.DisplayName }}
+            </a>
+          </h6>
+          {% if batch.Active %}
+            <span class="badge bg-success">Active</span>
+          {% else %}
+            <span class="badge bg-secondary">Inactive</span>
+          {% endif %}
+        </div>
+
+        <!-- Progress bar -->
+        <div class="mb-2">
+          {% with pct=batch.applicant_count|default:0 %}
+          <div class="d-flex justify-content-between mb-1" style="font-size:0.8rem;">
+            <span class="text-muted">Review Progress</span>
+            <span class="text-muted">{{ batch.applicant_count }} candidate{{ batch.applicant_count|pluralize }}</span>
+          </div>
+          <div class="progress" style="height:6px;">
+            <div class="progress-bar bg-success" style="width:{{ batch.applicant_count|default:0 }}%"></div>
+          </div>
+          {% endwith %}
+        </div>
+
+        {% if batch.VoteExpire %}
+          <small class="text-muted"><i class="bi bi-clock me-1"></i>Deadline: {{ batch.VoteExpire|date:"M d, Y" }}</small>
+        {% endif %}
+      </div>
+      <div class="card-footer bg-transparent d-flex justify-content-between">
+        <a href="{% url 'batch_detail' batch.pk %}" class="btn btn-sm btn-outline-primary">
+          <i class="bi bi-eye me-1"></i>View Batch
+        </a>
+        {% if user.profile.role == 'ADMIN' %}
+          <div class="d-flex gap-1">
+            <a href="{% url 'batch_edit' batch.pk %}" class="btn btn-sm btn-outline-secondary">
+              <i class="bi bi-pencil"></i>
+            </a>
+            <a href="{% url 'batch_assign_reviewers' batch.pk %}" class="btn btn-sm btn-outline-warning">
+              <i class="bi bi-people"></i>
+            </a>
+          </div>
+        {% endif %}
+      </div>
     </div>
-    <div class="card-body">
-        <table class="table table-striped">
-            <thead class="table-dark">
-                <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Round</th>
-                    <th class="text-center">Votes</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for a in applicants %}
-                <tr>
-                    <td>
-                        <a href="#" data-bs-toggle="modal" data-bs-target="#applicantModal" data-profile-url="{% url 'applicant_profile_partial' a.pk %}">
-                            {{ a.last_name }}, {{ a.first_name }}
-                        </a>
-                    </td>
-                    <td>{{ a.email }}</td>
-                    <td>{{ a.round.DisplayName|default:"—" }}</td>
-                    <td class="text-center">
-                        {% with votes=a.votes_summary %}
-                        <span class="badge bg-success">Accept {{ votes.accept }}</span>
-                        <span class="badge bg-danger">Deny {{ votes.deny }}</span>
-                        <span class="badge bg-warning text-dark">Waitlist {{ votes.waitlist }}</span>
-                        {% endwith %}
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="4">No applicants found in this dataset.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+  </div>
+  {% empty %}
+  <div class="col-12">
+    <div class="text-center text-muted py-4 border rounded">
+      <i class="bi bi-collection fs-2"></i>
+      <p class="mt-2 mb-0">No batches yet for this dataset.</p>
+      {% if user.profile.role == 'ADMIN' %}
+        <a href="{% url 'batch_create' %}" class="btn btn-sm btn-primary mt-2">Create First Batch</a>
+      {% endif %}
     </div>
+  </div>
+  {% endfor %}
 </div>
+
 {% endblock %}

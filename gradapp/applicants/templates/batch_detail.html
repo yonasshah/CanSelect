@@ -1,53 +1,160 @@
 {% extends "base.html" %}
 {% block content %}
+
+{% include "partials/breadcrumbs.html" with crumbs=crumbs %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <div class="d-flex align-items-center gap-2">
+      <h2 class="mb-0">{{ batch.DisplayName }}</h2>
+      {% if batch.Active %}
+        <span class="badge bg-success fs-6">Active</span>
+      {% else %}
+        <span class="badge bg-secondary fs-6">Inactive</span>
+      {% endif %}
+    </div>
+    <p class="text-muted mb-0 mt-1">
+      <a href="{% url 'dataset_detail' batch.DataSet.pk %}" class="text-decoration-none">
+        <i class="bi bi-stack me-1"></i>{{ batch.DataSet.DisplayName }}
+      </a>
+    </p>
+  </div>
+  {% if user.profile.role == 'ADMIN' %}
+    <div class="d-flex gap-2">
+      <a href="{% url 'batch_assign_reviewers' batch.pk %}" class="btn btn-warning btn-sm">
+        <i class="bi bi-people-fill me-1"></i>Assign Reviewers
+      </a>
+      <a href="{% url 'batch_edit' batch.pk %}" class="btn btn-outline-primary btn-sm">
+        <i class="bi bi-pencil me-1"></i>Edit
+      </a>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Progress & Stats -->
+<div class="d-flex justify-content-between mb-1" style="font-size:0.8rem;">
+  <span class="text-muted">Review Progress</span>
+  <span class="fw-bold">{{ progress_pct }}%</span>
+</div>
+<div class="progress mb-3" style="height:10px;">
+  <div class="progress-bar bg-success" style="width:{{ progress_pct }}%"></div>
+</div>
+<div class="d-flex justify-content-between text-center">
+  <div>
+    <div class="fw-bold fs-5">{{ total }}</div>
+    <div class="text-muted" style="font-size:0.75rem;">Candidates</div>
+  </div>
+  <div>
+    <div class="fw-bold fs-5">{{ reviewer_count }}</div>
+    <div class="text-muted" style="font-size:0.75rem;">Reviewers</div>
+  </div>
+  <div>
+    <div class="fw-bold fs-5 text-success">{{ actual_votes }}</div>
+    <div class="text-muted" style="font-size:0.75rem;">Votes Cast</div>
+  </div>
+  <div>
+    <div class="fw-bold fs-5 text-warning">{{ pending }}</div>
+    <div class="text-muted" style="font-size:0.75rem;">Remaining</div>
+  </div>
+</div>
+
+  <div class="col-md-4">
+    <div class="card border-0 bg-light h-100">
+      <div class="card-body">
+        <h6 class="text-muted mb-3">Batch Info</h6>
+        <p class="mb-1 small"><strong>Description:</strong> {{ batch.Description|default:"—" }}</p>
+        <p class="mb-1 small"><strong>Vote Deadline:</strong> {{ batch.VoteExpire|date:"M d, Y H:i"|default:"—" }}</p>
+        <p class="mb-0 small"><strong>Public View:</strong>
+          {% if batch.PublicView %}
+            <span class="badge bg-success">Yes</span>
+          {% else %}
+            <span class="badge bg-secondary">No</span>
+          {% endif %}
+        </p>
+      </div>
+    </div>
+  </div>
+
+  {% if user.profile.role == 'ADMIN' and batch.AdminNotes %}
+  <div class="col-md-4">
+    <div class="card border-0 bg-light h-100">
+      <div class="card-body">
+        <h6 class="text-muted mb-2">Admin Notes</h6>
+        <p class="mb-0 small">{{ batch.AdminNotes }}</p>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Candidate Table -->
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h2>Batch: {{ batch.DisplayName }}</h2>
-  <a class="btn btn-outline-secondary" href="{% url 'batch_list' %}">Back to list</a>
+  <h4 class="mb-0">Candidates <span class="text-muted fs-6 fw-normal">({{ total }})</span></h4>
 </div>
 
 <div class="card">
-  <div class="card-body">
-    <p><strong>DataSet:</strong> {{ batch.DataSet.DisplayName }}</p>
-    <p><strong>Description:</strong> {{ batch.Description|default:"—" }}</p>
-    <p><strong>Admin Notes:</strong> {{ batch.AdminNotes|default:"—" }}</p>
-    <p><strong>Public View:</strong> {{ batch.PublicView }}</p>
-    <p><strong>Active:</strong> {{ batch.Active }}</p>
-    <p><strong>Vote Expire:</strong> {{ batch.VoteExpire|date:"Y-m-d H:i" }}</p>
-    <p><strong>Highlight Before:</strong> {{ batch.HighlightBefore|date:"Y-m-d H:i" }}</p>
-    <p><strong>RoundId:</strong> {{ batch.RoundId }}</p>
+  <div class="card-body p-0">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-dark">
+        <tr>
+          <th>Name</th>
+          <th>Status</th>
+          <th class="text-center">Avg Score</th>
+          <th class="text-center">Votes</th>
+          <th class="text-center">Reviewed</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in applicants %}
+        <tr>
+          <td>
+            {% if a.profile_picture %}
+              <img src="{{ a.profile_picture.url }}" class="rounded-circle me-2" style="width:32px; height:32px; object-fit:cover;">
+            {% else %}
+              <i class="bi bi-person-circle fs-5 text-secondary me-2"></i>
+            {% endif %}
+            <a href="{% url 'applicant_detail' a.pk %}">{{ a.last_name }}, {{ a.first_name }}</a>
+          </td>
+          <td>
+            <span class="badge
+              {% if a.status == 'NEW' %}bg-secondary
+              {% elif a.status == 'REVIEW' %}bg-primary
+              {% elif a.status == 'INTERVIEW' %}bg-info text-dark
+              {% elif a.status == 'DECIDED' %}bg-success
+              {% endif %}">
+              {{ a.get_status_display }}
+            </span>
+          </td>
+          <td class="text-center">
+            {% if a.avg_score %}
+              <span class="badge bg-primary">{{ a.avg_score|floatformat:1 }} / 5.0</span>
+            {% else %}
+              <span class="text-muted small">—</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            {% with votes=a.votes_summary %}
+              <span class="badge bg-success" title="Accept">{{ votes.accept }}</span>
+              <span class="badge bg-danger" title="Deny">{{ votes.deny }}</span>
+              <span class="badge bg-warning text-dark" title="Waitlist">{{ votes.waitlist }}</span>
+            {% endwith %}
+          </td>
+          <td class="text-center">
+            {% if a.vote_count > 0 %}
+              <i class="bi bi-check-circle-fill text-success"></i>
+            {% else %}
+              <i class="bi bi-circle text-muted"></i>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="text-center text-muted py-4">No candidates assigned to this batch yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 </div>
-{% if user.profile.role == 'ADMIN' %}
-<a href="{% url 'batch_edit' batch.pk %}" class="btn btn-primary mt-3">Edit</a>
-{% endif %}
-<hr class="my-4">
-<h4>Candidates in this Batch ({{ applicants|length }})</h4>
-<div class="table-responsive">
-    <table class="table table-striped table-hover">
-        <thead class="table-dark">
-            <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Status</th>
-                <th>Voted / Score</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for a in applicants %}
-            <tr>
-                <td><a href="{% url 'applicant_detail' a.pk %}">{{ a.first_name }} {{ a.last_name }}</a></td>
-                <td>{{ a.email }}</td>
-                <td>{{ a.get_status_display }}</td>
-                <td>
-                    {% with votes=a.votes_summary %}
-                        <small class="text-muted">A: {{ votes.accept }} | D: {{ votes.deny }} | W: {{ votes.waitlist }}</small>
-                    {% endwith %}
-                </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="4" class="text-muted text-center">No applicants assigned to this batch yet.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
+
 {% endblock %}

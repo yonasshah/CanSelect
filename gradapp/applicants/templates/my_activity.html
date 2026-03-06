@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="mb-4">
+  <h2 class="mb-0">My Activity</h2>
+  <p class="text-muted mb-0">A log of all your votes and comments.</p>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <ul class="list-group list-group-flush">
+      {% for activity in page_obj %}
+      <li class="list-group-item px-0">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            {% if activity.action_type == 'vote_cast' %}
+  <i class="bi bi-person-check-fill me-2 text-primary"></i>
+{% elif activity.action_type == 'comment_added' %}
+  <i class="bi bi-chat-dots-fill me-2 text-info"></i>
+{% elif activity.action_type == 'flag_added' %}
+  <i class="bi bi-flag-fill me-2 text-danger"></i>
+{% endif %}
+            {{ activity.details }}
+            <a href="{% url 'applicant_detail' activity.target_applicant.pk %}">
+              {{ activity.target_applicant.first_name }} {{ activity.target_applicant.last_name }}
+            </a>
+          </div>
+          <small class="text-muted text-nowrap ms-3">{{ activity.created_at|timesince }} ago</small>
+        </div>
+      </li>
+      {% empty %}
+      <li class="list-group-item px-0 text-muted text-center py-4">No activity recorded yet.</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+<nav class="mt-4">
+  <ul class="pagination justify-content-center">
+    {% if page_obj.has_previous %}
+      <li class="page-item"><a class="page-link" href="?page=1">&laquo; First</a></li>
+      <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a></li>
+    {% endif %}
+    <li class="page-item active">
+      <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    </li>
+    {% if page_obj.has_next %}
+      <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a></li>
+      <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Last &raquo;</a></li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
+
+{% endblock %}

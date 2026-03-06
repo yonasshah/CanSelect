@@ -1,0 +1,22 @@
+{% comment %}
+Usage:
+{% include "partials/breadcrumbs.html" with crumbs=crumbs %}
+
+Where crumbs is a list of dicts passed from the view or inline:
+{% include "partials/breadcrumbs.html" with crumbs=breadcrumbs %}
+{% endcomment %}
+
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item">
+      <a href="{% url 'dashboard' %}"><i class="bi bi-house-fill"></i></a>
+    </li>
+    {% for crumb in crumbs %}
+      {% if forloop.last %}
+        <li class="breadcrumb-item active" aria-current="page">{{ crumb.label }}</li>
+      {% else %}
+        <li class="breadcrumb-item"><a href="{{ crumb.url }}">{{ crumb.label }}</a></li>
+      {% endif %}
+    {% endfor %}
+  </ol>
+</nav>

@@ -32,6 +32,8 @@ def email_login(request):
         form = EmailLoginForm()
     return render(request, "login.html", {"form": form})
 
+@admin_required
+@login_required
 def applicant_list(request):
     batches = Batch.objects.all()
     selected_batch_id = request.GET.get('batch')
@@ -173,17 +175,51 @@ def add_files(request, pk):
     return redirect("applicant_detail", pk=pk)
 
 @login_required
+@admin_required
 def dataset_list(request):
-    datasets_list = DataSet.objects.all()
+    search_query = request.GET.get('q', '')
+    status_filter = request.GET.get('status', 'all')
 
-    paginator = Paginator(datasets_list, 25) # Show 25 datasets per page
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
+    datasets = DataSet.objects.annotate(
+        applicant_count=Count('applicants', distinct=True),
+        batch_count=Count('batches', distinct=True),
+    ).order_by('DisplayName')
 
-    context = {
+    if search_query:
+        datasets = datasets.filter(DisplayName__icontains=search_query)
+    if status_filter == 'live':
+        datasets = datasets.filter(IsLive=True)
+    elif status_filter == 'offline':
+        datasets = datasets.filter(IsLive=False)
+
+    active_datasets   = datasets.filter(Active=True)
+    archived_datasets = datasets.filter(Active=False)
+
+    # Pagination only on active datasets
+    paginator = Paginator(active_datasets, 25)
+    page_obj  = paginator.get_page(request.GET.get('page'))
+
+    return render(request, "dataset_list.html", {
         'page_obj': page_obj,
-    }
-    return render(request, "dataset_list.html", context)
+        'archived_datasets': archived_datasets,
+        'search_query': search_query,
+        'status_filter': status_filter,
+        'crumbs': [{'label': 'Datasets', 'url': ''}],
+    })
+    
+@login_required
+@admin_required
+@require_POST
+def dataset_archive(request, pk):
+    dataset = get_object_or_404(DataSet, pk=pk)
+    # Toggle — if active, archive it; if archived, restore it
+    dataset.Active = not dataset.Active
+    dataset.save()
+    if dataset.Active:
+        messages.success(request, f"'{dataset.DisplayName}' has been restored.")
+    else:
+        messages.success(request, f"'{dataset.DisplayName}' has been archived.")
+    return redirect('dataset_list')
 
 @login_required
 @admin_required
@@ -191,35 +227,47 @@ def dataset_create(request):
     if request.method == "POST":
         form = DataSetForm(request.POST)
         if form.is_valid():
-            form.save()
-            return redirect("dataset_list")
+            dataset = form.save()
+            messages.success(request, f"Dataset '{dataset.DisplayName}' created successfully.")
+            return redirect("dataset_detail", pk=dataset.pk)
     else:
         form = DataSetForm()
-    return render(request, "dataset_create.html", {"form": form})
+    return render(request, "dataset_form.html", {
+        "form": form,
+        "dataset": None,
+        "crumbs": [
+            {'label': 'Datasets', 'url': '/datasets/'},
+            {'label': 'New Dataset', 'url': ''},
+        ],
+    })
 
 
 
 @login_required
+@admin_required
 def dataset_detail(request, pk):
     dataset = get_object_or_404(DataSet, pk=pk)
-    
-    selected_batch_id = request.GET.get('batch')
-    batches = dataset.batches.all()
 
-    applicants = Applicant.objects.filter(
-        Q(dataset=dataset) | Q(round__DataSet=dataset)
-    ).distinct()
+    batches = dataset.batches.annotate(
+        applicant_count=Count('applicant', distinct=True),
+        reviewed_count=Count(
+            'applicant__votes',
+            filter=Q(applicant__votes__isnull=False),
+            distinct=True
+        ),
+    ).order_by('DisplayName')
 
-    if selected_batch_id:
-        applicants = applicants.filter(round_id=selected_batch_id)
+    applicant_count = Applicant.objects.filter(dataset=dataset).count()
 
-    context = {
+    return render(request, "dataset_detail.html", {
         "dataset": dataset,
-        "applicants": applicants,
         "batches": batches,
-        "selected_batch_id": selected_batch_id, 
-    }
-    return render(request, "dataset_detail.html", context)
+        "applicant_count": applicant_count,
+        'crumbs': [
+            {'label': 'Datasets', 'url': '/datasets/'},
+            {'label': dataset.DisplayName, 'url': ''},
+        ],
+    })
 
 @login_required
 @admin_required
@@ -229,18 +277,31 @@ def dataset_edit(request, pk):
         form = DataSetForm(request.POST, instance=dataset)
         if form.is_valid():
             form.save()
+            messages.success(request, f"Dataset '{dataset.DisplayName}' updated successfully.")
             return redirect("dataset_detail", pk=dataset.pk)
     else:
         form = DataSetForm(instance=dataset)
-    return render(request, "dataset_edit.html", {"form": form, "dataset": dataset})
+    return render(request, "dataset_form.html", {
+        "form": form,
+        "dataset": dataset,
+        "crumbs": [
+            {'label': 'Datasets', 'url': '/datasets/'},
+            {'label': dataset.DisplayName, 'url': f'/datasets/{dataset.pk}/'},
+            {'label': 'Edit', 'url': ''},
+        ],
+    })
 
 
 @login_required
+@admin_required
 def batch_list(request):
     search_query = request.GET.get('q', '')
     status_filter = request.GET.get('status', 'all')
 
-    batches_list = Batch.objects.select_related("DataSet").all()
+    batches_list = Batch.objects.select_related("DataSet").annotate(
+        applicant_count=Count('applicant', distinct=True),
+        reviewer_count=Count('assigned_reviewers', distinct=True),
+    ).order_by('DataSet__DisplayName', 'DisplayName')
 
     if search_query:
         batches_list = batches_list.filter(DisplayName__icontains=search_query)
@@ -248,14 +309,34 @@ def batch_list(request):
         batches_list = batches_list.filter(Active=True)
     elif status_filter == 'inactive':
         batches_list = batches_list.filter(Active=False)
-
+        
+    show_archived = request.GET.get('show_archived')
+    if not show_archived:
+        batches_list = batches_list.filter(DataSet__Active=True)
+        
+        
     paginator = Paginator(batches_list, 25)
     page_obj = paginator.get_page(request.GET.get("page"))
+
+    # Run loop on page_obj AFTER pagination
+    for batch in page_obj:
+        potential = batch.applicant_count * batch.reviewer_count
+        actual = Vote.objects.filter(
+            applicant__round=batch,
+            voter__in=batch.assigned_reviewers.all()
+        ).count()
+        batch.potential_votes = potential
+        batch.actual_votes = actual
+        batch.progress_pct = int((actual / potential * 100) if potential > 0 else 0)
+        
+        
 
     return render(request, "batch_list.html", {
         'page_obj': page_obj,
         'search_query': search_query,
-        'status_filter': status_filter
+        'status_filter': status_filter,
+        'show_archived': show_archived,
+        'crumbs': [{'label': 'Batches', 'url': ''}],
     })
 
 @login_required
@@ -264,17 +345,54 @@ def batch_create(request):
     if request.method == "POST":
         form = BatchForm(request.POST)
         if form.is_valid():
-            form.save()
-            return redirect("batch_list")
+            batch = form.save()
+            messages.success(request, f"Batch '{batch.DisplayName}' created successfully.")
+            return redirect("batch_detail", pk=batch.pk)
     else:
         form = BatchForm()
-    return render(request, "batch_create.html", {"form": form})
+    return render(request, "batch_form.html", {
+        "form": form,
+        "batch": None,
+        "crumbs": [
+            {'label': 'Batches', 'url': '/batches/'},
+            {'label': 'New Batch', 'url': ''},
+        ],
+    })
 
 @login_required
+@admin_required
 def batch_detail(request, pk):
     batch = get_object_or_404(Batch, pk=pk)
-    applicants = Applicant.objects.filter(round=batch).order_by('last_name') 
-    return render(request, "batch_detail.html", {"batch": batch, "applicants": applicants})
+
+    applicants = Applicant.objects.filter(round=batch).annotate(
+        avg_score=Avg('scores__overall_score'),
+        vote_count=Count('votes', distinct=True),
+    ).order_by('last_name')
+
+    total = applicants.count()
+    reviewer_count = batch.assigned_reviewers.count()
+    potential_votes = total * reviewer_count
+    actual_votes = Vote.objects.filter(
+        applicant__round=batch,
+        voter__in=batch.assigned_reviewers.all()
+    ).count()
+    pending = potential_votes - actual_votes
+
+    return render(request, "batch_detail.html", {
+        "batch": batch,
+        "applicants": applicants,
+        "total": total,
+        "reviewer_count": reviewer_count,
+        "actual_votes": actual_votes,
+        "potential_votes": potential_votes,
+        "pending": pending,
+        "progress_pct": int((actual_votes / potential_votes * 100) if potential_votes > 0 else 0),
+        'crumbs': [
+            {'label': 'Datasets', 'url': '/datasets/'},
+            {'label': batch.DataSet.DisplayName, 'url': f'/datasets/{batch.DataSet.pk}/'},
+            {'label': batch.DisplayName, 'url': ''},
+        ],
+    })
 
 @login_required
 @admin_required
@@ -284,12 +402,22 @@ def batch_edit(request, pk):
         form = BatchForm(request.POST, instance=batch)
         if form.is_valid():
             form.save()
+            messages.success(request, f"Batch '{batch.DisplayName}' updated successfully.")
             return redirect("batch_detail", pk=batch.pk)
     else:
         form = BatchForm(instance=batch)
-    return render(request, "batch_edit.html", {"form": form, "batch": batch})
+    return render(request, "batch_form.html", {
+        "form": form,
+        "batch": batch,
+        "crumbs": [
+            {'label': 'Batches', 'url': '/batches/'},
+            {'label': batch.DisplayName, 'url': f'/batches/{batch.pk}/'},
+            {'label': 'Edit', 'url': ''},
+        ],
+    })
 
 @login_required
+@admin_required
 def dashboard(request):
     # --- 1. Get filter ID and all datasets for the dropdown ---
     selected_dataset_id = request.GET.get('dataset')
@@ -388,6 +516,7 @@ def applicant_profile_partial(request, pk):
     return render(request, "partials/applicant_profile_partial.html", context)
 
 @login_required
+@admin_required
 def compare_applicants(request):
     applicant_ids = request.GET.getlist('ids')
     if not applicant_ids:
@@ -408,6 +537,7 @@ def compare_applicants(request):
     return render(request, "compare_applicants.html", context)
 
 @login_required
+@admin_required
 def export_applicants_csv(request):
     # Get the same queryset as the applicant list page, including filters
     selected_dataset_id = request.GET.get('dataset')
@@ -581,9 +711,21 @@ def toggle_applicant_flag(request, pk):
 
     if request.user in applicant.flagged_by.all():
         applicant.flagged_by.remove(request.user)
+        Activity.objects.create(
+            actor=request.user,
+            action_type=Activity.FLAG_ADDED,
+            details="unflagged",
+            target_applicant=applicant
+        )
         messages.success(request, "Your flag has been removed.")
     else:
         applicant.flagged_by.add(request.user)
+        Activity.objects.create(
+            actor=request.user,
+            action_type=Activity.FLAG_ADDED,
+            details="flagged",
+            target_applicant=applicant
+        )
         messages.success(request, f"You flagged {applicant.first_name} for discussion.")
 
     return redirect('applicant_detail', pk=applicant.pk)
@@ -592,64 +734,240 @@ def toggle_applicant_flag(request, pk):
 @admin_required
 def bulk_upload_applicants(request):
     if request.method == "POST":
-        form = BulkUploadForm(request.POST, request.FILES)
-        if form.is_valid():
-            files = request.FILES.getlist('folder_files')
-            
-            # Group files by their parent directory name (candidate name/ID)
+        files = request.FILES.getlist('folder_files')
+        path_map_raw = request.POST.get('path_map')
+
+        if path_map_raw:
+            import json
+            path_map = json.loads(path_map_raw)
+            candidate_groups = {}
+            for i, f in enumerate(files):
+                relative_path = path_map.get(str(i), f.name)
+                parts = relative_path.replace('\\', '/').split('/')
+                if len(parts) < 3:
+                    continue
+                candidate_folder = parts[1]
+                candidate_groups.setdefault(candidate_folder, []).append(f)
+        else:
             candidate_groups = {}
             for f in files:
-                # The relative path is often preserved in the file name or via metadata
-                # depending on the browser/Django environment
-                folder_name = f.name.split('/')[0] if '/' in f.name else "Unknown"
-                if folder_name not in candidate_groups:
-                    candidate_groups[folder_name] = []
-                candidate_groups[folder_name].append(f)
+                parts = f.name.replace('\\', '/').split('/')
+                if len(parts) < 3:
+                    continue
+                candidate_folder = parts[1]
+                candidate_groups.setdefault(candidate_folder, []).append(f)
 
-            for folder, group_files in candidate_groups.items():
-                first_name = folder
-                last_name = "Bulk"
-                email = "unknown@example.com"
-                
-                # Try to extract info from PDF files in the group
-                for f in group_files:
-                    if f.name.endswith('.pdf'):
-                        try:
-                            reader = pypdf.PdfReader(f)
-                            text = ""
-                            for page in reader.pages:
-                                text += page.extract_text()
-                            
-                            # Simple regex for email extraction
-                            email_match = re.search(r'[\w\.-]+@[\w\.-]+', text)
-                            if email_match:
-                                email = email_match.group(0)
-                            
-                            # Example: Assume the first line of the PDF might be the name
-                            lines = text.split('\n')
-                            if lines and len(lines[0].split()) >= 2:
-                                name_parts = lines[0].split()
-                                first_name = name_parts[0]
-                                last_name = " ".join(name_parts[1:])
-                        except Exception as e:
-                            print(f"Error parsing PDF {f.name}: {e}")
 
-                # Create the Applicant
-                applicant = Applicant.objects.create(
-                    first_name=first_name,
-                    last_name=last_name,
-                    email=email,
-                    age=0, # Placeholder
-                    gender="Not Specified" # Placeholder
-                )
 
-                # Attach all files in that folder to the new applicant
-                for f in group_files:
-                    ApplicantFile.objects.create(applicant=applicant, file=f)
-            
-            messages.success(request, f"Processed {len(candidate_groups)} candidates.")
-            return redirect('applicant_list')
-    else:
-        form = BulkUploadForm()
+        # Optional dataset / batch assignment from the form
+        dataset_id = request.POST.get('dataset_id') or None
+        batch_id   = request.POST.get('batch_id')   or None
+
+        selected_dataset = None
+        selected_batch   = None
+        if dataset_id:
+            try:
+                selected_dataset = DataSet.objects.get(pk=dataset_id)
+            except DataSet.DoesNotExist:
+                pass
+        if batch_id:
+            try:
+                selected_batch = Batch.objects.get(pk=batch_id)
+            except Batch.DoesNotExist:
+                pass
+
+        if not candidate_groups:
+            messages.warning(
+                request,
+                "No candidate subfolders found. Make sure your structure is: "
+                "BatchFolder → CandidateFolder → files."
+            )
+            return redirect('bulk_upload')
+
+        created_count = 0
+        skipped_count = 0
+
+        for folder_name, group_files in candidate_groups.items():
+            # ── Parse "Last, First - UniqueID" ───────────────────────────
+            import re as _re
+            match = _re.match(r'^(.+?)\s*-\s*(\w+)$', folder_name.strip())
+            if match:
+                raw_name = match.group(1).strip()   # "Ali, Huzaifa"
+                unique_id = match.group(2).strip()  # "6815031005"
+                # Name may be "LastName, FirstName" or just "FirstName LastName"
+                if ',' in raw_name:
+                    name_parts = [p.strip() for p in raw_name.split(',', 1)]
+                    last_name  = name_parts[0]
+                    first_name = name_parts[1] if len(name_parts) > 1 else ''
+                else:
+                    words      = raw_name.split()
+                    first_name = words[0] if words else folder_name
+                    last_name  = ' '.join(words[1:]) if len(words) > 1 else ''
+            else:
+                # Fallback: use whole folder name
+                first_name = folder_name
+                last_name  = 'Bulk'
+                unique_id  = ''
+
+            # ── Extract email from any PDF in the group ──────────────────
+            email = None
+            for f in group_files:
+                if f.name.lower().endswith('.pdf'):
+                    try:
+                        import pypdf, io
+                        reader = pypdf.PdfReader(f)
+                        text = ''.join(page.extract_text() or '' for page in reader.pages)
+                        email_match = _re.search(r'[\w\.-]+@[\w\.-]+\.\w+', text)
+                        if email_match:
+                            email = email_match.group(0)
+                        f.seek(0)   # reset file pointer after reading
+                    except Exception as e:
+                        print(f"PDF parse error for {f.name}: {e}")
+                    break   # only check the first PDF
+
+            # ── Create Applicant ─────────────────────────────────────────
+            jpg_files = [f for f in group_files if f.name.lower().endswith(('.jpg', '.jpeg'))]
+            profile_pic = jpg_files[2] if len(jpg_files) >= 3 else None
+
+            applicant = Applicant.objects.create(
+                first_name=first_name,
+                last_name=last_name,
+                email=email,
+                age=0,                      # placeholder — can be edited later
+                gender='Not Specified',     # placeholder
+                dataset=selected_dataset,
+                round=selected_batch,
+                external_id=unique_id or None,
+                profile_picture=profile_pic,
+            )
+
+            # ── Attach all files ─────────────────────────────────────────
+            for f in group_files:
+                ApplicantFile.objects.create(applicant=applicant, file=f)
+
+            created_count += 1
+
+        messages.success(
+            request,
+            f"✅ Successfully imported {created_count} candidate profile(s). "
+            f"Review each profile to complete missing details like age and gender."
+        )
+        return redirect('applicant_list')
+
+    # GET — render the upload page
+    datasets = DataSet.objects.all().order_by('DisplayName')
+    batches  = Batch.objects.select_related('DataSet').order_by('DisplayName')
+    return render(request, "bulk_upload.html", {
+        "datasets": datasets,
+        "batches": batches,
+    })
     
-    return render(request, "bulk_upload.html", {"form": form})
+    
+@login_required
+def committee_dashboard(request):
+    user = request.user
+
+    # Get batches assigned to this reviewer
+    assigned_batches = Batch.objects.filter(
+        assigned_reviewers=user
+    ).select_related('DataSet').annotate(
+        applicant_count=Count('applicant', distinct=True),
+        reviewer_count=Count('assigned_reviewers', distinct=True),
+    )
+
+    # Calculate progress for each batch
+    for batch in assigned_batches:
+        potential = batch.applicant_count * batch.reviewer_count
+        actual = Vote.objects.filter(
+            applicant__round=batch,
+            voter=user
+        ).count()
+        batch.my_votes = actual
+        batch.total_candidates = batch.applicant_count
+        batch.progress_pct = int((actual / batch.applicant_count * 100) if batch.applicant_count > 0 else 0)
+
+    # Candidates still pending a vote from this user
+    pending_count = Applicant.objects.filter(
+        round__in=assigned_batches
+    ).exclude(
+        votes__voter=user
+    ).distinct().count()
+
+    # Their recent activity
+    recent_activity = Activity.objects.filter(
+        actor=user
+    ).select_related('target_applicant')[:5]
+
+    # Their total votes and scores
+    total_votes = Vote.objects.filter(voter=user).count()
+    total_scores = Score.objects.filter(voter=user).count()
+
+    return render(request, "committee_dashboard.html", {
+        'assigned_batches': assigned_batches,
+        'pending_count': pending_count,
+        'recent_activity': recent_activity,
+        'total_votes': total_votes,
+        'total_scores': total_scores,
+    })
+
+
+@login_required
+def my_reviews(request):
+    user = request.user
+
+    # Get all votes cast by this user on candidates in their assigned batches
+    assigned_batches = Batch.objects.filter(assigned_reviewers=user)
+    
+    votes = Vote.objects.filter(
+        voter=user,
+        applicant__round__in=assigned_batches
+    ).select_related('applicant', 'applicant__round', 'applicant__dataset').order_by('-created_at')
+
+    scores = Score.objects.filter(
+        voter=user,
+        applicant__round__in=assigned_batches
+    ).select_related('applicant', 'applicant__round').order_by('-updated_at')
+
+    # Combine into a single dict keyed by applicant for easy display
+    applicant_pks = set(
+        list(votes.values_list('applicant__pk', flat=True)) +
+        list(scores.values_list('applicant__pk', flat=True))
+    )
+
+    applicants = Applicant.objects.filter(pk__in=applicant_pks).select_related('round', 'dataset')
+
+    reviews = []
+    for applicant in applicants:
+        vote = votes.filter(applicant=applicant).first()
+        score = scores.filter(applicant=applicant).first()
+        reviews.append({
+            'applicant': applicant,
+            'vote': vote,
+            'score': score,
+        })
+
+    # Sort by applicant last name
+    reviews.sort(key=lambda x: x['applicant'].last_name)
+
+    return render(request, "my_reviews.html", {
+        'reviews': reviews,
+        'total_votes': votes.count(),
+        'total_scores': scores.count(),
+    })
+
+
+@login_required
+def my_activity(request):
+    user = request.user
+
+    activities = Activity.objects.filter(
+        actor=user,
+        action_type__in=[Activity.VOTE_CAST, Activity.COMMENT_ADDED, Activity.FLAG_ADDED]
+    ).select_related('target_applicant').order_by('-created_at')
+
+    paginator = Paginator(activities, 25)
+    page_obj = paginator.get_page(request.GET.get('page'))
+
+    return render(request, "my_activity.html", {
+        'page_obj': page_obj,
+    })

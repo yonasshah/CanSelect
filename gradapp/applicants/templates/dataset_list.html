@@ -1,76 +1,330 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h2>Datasets</h2>
+
+{% include "partials/breadcrumbs.html" with crumbs=crumbs %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
   <div>
+    <h2 class="mb-0">Datasets</h2>
+    <p class="text-muted mb-0">Each dataset represents a program or application cycle.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <div class="btn-group" role="group">
+      <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-table" onclick="setView('table')" title="Table view">
+        <i class="bi bi-list-ul"></i>
+      </button>
+      <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-card" onclick="setView('card')" title="Card view">
+        <i class="bi bi-grid-3x3-gap"></i>
+      </button>
+    </div>
     {% if user.profile.role == 'ADMIN' %}
-    <a href="{% url 'dataset_create' %}" class="btn btn-primary">Add New Dataset</a>
+      <a href="{% url 'dataset_create' %}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-lg me-1"></i>New Dataset
+      </a>
     {% endif %}
   </div>
 </div>
 
-<div class="card">
-  <div class="card-body">
-    <table class="table table-hover">
-      <thead class="table-dark">
-        <tr>
-          <th>Name</th>
-          <th>Description</th>
-          <th class="text-center">Applicants</th>
-          <th class="text-center">Status</th>
-          {% if user.profile.role == 'ADMIN' %}
-          <th></th>
-          {% endif %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for dataset in page_obj %}
-        <tr class="clickable-row" data-href="{% url 'dataset_detail' dataset.pk %}">
-          <td>{{ dataset.DisplayName }}</td>
-          <td>{{ dataset.Description|default:"—"|truncatewords:20 }}</td>
-          <td class="text-center">{{ dataset.applicants.count }}</td>
-          <td class="text-center">
-            {% if dataset.IsLive %}
-            <span class="badge bg-success">Live</span>
-            {% else %}
-            <span class="badge bg-secondary">Offline</span>
-            {% endif %}
-          </td>
-          {% if user.profile.role == 'ADMIN' %}
-          <td class="text-end">
-            <a href="{% url 'dataset_edit' dataset.pk %}" class="btn btn-outline-primary btn-sm">Edit</a>
-          </td>
-          {% endif %}
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="5" class="text-center text-muted">No datasets found.</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+<!-- Filters -->
+<div class="card mb-4">
+  <div class="card-body py-2">
+    <form method="get">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-6">
+          <input type="text" name="q" class="form-control form-control-sm" placeholder="Search datasets..." value="{{ search_query }}">
+        </div>
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-outline-secondary btn-sm w-100">Filter</button>
+        </div>
+        <div class="col-md-2">
+          <a href="{% url 'dataset_list' %}" class="btn btn-outline-danger btn-sm w-100">Clear</a>
+        </div>
+      </div>
+    </form>
   </div>
 </div>
 
-{% if page_obj.has_other_pages %}
-  <nav aria-label="Page navigation" class="mt-4">
-    <ul class="pagination justify-content-center">
-      
-      {% if page_obj.has_previous %}
-        <li class="page-item"><a class="page-link" href="?page=1&{{ request.GET.urlencode | cut:'page=' }}">&laquo; First</a></li>
-        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&{{ request.GET.urlencode | cut:'page=' }}">Previous</a></li>
-      {% endif %}
+<!-- ── ACTIVE DATASETS ─────────────────────────────────────────── -->
 
-      <li class="page-item active" aria-current="page">
-        <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-      </li>
+<!-- TABLE VIEW -->
+<div id="table-view">
+  <div class="card mb-4">
+    <div class="card-body p-0">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-dark">
+          <tr>
+            <th>Name</th>
+            <th class="text-center">Applicants</th>
+            <th class="text-center">Batches</th>
+            <th class="text-center">Program ID</th>
+            <th class="text-center">Status</th>
+            {% if user.profile.role == 'ADMIN' %}<th></th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for dataset in page_obj %}
+          <tr>
+            <td>
+              <a href="{% url 'dataset_detail' dataset.pk %}" class="fw-semibold text-decoration-none">
+                {{ dataset.DisplayName }}
+              </a>
+              {% if dataset.Description %}
+                <div class="text-muted small">{{ dataset.Description|truncatewords:10 }}</div>
+              {% endif %}
+            </td>
+            <td class="text-center">{{ dataset.applicant_count }}</td>
+            <td class="text-center">
+              <a href="{% url 'batch_list' %}?dataset={{ dataset.pk }}" class="text-decoration-none">
+                {{ dataset.batch_count }}
+              </a>
+            </td>
+            <td class="text-center text-muted small">{{ dataset.ProgramId|default:"—" }}</td>
+            <td class="text-center">
+              {% if dataset.IsLive %}
+                <span class="badge bg-success">Live</span>
+              {% else %}
+                <span class="badge bg-secondary">Offline</span>
+              {% endif %}
+            </td>
+            {% if user.profile.role == 'ADMIN' %}
+            <td class="text-end">
+              <div class="d-flex gap-1 justify-content-end">
+                <a href="{% url 'dataset_edit' dataset.pk %}" class="btn btn-outline-secondary btn-sm" title="Edit">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                <form method="post" action="{% url 'dataset_archive' dataset.pk %}" class="d-inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-outline-warning btn-sm" title="Archive">
+                    <i class="bi bi-archive"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+            {% endif %}
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="text-center text-muted py-4">No active datasets found.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 
-      {% if page_obj.has_next %}
-        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&{{ request.GET.urlencode | cut:'page=' }}">Next</a></li>
-        <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}&{{ request.GET.urlencode | cut:'page=' }}">Last &raquo;</a></li>
-      {% endif %}
-      
-    </ul>
-  </nav>
+<!-- CARD VIEW -->
+<div id="card-view" style="display:none;">
+  <div class="row g-4 mb-4">
+    {% for dataset in page_obj %}
+    <div class="col-md-6 col-lg-4">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <h5 class="card-title mb-0">
+              <a href="{% url 'dataset_detail' dataset.pk %}" class="text-decoration-none text-dark">
+                {{ dataset.DisplayName }}
+              </a>
+            </h5>
+            {% if dataset.IsLive %}
+              <span class="badge bg-success">Live</span>
+            {% else %}
+              <span class="badge bg-secondary">Offline</span>
+            {% endif %}
+          </div>
+
+          <p class="text-muted small mb-3">{{ dataset.Description|default:"No description."|truncatewords:15 }}</p>
+
+          <div class="d-flex gap-3 mb-3">
+            <div class="text-center">
+              <div class="fw-bold fs-5">{{ dataset.applicant_count }}</div>
+              <div class="text-muted" style="font-size:0.75rem;">Applicants</div>
+            </div>
+            <div class="vr"></div>
+            <div class="text-center">
+              <div class="fw-bold fs-5">{{ dataset.batch_count }}</div>
+              <div class="text-muted" style="font-size:0.75rem;">Batches</div>
+            </div>
+            <div class="vr"></div>
+            <div class="text-center">
+              <div class="fw-bold fs-5">{{ dataset.ProgramId|default:"—" }}</div>
+              <div class="text-muted" style="font-size:0.75rem;">Program ID</div>
+            </div>
+          </div>
+        </div>
+        <div class="card-footer bg-transparent d-flex justify-content-between align-items-center">
+          <a href="{% url 'dataset_detail' dataset.pk %}" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-eye me-1"></i>View
+          </a>
+          {% if user.profile.role == 'ADMIN' %}
+            <div class="d-flex gap-1">
+              <a href="{% url 'dataset_edit' dataset.pk %}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <form method="post" action="{% url 'dataset_archive' dataset.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-warning" title="Archive">
+                  <i class="bi bi-archive"></i>
+                </button>
+              </form>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+      <div class="text-center text-muted py-5">
+        <i class="bi bi-stack fs-1"></i>
+        <p class="mt-2">No active datasets found.</p>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ── ARCHIVED DATASETS ───────────────────────────────────────── -->
+{% if archived_datasets %}
+<div class="mt-4">
+  <button class="btn btn-outline-secondary btn-sm mb-3" type="button"
+          data-bs-toggle="collapse" data-bs-target="#archived-section">
+    <i class="bi bi-archive me-1"></i>
+    Archived Datasets ({{ archived_datasets|length }})
+  </button>
+
+  <div class="collapse" id="archived-section">
+
+    <!-- Archived Table -->
+    <div id="archived-table-view">
+      <div class="card">
+        <div class="card-body p-0">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-secondary">
+              <tr>
+                <th>Name</th>
+                <th class="text-center">Applicants</th>
+                <th class="text-center">Batches</th>
+                <th class="text-center">Program ID</th>
+                {% if user.profile.role == 'ADMIN' %}<th></th>{% endif %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for dataset in archived_datasets %}
+              <tr class="text-muted">
+                <td>
+                  <a href="{% url 'dataset_detail' dataset.pk %}" class="text-decoration-none text-muted">
+                    {{ dataset.DisplayName }}
+                  </a>
+                  <span class="badge bg-secondary ms-1">Archived</span>
+                </td>
+                <td class="text-center">{{ dataset.applicant_count }}</td>
+                <td class="text-center">{{ dataset.batch_count }}</td>
+                <td class="text-center small">{{ dataset.ProgramId|default:"—" }}</td>
+                {% if user.profile.role == 'ADMIN' %}
+                <td class="text-end">
+                  <div class="d-flex gap-1 justify-content-end">
+                    <a href="{% url 'dataset_edit' dataset.pk %}" class="btn btn-outline-secondary btn-sm" title="Edit">
+                      <i class="bi bi-pencil"></i>
+                    </a>
+                    <form method="post" action="{% url 'dataset_archive' dataset.pk %}" class="d-inline">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-outline-success btn-sm" title="Restore">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                      </button>
+                    </form>
+                  </div>
+                </td>
+                {% endif %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Archived Cards -->
+    <div id="archived-card-view" style="display:none;">
+      <div class="row g-3">
+        {% for dataset in archived_datasets %}
+        <div class="col-md-6 col-lg-4">
+          <div class="card h-100 shadow-sm opacity-75">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <h5 class="card-title mb-0 text-muted">
+                  <a href="{% url 'dataset_detail' dataset.pk %}" class="text-decoration-none text-muted">
+                    {{ dataset.DisplayName }}
+                  </a>
+                </h5>
+                <span class="badge bg-secondary">Archived</span>
+              </div>
+              <p class="text-muted small mb-3">{{ dataset.Description|default:"No description."|truncatewords:15 }}</p>
+              <div class="d-flex gap-3">
+                <div class="text-center">
+                  <div class="fw-bold">{{ dataset.applicant_count }}</div>
+                  <div class="text-muted" style="font-size:0.75rem;">Applicants</div>
+                </div>
+                <div class="vr"></div>
+                <div class="text-center">
+                  <div class="fw-bold">{{ dataset.batch_count }}</div>
+                  <div class="text-muted" style="font-size:0.75rem;">Batches</div>
+                </div>
+              </div>
+            </div>
+            <div class="card-footer bg-transparent d-flex justify-content-between">
+              <a href="{% url 'dataset_detail' dataset.pk %}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-eye me-1"></i>View
+              </a>
+              {% if user.profile.role == 'ADMIN' %}
+                <form method="post" action="{% url 'dataset_archive' dataset.pk %}">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-sm btn-outline-success" title="Restore">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>Restore
+                  </button>
+                </form>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+</div>
 {% endif %}
+
+<script>
+  function setView(view) {
+    const tableView         = document.getElementById('table-view');
+    const cardView          = document.getElementById('card-view');
+    const archivedTableView = document.getElementById('archived-table-view');
+    const archivedCardView  = document.getElementById('archived-card-view');
+    const btnTable          = document.getElementById('btn-table');
+    const btnCard           = document.getElementById('btn-card');
+
+    if (view === 'table') {
+      tableView.style.display         = 'block';
+      cardView.style.display          = 'none';
+      if (archivedTableView) archivedTableView.style.display = 'block';
+      if (archivedCardView)  archivedCardView.style.display  = 'none';
+      btnTable.classList.add('active');
+      btnCard.classList.remove('active');
+    } else {
+      tableView.style.display         = 'none';
+      cardView.style.display          = 'block';
+      if (archivedTableView) archivedTableView.style.display = 'none';
+      if (archivedCardView)  archivedCardView.style.display  = 'block';
+      btnCard.classList.add('active');
+      btnTable.classList.remove('active');
+    }
+    localStorage.setItem('datasetView', view);
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const saved = localStorage.getItem('datasetView') || 'table';
+    setView(saved);
+  });
+</script>
+
 {% endblock %}

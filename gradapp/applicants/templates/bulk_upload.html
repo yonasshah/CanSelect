@@ -1,16 +1,398 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-4">
-    <h2>Bulk Applicant Upload</h2>
-    <p class="text-muted">Select a folder. Each subfolder will create a new applicant record.</p>
-    
-    <form method="post" enctype="multipart/form-data" class="card p-4 shadow-sm">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <div class="mt-3">
-            <button type="submit" class="btn btn-primary">Start Bulk Processing</button>
-            <a href="{% url 'applicant_list' %}" class="btn btn-secondary">Cancel</a>
-        </div>
-    </form>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap');
+
+  .upload-zone {
+    border: 2px dashed #6c757d;
+    border-radius: 12px;
+    padding: 3rem 2rem;
+    text-align: center;
+    background: #f8f9fa;
+    transition: all 0.25s ease;
+    cursor: pointer;
+  }
+  .upload-zone.dragover {
+    border-color: #0d6efd;
+    background: #e8f0fe;
+  }
+  .upload-zone .upload-icon {
+    font-size: 3rem;
+    color: #6c757d;
+    transition: color 0.25s;
+  }
+  .upload-zone.dragover .upload-icon { color: #0d6efd; }
+
+  .preview-card {
+    border-left: 4px solid #0d6efd;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    margin-bottom: 0.75rem;
+    padding: 0.85rem 1.1rem;
+    transition: box-shadow 0.2s;
+  }
+  .preview-card:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.12); }
+
+  .file-badge {
+    font-size: 0.7rem;
+    font-family: 'IBM Plex Mono', monospace;
+    padding: 2px 7px;
+    border-radius: 4px;
+    margin-right: 3px;
+    display: inline-block;
+  }
+  .badge-pdf  { background:#fde8e8; color:#b91c1c; }
+  .badge-mp4  { background:#e0f2fe; color:#0369a1; }
+  .badge-jpg  { background:#f0fdf4; color:#15803d; }
+  .badge-other{ background:#f3f4f6; color:#374151; }
+
+  .step-circle {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: #0d6efd;
+    color: #fff;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .candidate-count-badge {
+    font-size: 1.4rem;
+    font-weight: 700;
+    font-family: 'IBM Plex Mono', monospace;
+    color: #0d6efd;
+  }
+
+  #preview-section { display: none; }
+
+  .progress-bar-animated { animation: progress-bar-stripes 0.75s linear infinite; }
+
+  .batch-name-display {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.1rem;
+    color: #374151;
+    background: #f3f4f6;
+    border-radius: 6px;
+    padding: 4px 12px;
+    display: inline-block;
+  }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-1">Bulk Candidate Upload</h2>
+    <p class="text-muted mb-0">Upload an entire interview batch folder in one step.</p>
+  </div>
+  <a href="{% url 'applicant_list' %}" class="btn btn-outline-secondary">← Back to Applicants</a>
 </div>
+
+<!-- HOW IT WORKS -->
+<div class="card mb-4 border-0 bg-light">
+  <div class="card-body">
+    <h6 class="fw-semibold mb-3">How it works</h6>
+    <div class="d-flex flex-column flex-md-row gap-3">
+      <div class="d-flex align-items-start gap-2">
+        <div class="step-circle">1</div>
+        <div>
+          <div class="fw-semibold">Select your batch folder</div>
+          <small class="text-muted">e.g. <code>December 1 Testing</code></small>
+        </div>
+      </div>
+      <div class="d-flex align-items-start gap-2">
+        <div class="step-circle">2</div>
+        <div>
+          <div class="fw-semibold">Review detected candidates</div>
+          <small class="text-muted">Each subfolder = one candidate profile</small>
+        </div>
+      </div>
+      <div class="d-flex align-items-start gap-2">
+        <div class="step-circle">3</div>
+        <div>
+          <div class="fw-semibold">Click Upload</div>
+            <small class="text-muted">A profile is created for each candidate with their files attached. You can fill in missing details afterwards.</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-3 p-2 rounded bg-white border">
+      <small class="text-muted">
+        <strong>Expected folder structure:</strong><br>
+        <code>December 1/ → Doe, John - 1234567890/ → [application.pdf, evaluation.pdf, interview.mp4, …]</code>
+        <div class="mt-1 text-muted" style="font-size:0.8rem;">The candidate's name and ID are read from the folder name. All files inside are attached to their profile.</div>
+      </small>
+    </div>
+  </div>
+</div>
+
+<!-- UPLOAD FORM -->
+<form method="post" enctype="multipart/form-data" id="upload-form" action="{% url 'bulk_upload' %}">
+  {% csrf_token %}
+
+  <!-- Dataset assignment (optional) -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <h6 class="fw-semibold mb-3">Assign to Dataset &amp; Batch <span class="text-muted fw-normal">(optional)</span></h6>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Dataset</label>
+          <select name="dataset_id" class="form-select">
+            <option value="">— None —</option>
+            {% for ds in datasets %}
+              <option value="{{ ds.pk }}">{{ ds.DisplayName }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Batch / Round</label>
+          <select name="batch_id" class="form-select">
+            <option value="">— None —</option>
+            {% for b in batches %}
+              <option value="{{ b.pk }}">{{ b.DisplayName }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DROP ZONE -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <div class="upload-zone" id="drop-zone" onclick="document.getElementById('folder-input').click()">
+        <div class="upload-icon"><i class="bi bi-folder2-open"></i></div>
+        <h5 class="mt-3 mb-1">Click or drag your batch folder here</h5>
+        <p class="text-muted mb-0">Selects the entire folder — all subfolders and files are included automatically.</p>
+      </div>
+      <!-- Hidden real input -->
+      <input type="file" id="folder-input" name="folder_files"
+             multiple webkitdirectory directory style="display:none"
+             onchange="handleFiles(this.files)">
+    </div>
+  </div>
+
+  <!-- PREVIEW SECTION -->
+  <div id="preview-section">
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+          <h5 class="mb-0">Preview</h5>
+          <small class="text-muted">Batch folder: <span class="batch-name-display" id="batch-folder-name">—</span></small>
+        </div>
+        <div class="text-end">
+          <div class="candidate-count-badge" id="candidate-count">0</div>
+          <div class="text-muted" style="font-size:0.8rem;">candidates detected</div>
+        </div>
+      </div>
+      <div class="card-body" id="preview-list" style="max-height:420px; overflow-y:auto;">
+        <!-- Filled by JS -->
+      </div>
+    </div>
+
+    <!-- SUBMIT -->
+    <div class="d-flex justify-content-end gap-2 mb-5">
+      <button type="button" class="btn btn-outline-secondary" onclick="clearPreview()">Clear</button>
+      <button type="submit" class="btn btn-primary px-4" id="submit-btn">
+        <i class="bi bi-cloud-upload-fill me-2"></i>Upload All Candidates
+      </button>
+    </div>
+  </div>
+</form>
+
+<!-- Upload progress overlay -->
+<div id="upload-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:9999; align-items:center; justify-content:center;">
+  <div class="bg-white rounded-4 p-5 text-center shadow-lg" style="min-width:320px;">
+    <div class="spinner-border text-primary mb-3" role="status"></div>
+    <h5 class="mb-1">Uploading candidates…</h5>
+    <p class="text-muted small mb-0">This may take a moment for large batches. Please don't close this tab.</p>
+  </div>
+</div>
+
+<script>
+  let dragDropFiles = [];  // stores files from drag-drop
+  let isDragDrop = false;
+
+  const dropZone = document.getElementById('drop-zone');
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    isDragDrop = true;
+    dragDropFiles = [];
+
+    const items = e.dataTransfer.items;
+    if (!items) return;
+
+    const promises = [];
+
+    const traverse = (entry, path) => {
+      return new Promise(resolve => {
+        if (entry.isFile) {
+          entry.file(f => {
+            // Manually set the relative path so handleFiles() can parse it
+            const relPath = path + f.name;
+            const blob = f.slice(0, f.size, f.type);
+            const newFile = new File([blob], relPath, { type: f.type });
+            Object.defineProperty(newFile, 'webkitRelativePath', { value: relPath });
+            dragDropFiles.push(newFile);
+            resolve();
+          });
+        } else if (entry.isDirectory) {
+          const reader = entry.createReader();
+          const readAll = () => new Promise(res => {
+            reader.readEntries(entries => {
+              if (!entries.length) { res([]); return; }
+              Promise.all(entries.map(en => traverse(en, path + entry.name + '/'))).then(res);
+            });
+          });
+          readAll().then(resolve);
+        } else {
+          resolve();
+        }
+      });
+    };
+
+    Array.from(items).forEach(item => {
+      const entry = item.webkitGetAsEntry();
+      if (entry) promises.push(traverse(entry, ''));
+    });
+
+    Promise.all(promises).then(() => {
+      handleFiles(dragDropFiles);
+    });
+  });
+
+  function extBadge(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    if (ext === 'pdf') return `<span class="file-badge badge-pdf">.pdf</span>`;
+    if (['mp4','mov','webm','avi'].includes(ext)) return `<span class="file-badge badge-mp4">.${ext}</span>`;
+    if (['jpg','jpeg','png'].includes(ext)) return `<span class="file-badge badge-jpg">.${ext}</span>`;
+    return `<span class="file-badge badge-other">.${ext}</span>`;
+  }
+
+  function handleFiles(fileList) {
+    const files = Array.from(fileList);
+    if (files.length === 0) return;
+
+    const getPath = f => f.webkitRelativePath || f.name;
+    const batchFolders = [...new Set(files.map(f => getPath(f).split('/')[0]))];
+document.getElementById('batch-folder-name').textContent = batchFolders.join(', ');
+
+    const candidates = {};
+    files.forEach(f => {
+      const parts = getPath(f).split('/');
+      if (parts.length < 3) return;
+      const candidateFolder = parts[1];
+      if (!candidates[candidateFolder]) candidates[candidateFolder] = [];
+      candidates[candidateFolder].push(f);
+    });
+
+    const candidateList = Object.entries(candidates);
+    document.getElementById('candidate-count').textContent = candidateList.length;
+
+    let html = '';
+    candidateList.forEach(([folder, cFiles]) => {
+      const match = folder.match(/^(.+?)\s*-\s*(\w+)$/);
+      const displayName = match ? match[1].trim() : folder;
+      const uid = match ? match[2] : '—';
+      const pdfs   = cFiles.filter(f => f.name.toLowerCase().endsWith('.pdf'));
+      const videos = cFiles.filter(f => ['mp4','mov','webm','avi'].some(e => f.name.toLowerCase().endsWith(e)));
+      const others = cFiles.filter(f => !pdfs.includes(f) && !videos.includes(f));
+
+      html += `
+        <div class="preview-card">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <strong>${displayName}</strong>
+              <span class="text-muted ms-2" style="font-size:0.8rem; font-family:'IBM Plex Mono',monospace;">#${uid}</span>
+            </div>
+            <span class="badge bg-light text-dark border">${cFiles.length} file${cFiles.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div class="mt-2 d-flex flex-wrap gap-1">
+            ${cFiles.map(f => `<span title="${f.name}">${extBadge(f.name)}<span style="font-size:0.72rem; color:#555;">${f.name.length > 30 ? f.name.slice(0,27)+'…' : f.name}</span></span>`).join(' ')}
+          </div>
+          <div class="mt-2" style="font-size:0.78rem; color:#6b7280;">
+            ${pdfs.length} PDF${pdfs.length!==1?'s':''} &bull;
+            ${videos.length} video${videos.length!==1?'s':''} &bull;
+            ${others.length} other
+          </div>
+        </div>`;
+    });
+
+    if (candidateList.length === 0) {
+      html = '<p class="text-muted text-center">No candidate subfolders detected.</p>';
+    }
+
+    document.getElementById('preview-list').innerHTML = html;
+    document.getElementById('preview-section').style.display = 'block';
+    document.getElementById('preview-section').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function clearPreview() {
+    document.getElementById('folder-input').value = '';
+    dragDropFiles = [];
+    isDragDrop = false;
+    document.getElementById('preview-section').style.display = 'none';
+    document.getElementById('preview-list').innerHTML = '';
+    document.getElementById('batch-folder-name').textContent = '—';
+    document.getElementById('candidate-count').textContent = '0';
+  }
+
+  // On submit — use AJAX if drag-drop, normal form if click-selected
+  document.getElementById('upload-form').addEventListener('submit', function(e) {
+    if (isDragDrop) {
+      e.preventDefault();
+      if (dragDropFiles.length === 0) {
+        alert('No files to upload.');
+        return;
+      }
+      document.getElementById('upload-overlay').style.display = 'flex';
+      document.getElementById('submit-btn').disabled = true;
+
+      const formData = new FormData();
+formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+formData.append('dataset_id', document.querySelector('[name=dataset_id]').value);
+formData.append('batch_id', document.querySelector('[name=batch_id]').value);
+
+const pathMap = {};
+dragDropFiles.forEach((f, i) => {
+    formData.append('folder_files', f);
+    pathMap[i] = f.webkitRelativePath;
+});
+formData.append('path_map', JSON.stringify(pathMap));
+
+      fetch("{% url 'bulk_upload' %}", {
+    method: 'POST',
+    body: formData,
+}).then(res => {
+    if (res.ok && res.redirected) {
+        window.location.href = res.url;
+    } else if (res.ok) {
+        window.location.href = "{% url 'applicant_list' %}";
+    } else {
+        return res.text().then(text => {
+            console.error('Server response:', text);
+            alert('Upload failed — server returned an error. Check the console for details.');
+            document.getElementById('upload-overlay').style.display = 'none';
+            document.getElementById('submit-btn').disabled = false;
+        });
+    }
+}).catch(err => {
+    console.error('Fetch error:', err);
+    alert('Upload failed. Please try again.');
+    document.getElementById('upload-overlay').style.display = 'none';
+    document.getElementById('submit-btn').disabled = false;
+});
+    } else {
+      // Normal form submit (click-selected folder)
+      document.getElementById('upload-overlay').style.display = 'flex';
+      document.getElementById('submit-btn').disabled = true;
+    }
+  });
+</script>
+
 {% endblock %}

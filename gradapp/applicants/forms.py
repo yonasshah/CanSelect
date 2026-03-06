@@ -46,7 +46,7 @@ class EmailLoginForm(forms.Form):
 class ApplicantForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = Applicant
-        fields = ["first_name", "last_name", "email", "age", "gender", "ethnicity", "dataset", "round", "description", "street", "profile_picture"]
+        fields = ["first_name", "last_name", "email", "age", "gender", "ethnicity", "dataset", "round", "description", "street", "profile_picture", "external_id"]
 
 
 class DataSetForm(BootstrapFormMixin, forms.ModelForm):
@@ -65,10 +65,11 @@ class BatchForm(BootstrapFormMixin, forms.ModelForm):
             "AdminNotes",
             "PublicView",
             "Active",
-            "HighlightBefore",
             "RoundId",
         ]
-        
+        widgets = {
+            'VoteExpire': forms.DateTimeInput(attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'),
+        }
         
 class ScoreForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:

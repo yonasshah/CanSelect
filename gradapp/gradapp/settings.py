@@ -71,4 +71,7 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+USE_L10N = False
+DATETIME_INPUT_FORMATS = ['%Y-%m-%dT%H:%M']
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

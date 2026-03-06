@@ -30,4 +30,8 @@ urlpatterns = [
     path("queue/", views.applicant_queue, name="applicant_queue"),
     path('<int:pk>/toggle-flag/', toggle_applicant_flag, name='toggle_applicant_flag'),
     path("bulk-upload/", views.bulk_upload_applicants, name="bulk_upload"),
-]
+    path("datasets/<int:pk>/archive/", views.dataset_archive, name="dataset_archive"),
+    path("committee/dashboard/", views.committee_dashboard, name="committee_dashboard"),
+    path("committee/reviews/", views.my_reviews, name="my_reviews"),
+    path("committee/activity/", views.my_activity, name="my_activity"),
+    ]

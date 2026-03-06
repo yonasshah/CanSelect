@@ -32,7 +32,7 @@ class Applicant(models.Model):
         
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
-    email = models.EmailField()
+    email = models.EmailField(blank=True, null=True)
     age = models.PositiveIntegerField()
     gender = models.CharField(max_length=50)
     ethnicity = models.CharField(max_length=100, blank=True)
@@ -42,6 +42,7 @@ class Applicant(models.Model):
     street = models.TextField(blank=True, max_length=100000)
     created_at = models.DateTimeField(auto_now_add=True)
     profile_picture = models.ImageField(upload_to='applicant_profiles/', blank=True, null=True)
+    external_id = models.CharField(max_length=100, blank=True, null=True, unique=True)
     flagged_by = models.ManyToManyField(User, blank=True, related_name='flagged_applicants')
     
     status = models.CharField(
@@ -182,10 +183,12 @@ def save_user_profile(sender, instance, **kwargs):
 class Activity(models.Model):
     VOTE_CAST = 'vote_cast'
     COMMENT_ADDED = 'comment_added'
+    FLAG_ADDED = 'flag_added'
 
     ACTION_CHOICES = [
         (VOTE_CAST, 'Vote Cast'),
         (COMMENT_ADDED, 'Comment Added'),
+        (FLAG_ADDED, 'Flag Added'),
     ]
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     action_type = models.CharField(max_length=50, choices=ACTION_CHOICES)
