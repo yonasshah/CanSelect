@@ -34,4 +34,5 @@ urlpatterns = [
     path("committee/dashboard/", views.committee_dashboard, name="committee_dashboard"),
     path("committee/reviews/", views.my_reviews, name="my_reviews"),
     path("committee/activity/", views.my_activity, name="my_activity"),
+    path("batches/bulk-action/", views.batch_bulk_action, name="batch_bulk_action"),
     ]

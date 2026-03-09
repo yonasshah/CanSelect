@@ -1,188 +1,259 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h2>{% if is_queue_page %}My Review Queue{% else %}Applicants{% endif %}</h2>
-  
-  <div class="d-flex align-items-center justify-content-end flex-wrap gap-2">
-    
-    {% if user.profile.role == 'ADMIN' %}
-    <div id="batch-action-container" style="display: none; display: inline;">
-      <select name="action" class="form-select-sm" form="batch-form">
-        <option value="">Batch Action...</option>
-        <option value="set_status_review">Set Status: Under Review</option>
-        <option value="set_status_interview">Set Status: Interview</option>
-        <option value="set_status_decided">Set Status: Decision Made</option>
-      </select>
-      <button type="submit" class="btn btn-primary btn-sm" form="batch-form">Apply</button>
-    </div>
-    {% endif %}
 
-    <button type="submit" class="btn btn-info btn-sm" id="compare-btn" style="display: none;"
-            form="batch-form" formaction="{% url 'compare_applicants' %}" formmethod="GET">
-      <i class="bi bi-layout-split me-2"></i>Compare
-    </button>
-  
-    <a href="{% url 'export_applicants_csv' %}?dataset={{ selected_dataset_id|default:'' }}&q={{ search_query|default:'' }}" class="btn btn-success btn-sm">
-        <i class="bi bi-file-earmark-spreadsheet-fill me-2"></i>Export to CSV
-    </a>
+<style>
+  .sort-link {
+    color: inherit;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+  }
+  .sort-link:hover { opacity: 0.8; }
+  .sort-icon { font-size: 0.7rem; opacity: 0.5; }
+  .sort-icon.active { opacity: 1; color: #90caf9; }
+  tr.flagged-row { background-color: rgba(220, 53, 69, 0.05); }
+  tr.flagged-row:hover { background-color: rgba(220, 53, 69, 0.1) !important; }
+  .applicant-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+  .applicant-initials {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: #dee2e6; color: #495057;
+    font-size: 0.75rem; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .table > tbody > tr > td { vertical-align: middle; }
+  .candidate-name { font-weight: 500; text-decoration: none; color: inherit; }
+  .candidate-name:hover { color: #0d6efd; }
+</style>
 
-    {% if user.profile.role == 'ADMIN' %}
-      <a href="{% url 'applicant_create' %}" class="btn btn-primary btn-sm">➕ New Applicant</a>
-    {% endif %}
-    </div>
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-0">Applicants</h2>
+    <p class="text-muted mb-0 small">{{ paginator_count }} total candidates</p>
   </div>
+  <div class="d-flex gap-2 flex-wrap justify-content-end">
+    {% if user.profile.role == 'ADMIN' %}
+      <div id="batch-action-container" style="display:none;" class="d-flex gap-1">
+        <select name="action" class="form-select form-select-sm" form="batch-form">
+          <option value="">Batch Action...</option>
+          <option value="set_status_review">Set: Under Review</option>
+          <option value="set_status_interview">Set: Interview</option>
+          <option value="set_status_decided">Set: Decision Made</option>
+        </select>
+        <button type="submit" class="btn btn-primary btn-sm" form="batch-form">Apply</button>
+      </div>
+    {% endif %}
+    <button type="submit" class="btn btn-outline-info btn-sm" id="compare-btn" style="display:none;"
+            form="batch-form" formaction="{% url 'compare_applicants' %}" formmethod="GET">
+      <i class="bi bi-layout-split me-1"></i>Compare
+    </button>
+    <a href="{% url 'export_applicants_csv' %}?dataset={{ selected_dataset_id|default:'' }}&q={{ search_query|default:'' }}"
+       class="btn btn-outline-success btn-sm">
+      <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV
+    </a>
+    {% if user.profile.role == 'ADMIN' %}
+      <a href="{% url 'applicant_create' %}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-lg me-1"></i>New Applicant
+      </a>
+    {% endif %}
+  </div>
+</div>
 
-<div class="card mb-3">
-  <div class="card-body">
+<!-- Filters -->
+<div class="card mb-4">
+  <div class="card-body py-3">
     <form method="get" id="filter-form">
-      <div class="row g-3">
-        <div class="col-md-4">
-          <label for="batch" class="form-label">Filter by Batch</label>
-          <select name="batch" id="batch" class="form-select">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label small text-muted mb-1">Batch</label>
+          <select name="batch" class="form-select form-select-sm">
             <option value="">All Batches</option>
             {% for b in batches %}
-            <option value="{{ b.pk }}" {% if b.pk|stringformat:"s" == selected_batch_id %}selected{% endif %}>
-              {{ b.DisplayName }}
-            </option>
+              <option value="{{ b.pk }}" {% if b.pk|stringformat:"s" == selected_batch_id %}selected{% endif %}>
+                {{ b.DisplayName }}
+              </option>
             {% endfor %}
           </select>
         </div>
-
-        <div class="col-md-4">
-          <label for="q" class="form-label">Search by Name</label>
-          <input type="text" name="q" id="q" class="form-control" placeholder="Search by name..." value="{{ search_query|default:'' }}">
+        <div class="col-md-2">
+          <label class="form-label small text-muted mb-1">Status</label>
+          <select name="status" class="form-select form-select-sm">
+            <option value="">All Statuses</option>
+            <option value="NEW" {% if status_filter == 'NEW' %}selected{% endif %}>New</option>
+            <option value="REVIEW" {% if status_filter == 'REVIEW' %}selected{% endif %}>Under Review</option>
+            <option value="INTERVIEW" {% if status_filter == 'INTERVIEW' %}selected{% endif %}>Interview</option>
+            <option value="DECIDED" {% if status_filter == 'DECIDED' %}selected{% endif %}>Decision Made</option>
+          </select>
         </div>
-
-        <div class="col-md-2 d-flex align-items-end">
-          <button type="submit" class="btn btn-outline-secondary w-100">Filter</button>
+        <div class="col-md-3">
+          <label class="form-label small text-muted mb-1">Search</label>
+          <input type="text" name="q" class="form-control form-control-sm"
+                 placeholder="Search by name..." value="{{ search_query|default:'' }}">
         </div>
-        <div class="col-md-2 d-flex align-items-end">
-          <a href="{% url 'applicant_list' %}" class="btn btn-outline-danger w-100">Clear</a>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-outline-secondary btn-sm">Filter</button>
         </div>
+        <div class="col-auto">
+          <a href="{% url 'applicant_list' %}" class="btn btn-outline-danger btn-sm">Clear</a>
+        </div>
+        {% if user.profile.role == 'ADMIN' %}
+        <div class="col-auto d-flex align-items-center pt-3">
+          <div class="form-check mb-0">
+            <input class="form-check-input" type="checkbox" name="flagged_only" id="flagged_only"
+                   {% if flagged_only %}checked{% endif %} onchange="this.form.submit()">
+            <label class="form-check-label small" for="flagged_only">Flagged only</label>
+          </div>
+        </div>
+        {% endif %}
       </div>
     </form>
   </div>
 </div>
 
+<!-- Table -->
 <form id="batch-form" action="{% url 'batch_action' %}" method="POST">
-  {% csrf_token %} 
+  {% csrf_token %}
   <div class="card">
-    <div class="card-body">
-      <table class="table table-striped table-hover align-middle">
-        
+    <div class="card-body p-0">
+      <table class="table table-hover align-middle mb-0">
         <thead class="table-dark">
           <tr>
-            <th style="width: 1%;"></th>
-            <th>Profile</th>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Dataset</th>
-            <th>Round</th>
-            <th>Status</th>
-
-            {% if is_queue_page %}
-              <th class="text-center"><i class="bi bi-check2-circle"></i> Voted</th> 
-            {% else %}
-              <th class="text-center">Votes & Score</th>
+            {% if user.profile.role == 'ADMIN' %}
+            <th style="width:1%;">
+              <input type="checkbox" class="form-check-input" id="select-all">
+            </th>
             {% endif %}
+            <th style="width:44px;"></th>
+            <th>
+              <a href="?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&sort=name&dir={% if sort == 'name' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link text-white">
+                Name <i class="bi bi-arrow-{% if sort == 'name' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'name' %}active{% endif %}"></i>
+              </a>
+            </th>
+            <th class="text-white-50">Email</th>
+            <th class="text-white-50">Dataset</th>
+            <th class="text-white-50">Batch</th>
+            <th>
+              <a href="?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&sort=status&dir={% if sort == 'status' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link text-white">
+                Status <i class="bi bi-arrow-{% if sort == 'status' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'status' %}active{% endif %}"></i>
+              </a>
+            </th>
+            <th>
+              <a href="?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&sort=date&dir={% if sort == 'date' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link text-white">
+                Submitted <i class="bi bi-arrow-{% if sort == 'date' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'date' %}active{% endif %}"></i>
+              </a>
+            </th>
+            <th class="text-center">
+              <a href="?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&sort=score&dir={% if sort == 'score' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link text-white justify-content-center">
+                Score / Votes <i class="bi bi-arrow-{% if sort == 'score' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'score' %}active{% endif %}"></i>
+              </a>
+            </th>
           </tr>
         </thead>
-        
         <tbody>
           {% for a in page_obj %}
-            <tr>
-              <td>
-                <input type="checkbox" name="ids" value="{{ a.pk }}" class="form-check-input applicant-checkbox">
-              </td>
-              <td>
-                {% if a.profile_picture %}
-                  <img src="{{ a.profile_picture.url }}" alt="Profile" class="rounded-circle" style="width: 40px; height: 40px; object-fit: cover;">
-                {% else %}
-                  <i class="bi bi-person-circle fs-2 text-secondary"></i>
-                {% endif %}
-              </td>
-              <td>
-  <a href="{% url 'applicant_detail' a.pk %}">{{ a.last_name }}, {{ a.first_name }}</a>
-  
-  {% if request.user in a.flagged_by.all or request.user.profile.role == 'ADMIN' and a.flagged_by.exists %}
-    <span class="badge bg-danger ms-1" title="Flagged for discussion"><i class="bi bi-flag-fill"></i> Discuss</span>
-  {% endif %}
-</td>
-              <td>{{ a.email }}</td>
-              <td>{{ a.dataset.DisplayName|default:"—" }}</td>
-              <td>{{ a.round.DisplayName|default:"—" }}</td>
-
-              <td>
-                <span class="badge 
-                  {% if a.status == 'NEW' %}bg-secondary
-                  {% elif a.status == 'REVIEW' %}bg-primary
-                  {% elif a.status == 'INTERVIEW' %}bg-info text-dark
-                  {% elif a.status == 'DECIDED' %}bg-success
-                  {% endif %}">
-                  {{ a.get_status_display }}
+          <tr class="{% if a.flagged_by.exists %}flagged-row{% endif %}">
+            {% if user.profile.role == 'ADMIN' %}
+            <td>
+              <input type="checkbox" name="ids" value="{{ a.pk }}" class="form-check-input applicant-checkbox">
+            </td>
+            {% endif %}
+            <td>
+              {% if a.profile_picture %}
+                <img src="{{ a.profile_picture.url }}" class="applicant-avatar" alt="">
+              {% else %}
+                <div class="applicant-initials">{{ a.first_name|first }}{{ a.last_name|first }}</div>
+              {% endif %}
+            </td>
+            <td>
+              <a href="{% url 'applicant_detail' a.pk %}?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}"
+                 class="candidate-name">
+                {{ a.last_name }}, {{ a.first_name }}
+              </a>
+              {% if request.user in a.flagged_by.all or user.profile.role == 'ADMIN' and a.flagged_by.exists %}
+                <span class="badge bg-danger ms-1" title="Flagged for discussion">
+                  <i class="bi bi-flag-fill"></i>
                 </span>
-              </td>
-              
-              <td class="text-center">
-                {% if user.profile.role == 'ADMIN' %}
-                  {% if a.avg_score %}
-                    <span class="badge bg-primary fs-6">
-                      {{ a.avg_score|floatformat:2 }} / 5.0
-                    </span>
-                  {% else %}
-                    <span class="badge bg-light text-dark">N/A</span>
-                  {% endif %}
-                  
-                  <hr class="my-1 mx-3"> {% with votes=a.votes_summary %}
-                    <span class="badge bg-success">A: {{ votes.accept }}</span>
-                    <span class="badge bg-danger">D: {{ votes.deny }}</span>
-                    <span class="badge bg-warning text-dark">W: {{ votes.waitlist }}</span>
-                  {% endwith %}
-
-                {% else %}
-                  {% if a.user_has_voted %}
-                    <span class="badge bg-success">
-                      <i class="bi bi-check-circle-fill"></i> Voted
-                    </span>
-                  {% else %}
-                    <span class="badge bg-light text-dark">
-                      <i class="bi bi-circle"></i> Pending
-                    </span>
-                  {% endif %}
+              {% endif %}
+            </td>
+            <td class="text-muted small">{{ a.email|default:"—" }}</td>
+            <td class="text-muted small">{{ a.dataset.DisplayName|default:"—" }}</td>
+            <td class="text-muted small">{{ a.round.DisplayName|default:"—" }}</td>
+            <td>
+              <span class="badge {% if a.status == 'NEW' %}bg-secondary{% elif a.status == 'REVIEW' %}bg-primary{% elif a.status == 'INTERVIEW' %}bg-info text-dark{% elif a.status == 'DECIDED' %}bg-success{% endif %}">
+                {{ a.get_status_display }}
+              </span>
+            </td>
+            <td class="text-muted small">{{ a.created_at|date:"M d, Y" }}</td>
+            <td class="text-center">
+              {% if user.profile.role == 'ADMIN' %}
+                {% if a.avg_score %}
+                  <span class="badge bg-primary me-1">{{ a.avg_score|floatformat:1 }}/5</span>
                 {% endif %}
-              </td>
-            </tr>
+                {% with votes=a.votes_summary %}
+                  <span class="badge bg-success" title="Accept">{{ votes.accept }}</span>
+                  <span class="badge bg-danger" title="Deny">{{ votes.deny }}</span>
+                  <span class="badge bg-warning text-dark" title="Waitlist">{{ votes.waitlist }}</span>
+                {% endwith %}
+              {% else %}
+                {% if a.user_has_voted %}
+                  <span class="badge bg-success"><i class="bi bi-check-circle-fill me-1"></i>Voted</span>
+                {% else %}
+                  <span class="badge bg-light text-dark">Pending</span>
+                {% endif %}
+              {% endif %}
+            </td>
+          </tr>
           {% empty %}
-            <tr>
-              <td colspan="8" class="text-center text-muted">No applicants yet.</td>
-            </tr>
+          <tr>
+            <td colspan="9" class="text-center text-muted py-5">
+              <i class="bi bi-people fs-1 d-block mb-2 opacity-25"></i>
+              No applicants found.
+            </td>
+          </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
   </div>
-</form> 
+</form>
 
+<!-- Pagination -->
 {% if page_obj.has_other_pages %}
-  <nav aria-label="Page navigation" class="mt-4">
-    <ul class="pagination justify-content-center">
-      
-      {% if page_obj.has_previous %}
-        <li class="page-item"><a class="page-link" href="?page=1&{{ request.GET.urlencode | cut:'page=' }}">&laquo; First</a></li>
-        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&{{ request.GET.urlencode | cut:'page=' }}">Previous</a></li>
-      {% endif %}
-
-      <li class="page-item active" aria-current="page">
-        <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-      </li>
-
-      {% if page_obj.has_next %}
-        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&{{ request.GET.urlencode | cut:'page=' }}">Next</a></li>
-        <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}&{{ request.GET.urlencode | cut:'page=' }}">Last &raquo;</a></li>
-      {% endif %}
-      
-    </ul>
-  </nav>
+<nav class="mt-4">
+  <ul class="pagination justify-content-center">
+    {% if page_obj.has_previous %}
+      <li class="page-item"><a class="page-link" href="?page=1&batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&sort={{ sort }}&dir={{ direction }}">&laquo; First</a></li>
+      <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&sort={{ sort }}&dir={{ direction }}">Previous</a></li>
+    {% endif %}
+    <li class="page-item active"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+    {% if page_obj.has_next %}
+      <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&sort={{ sort }}&dir={{ direction }}">Next</a></li>
+      <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}&batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&sort={{ sort }}&dir={{ direction }}">Last &raquo;</a></li>
+    {% endif %}
+  </ul>
+</nav>
 {% endif %}
+
+<script>
+const selectAll = document.getElementById('select-all');
+if (selectAll) {
+  selectAll.addEventListener('change', function() {
+    document.querySelectorAll('.applicant-checkbox').forEach(cb => cb.checked = this.checked);
+    toggleActionButtons();
+  });
+}
+function toggleActionButtons() {
+  const checked = document.querySelectorAll('.applicant-checkbox:checked').length;
+  const batchContainer = document.getElementById('batch-action-container');
+  const compareBtn = document.getElementById('compare-btn');
+  if (batchContainer) batchContainer.style.display = checked >= 1 ? 'inline-flex' : 'none';
+  if (compareBtn) compareBtn.style.display = checked >= 2 ? 'inline' : 'none';
+}
+document.querySelectorAll('.applicant-checkbox').forEach(cb => {
+  cb.addEventListener('change', toggleActionButtons);
+});
+</script>
 
 {% endblock %}

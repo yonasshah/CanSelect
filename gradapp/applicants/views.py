@@ -38,38 +38,64 @@ def applicant_list(request):
     batches = Batch.objects.all()
     selected_batch_id = request.GET.get('batch')
     search_query = request.GET.get('q', '')
-    
+    status_filter = request.GET.get('status', '')
+    flagged_only = request.GET.get('flagged_only', '')
+    sort = request.GET.get('sort', 'date')
+    direction = request.GET.get('dir', 'desc')
+
     user_has_voted_subquery = Vote.objects.filter(
-    applicant=OuterRef('pk'),
-    voter=request.user
-)
+        applicant=OuterRef('pk'),
+        voter=request.user
+    )
 
     applicants_list = Applicant.objects.select_related('dataset', 'round').annotate(
         avg_score=Avg('scores__overall_score'),
         user_has_voted=Exists(user_has_voted_subquery)
-    ).order_by("-created_at")
-    
+    )
 
     if selected_batch_id:
-        applicants_list = applicants_list.filter(dataset_id=selected_batch_id)
+        applicants_list = applicants_list.filter(round_id=selected_batch_id)
 
     if search_query:
         applicants_list = applicants_list.filter(
             Q(first_name__icontains=search_query) |
             Q(last_name__icontains=search_query)
         )
-        
-    paginator = Paginator(applicants_list, 25) # Show 25 applicants per page
-    page_number = request.GET.get("page")
+
+    if status_filter:
+        applicants_list = applicants_list.filter(status=status_filter)
+
+    if flagged_only:
+        applicants_list = applicants_list.filter(flagged_by__isnull=False).distinct()
+
+    sort_map = {
+        'name': 'last_name',
+        'status': 'status',
+        'date': 'created_at',
+        'score': 'avg_score',
+    }
+    order_field = sort_map.get(sort, 'created_at')
+    if direction == 'asc':
+        applicants_list = applicants_list.order_by(order_field)
+    else:
+        applicants_list = applicants_list.order_by(f'-{order_field}')
+
+    paginator = Paginator(applicants_list, 25)
+    page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
     context = {
-        'page_obj': page_obj, 
+        'page_obj': page_obj,
+        'paginator_count': paginator.count,
         'batches': batches,
         'selected_batch_id': selected_batch_id,
         'search_query': search_query,
+        'status_filter': status_filter,
+        'flagged_only': flagged_only,
+        'sort': sort,
+        'direction': direction,
     }
-    return render(request, "applicant_list.html", context)
+    return render(request, 'applicant_list.html', context)
 
 @login_required
 def applicant_detail(request, pk):
@@ -77,24 +103,21 @@ def applicant_detail(request, pk):
     user_score, _ = Score.objects.get_or_create(applicant=applicant, voter=request.user)
     score_form = ScoreForm(instance=user_score)
     status_form = ApplicantStatusForm(instance=applicant)
-    
+
     avg_scores = Score.objects.filter(applicant=applicant).aggregate(
         avg_research=Avg('research_score'),
         avg_statement=Avg('statement_score'),
         avg_overall=Avg('overall_score')
     )
-    
+
     comment_form = CommentForm()
-    
     current_user_vote = Vote.objects.filter(applicant=applicant, voter=request.user).first()
 
-    # Fetches comments based on user role
     if request.user.profile.role == 'ADMIN':
         comments = applicant.comments.select_related('author').all()
     else:
         comments = applicant.comments.filter(author=request.user).select_related('author')
 
-    # Handles new comment submissions
     if request.method == 'POST':
         comment_form = CommentForm(request.POST)
         if comment_form.is_valid():
@@ -109,6 +132,84 @@ def applicant_detail(request, pk):
     video_files = [f for f in all_files if f.is_video]
     other_files = [f for f in all_files if not f.is_video]
 
+    # ── Next / Previous Navigation ────────────────────────────────────────────
+    batch_id     = request.GET.get('batch')
+    search_q     = request.GET.get('q', '')
+    from_queue   = request.GET.get('queue', '')
+    from_reviews = request.GET.get('from') == 'reviews'
+    from_batch   = request.GET.get('from') == 'batch'
+    batch_pk     = request.GET.get('batch_pk')
+
+    if from_reviews:
+        assigned_batches = request.user.assigned_batches.all()
+        reviewed_ids = Vote.objects.filter(
+            voter=request.user,
+            applicant__round__in=assigned_batches
+        ).values_list('applicant__pk', flat=True)
+        nav_qs = Applicant.objects.filter(pk__in=reviewed_ids).order_by('last_name')
+
+    elif from_batch and batch_pk:
+        nav_qs = Applicant.objects.filter(round_id=batch_pk).order_by('last_name')
+
+    elif from_queue:
+        user_batches = request.user.assigned_batches.all()
+        nav_qs = Applicant.objects.filter(
+            round__in=user_batches
+        ).exclude(
+            votes__voter=request.user
+        ).order_by('-created_at')
+
+    else:
+        nav_qs = Applicant.objects.all().order_by('-created_at')
+        if batch_id:
+            nav_qs = nav_qs.filter(round_id=batch_id)
+        if search_q:
+            nav_qs = nav_qs.filter(
+                Q(first_name__icontains=search_q) |
+                Q(last_name__icontains=search_q)
+            )
+
+    nav_ids = list(nav_qs.values_list('pk', flat=True))
+    prev_applicant = None
+    next_applicant = None
+    nav_position = None
+    nav_total = len(nav_ids)
+
+    if pk in nav_ids:
+        idx = nav_ids.index(pk)
+        nav_position = idx + 1
+        if idx > 0:
+            prev_applicant = Applicant.objects.get(pk=nav_ids[idx - 1])
+        if idx < len(nav_ids) - 1:
+            next_applicant = Applicant.objects.get(pk=nav_ids[idx + 1])
+
+    # Build nav params to carry forward
+    nav_params_parts = []
+    if from_reviews:
+        nav_params_parts.append('from=reviews')
+    elif from_batch and batch_pk:
+        nav_params_parts.append(f'from=batch&batch_pk={batch_pk}')
+    elif from_queue:
+        nav_params_parts.append('queue=1')
+    else:
+        if batch_id:
+            nav_params_parts.append(f'batch={batch_id}')
+        if search_q:
+            nav_params_parts.append(f'q={search_q}')
+    nav_params = '&'.join(nav_params_parts)
+
+    # Back URL
+    if from_reviews:
+        back_url = '/committee/reviews/'
+    elif from_batch and batch_pk:
+        back_url = f'/batches/{batch_pk}/'
+    elif from_queue:
+        back_url = '/queue/'
+    elif batch_id or search_q:
+        back_url = f'/applicant/?batch={batch_id or ""}&q={search_q}'
+    else:
+        back_url = '/applicant/'
+
     context = {
         'applicant': applicant,
         'comments': comments,
@@ -119,6 +220,12 @@ def applicant_detail(request, pk):
         'score_form': score_form,
         'status_form': status_form,
         'avg_scores': avg_scores,
+        'prev_applicant': prev_applicant,
+        'next_applicant': next_applicant,
+        'nav_position': nav_position,
+        'nav_total': nav_total,
+        'nav_params': nav_params,
+        'back_url': back_url,
     }
     return render(request, "applicant_detail.html", context)
 
@@ -359,40 +466,50 @@ def batch_create(request):
         ],
     })
 
-@login_required
+
 @admin_required
+@login_required
 def batch_detail(request, pk):
     batch = get_object_or_404(Batch, pk=pk)
+    search_query = request.GET.get('q', '')
 
     applicants = Applicant.objects.filter(round=batch).annotate(
         avg_score=Avg('scores__overall_score'),
-        vote_count=Count('votes', distinct=True),
+        vote_count=Count('votes')
     ).order_by('last_name')
 
-    total = applicants.count()
-    reviewer_count = batch.assigned_reviewers.count()
-    potential_votes = total * reviewer_count
+    if search_query:
+        applicants = applicants.filter(
+            Q(first_name__icontains=search_query) |
+            Q(last_name__icontains=search_query)
+        )
+
+    assigned_reviewers = batch.assigned_reviewers.all()
+    reviewer_count = assigned_reviewers.count()
     actual_votes = Vote.objects.filter(
         applicant__round=batch,
-        voter__in=batch.assigned_reviewers.all()
+        voter__in=assigned_reviewers
     ).count()
+    total = applicants.count()
+    potential_votes = total * reviewer_count
+    progress_pct = round((actual_votes / potential_votes) * 100) if potential_votes > 0 else 0
     pending = potential_votes - actual_votes
 
-    return render(request, "batch_detail.html", {
-        "batch": batch,
-        "applicants": applicants,
-        "total": total,
-        "reviewer_count": reviewer_count,
-        "actual_votes": actual_votes,
-        "potential_votes": potential_votes,
-        "pending": pending,
-        "progress_pct": int((actual_votes / potential_votes * 100) if potential_votes > 0 else 0),
+    context = {
+        'batch': batch,
+        'applicants': applicants,
+        'total': total,
+        'reviewer_count': reviewer_count,
+        'actual_votes': actual_votes,
+        'pending': pending,
+        'progress_pct': progress_pct,
+        'search_query': search_query,
         'crumbs': [
-            {'label': 'Datasets', 'url': '/datasets/'},
-            {'label': batch.DataSet.DisplayName, 'url': f'/datasets/{batch.DataSet.pk}/'},
-            {'label': batch.DisplayName, 'url': ''},
+            {'label': 'Batches', 'url': '/batches/'},
+            {'label': batch.DisplayName},
         ],
-    })
+    }
+    return render(request, 'batch_detail.html', context)
 
 @login_required
 @admin_required
@@ -536,27 +653,26 @@ def compare_applicants(request):
     }
     return render(request, "compare_applicants.html", context)
 
-@login_required
-@admin_required
-def export_applicants_csv(request):
-    # Get the same queryset as the applicant list page, including filters
-    selected_dataset_id = request.GET.get('dataset')
-    if selected_dataset_id:
-        applicants = Applicant.objects.filter(dataset_id=selected_dataset_id).order_by("-created_at")
-    else:
-        applicants = Applicant.objects.all().order_by("-created_at")
 
-    # Create the HttpResponse object with the appropriate CSV header.
+@admin_required
+@login_required
+def export_applicants_csv(request):
+    selected_dataset_id = request.GET.get('dataset')
+    selected_batch_id = request.GET.get('batch')
+
+    applicants = Applicant.objects.all().order_by("-created_at")
+
+    if selected_batch_id:
+        applicants = applicants.filter(round_id=selected_batch_id)
+    elif selected_dataset_id:
+        applicants = applicants.filter(dataset_id=selected_dataset_id)
+
     response = HttpResponse(
         content_type='text/csv',
         headers={'Content-Disposition': 'attachment; filename="applicants.csv"'},
     )
-
     writer = csv.writer(response)
-    # Write the header row
-    writer.writerow(['First Name', 'Last Name', 'Email', 'Age', 'Gender', 'Ethnicity', 'DataSet', 'Round'])
-
-    # Write data rows
+    writer.writerow(['First Name', 'Last Name', 'Email', 'Age', 'Gender', 'Ethnicity', 'Status', 'Dataset', 'Round'])
     for applicant in applicants:
         writer.writerow([
             applicant.first_name,
@@ -565,10 +681,10 @@ def export_applicants_csv(request):
             applicant.age,
             applicant.gender,
             applicant.ethnicity,
+            applicant.get_status_display(),
             applicant.dataset.DisplayName if applicant.dataset else '',
-            applicant.round.DisplayName if applicant.round else ''
+            applicant.round.DisplayName if applicant.round else '',
         ])
-
     return response
 
 @login_required
@@ -606,7 +722,7 @@ def update_score(request, pk):
 
 @login_required
 def applicant_queue(request):
-    batches = Batch.objects.all()
+    batches = request.user.assigned_batches.all()
     selected_batch_id = request.GET.get('batch')
     search_query = request.GET.get('q', '')
 
@@ -971,3 +1087,30 @@ def my_activity(request):
     return render(request, "my_activity.html", {
         'page_obj': page_obj,
     })
+    
+@login_required
+@admin_required
+def batch_bulk_action(request):
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        batch_ids = request.POST.getlist('ids')
+
+        if not batch_ids:
+            messages.warning(request, "You didn't select any batches.")
+            return redirect('batch_list')
+
+        # A batch action updates the status of all APPLICANTS in those batches
+        from .models import Applicant
+        if action == 'set_status_review':
+            count = Applicant.objects.filter(round_id__in=batch_ids).update(status=Applicant.Status.UNDER_REVIEW)
+            messages.success(request, f"Updated {count} applicants to 'Under Review'.")
+        elif action == 'set_status_interview':
+            count = Applicant.objects.filter(round_id__in=batch_ids).update(status=Applicant.Status.INTERVIEW)
+            messages.success(request, f"Updated {count} applicants to 'Interview'.")
+        elif action == 'set_status_decided':
+            count = Applicant.objects.filter(round_id__in=batch_ids).update(status=Applicant.Status.DECIDED)
+            messages.success(request, f"Updated {count} applicants to 'Decision Made'.")
+        else:
+            messages.error(request, "No valid action selected.")
+
+    return redirect('batch_list')

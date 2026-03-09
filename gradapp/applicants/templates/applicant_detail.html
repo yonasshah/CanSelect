@@ -1,261 +1,496 @@
 {% extends "base.html" %}
-{% load widget_tweaks %} {% block content %}
+{% load widget_tweaks %}
+{% block content %}
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <div class="d-flex align-items-center">
+{% if applicant.is_incomplete and user.profile.role == 'ADMIN' %}
+<div class="alert alert-warning alert-dismissible fade show" role="alert">
+  <i class="bi bi-exclamation-circle-fill me-2"></i>
+  <strong>This profile is incomplete.</strong> Please fill in missing details —
+  {% if applicant.age == 0 %}age, {% endif %}
+  {% if applicant.gender == 'Not Specified' %}gender, {% endif %}
+  {% if not applicant.email %}email{% endif %}
+  <a href="{% url 'applicant_edit' applicant.pk %}" class="btn btn-sm btn-warning ms-3">Edit Profile</a>
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div class="d-flex align-items-center gap-3">
     {% if applicant.profile_picture %}
-      <img src="{{ applicant.profile_picture.url }}" alt="Profile" class="rounded-circle me-3" style="width: 60px; height: 60px; object-fit: cover;">
+      <img src="{{ applicant.profile_picture.url }}" class="rounded-circle" style="width:60px;height:60px;object-fit:cover;">
+    {% else %}
+      <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-white fw-bold"
+           style="width:60px;height:60px;font-size:1.4rem;">
+        {{ applicant.first_name|first }}{{ applicant.last_name|first }}
+      </div>
     {% endif %}
-    <h2 class="mb-0">{{ applicant.first_name }} {{ applicant.last_name }}
-      
-      {% if request.user in applicant.flagged_by.all or request.user.profile.role == 'ADMIN' and applicant.flagged_by.exists %}
-        <span class="badge bg-danger fs-6 align-middle ms-2">
-            <i class="bi bi-flag-fill"></i> 
-            {% if request.user in applicant.flagged_by.all %}
-                Flagged by You
-            {% else %}
-                Flagged by {{ applicant.flagged_by.count }} reviewer(s)
-            {% endif %}
-        </span>
-      {% endif %}
-
-    </h2>
+    <div>
+      <h2 class="mb-0">
+        {{ applicant.first_name }} {{ applicant.last_name }}
+        {% if request.user in applicant.flagged_by.all %}
+          <span class="badge bg-danger fs-6 align-middle ms-2">
+            <i class="bi bi-flag-fill"></i> Flagged by You
+          </span>
+        {% elif user.profile.role == 'ADMIN' and applicant.flagged_by.exists %}
+          <span class="badge bg-danger fs-6 align-middle ms-2">
+            <i class="bi bi-flag-fill"></i> Flagged by {{ applicant.flagged_by.count }} reviewer(s)
+          </span>
+        {% endif %}
+      </h2>
+      <div class="text-muted small">
+        {{ applicant.email|default:"No email" }}
+        {% if applicant.external_id %} &bull; ID: {{ applicant.external_id }}{% endif %}
+      </div>
+    </div>
   </div>
-  <div>
-    {% if user.profile.role == 'ADMIN' %}
-    <a href="{% url 'applicant_edit' applicant.pk %}" class="btn btn-primary btn-sm">Edit</a>
+
+  <div class="d-flex align-items-center gap-2">
+    {% if prev_applicant %}
+      <a href="{% url 'applicant_detail' prev_applicant.pk %}?{{ nav_params }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-chevron-left"></i> Prev
+      </a>
     {% endif %}
-    <a href="{% url 'applicant_list' %}" class="btn btn-outline-secondary btn-sm">Back</a>
+    {% if next_applicant %}
+      <a href="{% url 'applicant_detail' next_applicant.pk %}?{{ nav_params }}" class="btn btn-outline-secondary btn-sm">
+        Next <i class="bi bi-chevron-right"></i>
+      </a>
+    {% endif %}
+    {% if nav_position and nav_total %}
+      <span class="text-muted small">{{ nav_position }} / {{ nav_total }}</span>
+    {% endif %}
+
+    {% if user.profile.role == 'ADMIN' %}
+      <a href="{% url 'applicant_edit' applicant.pk %}" class="btn btn-outline-primary btn-sm">
+        <i class="bi bi-pencil me-1"></i>Edit
+      </a>
+    {% endif %}
+    <a href="{{ back_url|default:'javascript:history.back()' }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
   </div>
 </div>
 
-<div class="card mb-4">
-  <div class="card-body">
-    <h5 class="card-title">Demographics</h5>
-    <div class="row">
-      <div class="col-md-6">
-        <p><strong>Dataset:</strong> 
-        {% if applicant.dataset %}
-          {{ applicant.dataset.DisplayName }}
-        {% else %}
-          —
-        {% endif %}
-      </p>
-        <p><strong>Email:</strong> {{ applicant.email }}</p>
-        <p><strong>ID:</strong> {{ applicant.external_id|default:"—" }}</p>
-        <p><strong>Age:</strong> {{ applicant.age }}</p>
-        <p><strong>Gender:</strong> {{ applicant.gender }}</p>
-        <p><strong>Round:</strong> {{ applicant.round|default:"—" }}</p>
-        <p><strong>Description:</strong> {{ applicant.description|linebreaksbr|default:"—" }}</p>
-      </div>
-      <div class="col-md-6">
-        <p><strong>Ethnicity:</strong> {{ applicant.ethnicity|default:"—" }}</p>
-        <p><strong>Submitted:</strong> {{ applicant.created_at|date:"Y-m-d H:i" }}</p>
+<!-- Two Column Layout -->
+<div class="row g-4">
 
-        <p><strong>Status:</strong> 
-            <span class="badge fs-6
+  <!-- LEFT COLUMN: Info + Files + Comments -->
+  <div class="col-lg-8">
+
+    <!-- Demographics -->
+    <div class="card mb-4">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-person-lines-fill me-2"></i>Candidate Information
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="text-muted small mb-1">Dataset</div>
+            <div>{{ applicant.dataset.DisplayName|default:"—" }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small mb-1">Batch / Round</div>
+            <div>{{ applicant.round.DisplayName|default:"—" }}</div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted small mb-1">Age</div>
+            <div>{% if applicant.age == 0 %}<span class="text-warning">Not set</span>{% else %}{{ applicant.age }}{% endif %}</div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted small mb-1">Gender</div>
+            <div>{{ applicant.gender|default:"—" }}</div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted small mb-1">Ethnicity</div>
+            <div>{{ applicant.ethnicity|default:"—" }}</div>
+          </div>
+          {% if applicant.description %}
+          <div class="col-12">
+            <div class="text-muted small mb-1">Description</div>
+            <div>{{ applicant.description|linebreaksbr }}</div>
+          </div>
+          {% endif %}
+          <div class="col-md-6">
+            <div class="text-muted small mb-1">Submitted</div>
+            <div>{{ applicant.created_at|date:"M d, Y H:i" }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small mb-1">Status</div>
+            <div>
+              <span class="badge fs-6
                 {% if applicant.status == 'NEW' %}bg-secondary
                 {% elif applicant.status == 'REVIEW' %}bg-primary
                 {% elif applicant.status == 'INTERVIEW' %}bg-info text-dark
                 {% elif applicant.status == 'DECIDED' %}bg-success
                 {% endif %}">
                 {{ applicant.get_status_display }}
-            </span>
-        </p>
+              </span>
+            </div>
+          </div>
         </div>
-    </div>
-  </div>
-</div>
-
-<div class="card mb-4">
-  <div class="card-body">
-    <h5 class="card-title">Uploaded Files</h5>
-
-    {% for video in video_files %}
-      <div class="mb-3">
-        <p class="text-muted small mb-1">{{ video.file.name|cut:"applicants/" }}</p>
-        <video class="w-100 rounded bg-dark" controls>
-          <source src="{{ video.file.url }}" type="video/mp4">
-        </video>
       </div>
-    {% endfor %}
-
-    {% if other_files %}
-      <ul class="list-group list-group-flush mb-3">
-        {% for doc in other_files %}
-          <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-            <a href="{{ doc.file.url }}" target="_blank">{{ doc.file.name|cut:"applicants/" }}</a>
-            <small class="text-muted">{{ doc.uploaded_at|date:"Y-m-d" }}</small>
-          </li>
-        {% endfor %}
-      </ul>
-    {% endif %}
-
-    {% if not video_files and not other_files %}
-      <p class="text-muted">No files uploaded yet.</p>
-    {% endif %}
-
-    <hr>
-    <form method="post" action="{% url 'add_files' applicant.pk %}" enctype="multipart/form-data" class="mt-3">
-      {% csrf_token %}
-      <div class="mb-2"><input type="file" name="files" multiple class="form-control"></div>
-      <button class="btn btn-outline-primary btn-sm">Upload More Files</button>
-    </form>
-  </div>
-</div>
-
-
-{% if user.profile.role == 'ADMIN' %}
-<div class="card mb-4">
-    <div class="card-body">
-        <h5 class="card-title">Admin: Update Status</h5>
-        <form action="{% url 'update_status' applicant.pk %}" method="POST">
-            {% csrf_token %}
-            <div class="row">
-                <div class="col-md-8">
-                    {% render_field status_form.status class="form-select" %}
-                </div>
-                <div class="col-md-4">
-                    <button type="submit" class="btn btn-primary w-100">Save Status</button>
-                </div>
-            </div>
-        </form>
     </div>
-</div>
-{% endif %}
-{% if user.profile.role == 'ADMIN' and avg_scores.avg_overall %}
-<div class="card mb-4">
-    <div class="card-header">Average Scores</div>
-    <div class="card-body">
-        <ul class="list-group list-group-flush">
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-                <strong>Research:</strong> 
-                <span class="fs-5 fw-bold">{{ avg_scores.avg_research|floatformat:2|default:"N/A" }} / 5.0</span>
-            </li>
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-                <strong>Statement:</strong> 
-                <span class="fs-5 fw-bold">{{ avg_scores.avg_statement|floatformat:2|default:"N/A" }} / 5.0</span>
-            </li>
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-                <strong>Overall:</strong> 
-                <span class="fs-5 fw-bold">{{ avg_scores.avg_overall|floatformat:2|default:"N/A" }} / 5.0</span>
-            </li>
-        </ul>
-    </div>
-</div>
-{% endif %}
-<div class="card mb-4"> <div class="card-body">
-    <h5 class="card-title">Final Decision</h5> <p class="card-text text-muted small">Cast your final vote for this applicant. This action will appear in the activity feed.</p>
-    {% with votes=applicant.votes_summary %}
-      <p>
-        <span class="badge bg-success">Accept: {{ votes.accept }}</span>
-        <span class="badge bg-danger">Deny: {{ votes.deny }}</span>
-        <span class="badge bg-warning text-dark">Waitlist: {{ votes.waitlist }}</span>
-      </p>
-    {% endwith %}
 
-    {% if user.is_authenticated %}
-      <form action="{% url 'vote' applicant.pk '1' %}" method="POST" style="display: inline;">
-        {% csrf_token %}
-        <button type="submit" 
-                class="btn btn-sm {% if current_user_vote.value == 1 %}btn-success{% else %}btn-outline-success{% endif %}">
-            Accept
-        </button>
-    </form>
+    <!-- Files -->
+    <div class="card mb-4">
+      <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-paperclip me-2"></i>Uploaded Files</span>
+        <span class="badge bg-secondary">{{ video_files|length|add:other_files|length }} files</span>
+      </div>
+      <div class="card-body">
 
-    <form action="{% url 'vote' applicant.pk '-1' %}" method="POST" style="display: inline;">
-        {% csrf_token %}
-        <button type="submit" 
-                class="btn btn-sm {% if current_user_vote.value == -1 %}btn-danger{% else %}btn-outline-danger{% endif %}">
-            Deny
-        </button>
-    </form>
-
-    <form action="{% url 'vote' applicant.pk '0' %}" method="POST" style="display: inline;">
-        {% csrf_token %}
-        <button type="submit" 
-                class="btn btn-sm {% if current_user_vote.value == 0 %}btn-warning{% else %}btn-outline-warning{% endif %}">
-            Waitlist
-        </button>
-    </form>
-    {% else %}
-      <p><a href="{% url 'login' %}">Login to vote</a></p>
-    {% endif %}
-  </div>
-</div>
-
-
-<div class="card mb-4">
-  <div class="card-body">
-    <h5 class="card-title">Your Review / Score</h5>
-    <p class="card-text text-muted small">Use this rubric to score the applicant's materials.</p>
-    {% if user.is_authenticated %}
-      <form action="{% url 'update_score' applicant.pk %}" method="POST">
-          {% csrf_token %}
-          {% for field in score_form %}
-            <div class="mb-3">
-                <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-                {% render_field field class="form-select" %}
-            </div>
-          {% endfor %}
-          <button type="submit" class="btn btn-success">Save Review</button>
-      </form>
-    {% else %}
-      <p><a href="{% url 'login' %}">Login to submit a review</a></p>
-    {% endif %}
-  </div>
-</div>
-
-<div class="card mb-4 border-danger">
-  <div class="card-body">
-    <h5 class="card-title text-danger"><i class="bi bi-flag-fill"></i> Flag for Discussion</h5>
-    <p class="card-text text-muted small">Flag this applicant if you believe the committee needs to discuss their application.</p>
-    <form action="{% url 'toggle_applicant_flag' applicant.pk %}" method="post">
-      {% csrf_token %}
-      {% if request.user in applicant.flagged_by.all %}
-          <button type="submit" class="btn btn-danger w-100">
-            <i class="bi bi-flag-fill"></i> Unflag (You have flagged this applicant)
-          </button>
-      {% else %}
-          <button type="submit" class="btn btn-outline-danger w-100">
-            <i class="bi bi-flag"></i> Flag for Discussion
-          </button>
-      {% endif %}
-    </form>
-  </div>
-</div>
-
-<div class="card mt-4">
-    <div class="card-header">
-        <h4 class="mb-0">Comments</h4>
-        {% if user.profile.role != 'ADMIN' %}
-            <p class="mb-0 text-muted small">You are only seeing comments you have posted.</p>
+        {% if not video_files and not other_files %}
+          <p class="text-muted mb-3">No files uploaded yet.</p>
         {% endif %}
-    </div>
-    <div class="card-body">
-        <form method="post" class="mb-4">
-            {% csrf_token %}
-            <div class="mb-2">
-                {{ comment_form.text }}
+
+        <!-- Videos (collapsible) -->
+        {% for video in video_files %}
+        <div class="mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-2 video-toggle-btn" type="button"
+                    data-video-target="#video-collapse-{{ video.pk }}">
+              <i class="bi bi-camera-video"></i>
+              <span class="text-truncate" style="max-width:300px;">{{ video.file.name|cut:"applicants/" }}</span>
+              <i class="bi bi-chevron-down" style="font-size:0.7rem;"></i>
+            </button>
+            <a href="{{ video.file.url }}" target="_blank" class="btn btn-outline-secondary btn-sm">
+              <i class="bi bi-download"></i>
+            </a>
+          </div>
+          <div id="video-collapse-{{ video.pk }}" style="display:none;">
+            <video id="video-{{ video.pk }}" class="w-100 rounded bg-dark mt-1" controls style="max-height:400px;">
+              <source src="{{ video.file.url }}" type="video/mp4">
+              Your browser does not support the video tag.
+            </video>
+            <div class="mt-2 d-flex align-items-center gap-2">
+              <span class="text-muted small">Speed:</span>
+              <button class="btn btn-outline-secondary btn-sm speed-control" data-video-id="video-{{ video.pk }}" data-speed="0.5">0.5x</button>
+              <button class="btn btn-secondary btn-sm speed-control active" data-video-id="video-{{ video.pk }}" data-speed="1">1x</button>
+              <button class="btn btn-outline-secondary btn-sm speed-control" data-video-id="video-{{ video.pk }}" data-speed="1.5">1.5x</button>
+              <button class="btn btn-outline-secondary btn-sm speed-control" data-video-id="video-{{ video.pk }}" data-speed="2">2x</button>
             </div>
-            <button type="submit" class="btn btn-primary btn-sm">Post Comment</button>
+          </div>
+        </div>
+        {% endfor %}
+
+        <!-- Documents -->
+        {% if other_files %}
+          {% if video_files %}<hr>{% endif %}
+          <div class="list-group list-group-flush">
+            {% for doc in other_files %}
+            <div class="list-group-item px-0">
+              <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                  {% with doc.file.name|lower as fname %}
+                    {% if '.pdf' in fname %}
+                      <i class="bi bi-file-earmark-pdf-fill text-danger fs-5"></i>
+                    {% elif '.doc' in fname or '.docx' in fname %}
+                      <i class="bi bi-file-earmark-word-fill text-primary fs-5"></i>
+                    {% elif '.jpg' in fname or '.jpeg' in fname or '.png' in fname %}
+                      <i class="bi bi-file-earmark-image-fill text-success fs-5"></i>
+                    {% else %}
+                      <i class="bi bi-file-earmark-fill text-secondary fs-5"></i>
+                    {% endif %}
+                  {% endwith %}
+                  <div>
+                    <div class="small fw-semibold">{{ doc.file.name|cut:"applicants/" }}</div>
+                    <div class="text-muted" style="font-size:0.75rem;">{{ doc.uploaded_at|date:"M d, Y" }}</div>
+                  </div>
+                </div>
+                <div class="d-flex gap-2">
+                  {% with doc.file.name|lower as fname %}
+                    {% if '.pdf' in fname %}
+                    <button class="btn btn-outline-primary btn-sm pdf-toggle-btn" data-pdf-target="#pdf-viewer-{{ doc.pk }}" data-pdf-url="{{ doc.file.url }}">
+                      <i class="bi bi-eye me-1"></i><span class="pdf-toggle-label">Preview</span>
+                    </button>
+                    {% endif %}
+                  {% endwith %}
+                  <a href="{{ doc.file.url }}" target="_blank" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-box-arrow-up-right me-1"></i>Open
+                  </a>
+                </div>
+              </div>
+
+              {% with doc.file.name|lower as fname %}
+                {% if '.pdf' in fname %}
+                <div id="pdf-viewer-{{ doc.pk }}" class="pdf-viewer-container" style="display:none;">
+                  <div class="pdf-controls d-flex justify-content-between align-items-center mt-2 mb-1 px-1">
+                    <div class="d-flex align-items-center gap-2">
+                      <button class="btn btn-sm btn-outline-secondary pdf-prev" disabled>&laquo; Prev</button>
+                      <span class="small text-muted pdf-page-info">Page <span class="pdf-current-page">1</span> of <span class="pdf-total-pages">?</span></span>
+                      <button class="btn btn-sm btn-outline-secondary pdf-next">Next &raquo;</button>
+                    </div>
+                  </div>
+                  <canvas class="w-100 rounded border"></canvas>
+                </div>
+                {% endif %}
+              {% endwith %}
+            </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <!-- Upload more (admin only) -->
+        {% if user.profile.role == 'ADMIN' %}
+        <hr>
+        <form method="post" action="{% url 'add_files' applicant.pk %}" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="d-flex gap-2 align-items-center">
+            <input type="file" name="files" multiple class="form-control form-control-sm">
+            <button class="btn btn-outline-primary btn-sm text-nowrap">
+              <i class="bi bi-upload me-1"></i>Upload
+            </button>
+          </div>
+        </form>
+        {% endif %}
+
+      </div>
+    </div>
+
+    <!-- Comments -->
+    <div class="card mb-4">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-chat-dots me-2"></i>Comments
+        {% if user.profile.role != 'ADMIN' %}
+          <span class="text-muted small fw-normal ms-2">— showing your comments only</span>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        <form method="post" class="mb-4">
+          {% csrf_token %}
+          <div class="mb-2">{{ comment_form.text }}</div>
+          <button type="submit" class="btn btn-primary btn-sm">
+            <i class="bi bi-send me-1"></i>Post Comment
+          </button>
         </form>
 
-        <ul class="list-group">
-            {% for comment in comments %}
-            <li class="list-group-item">
-                <p class="mb-1"><em>"{{ comment.text|linebreaksbr }}"</em></p>
-                <small class="text-muted">
-                    <i class="bi bi-person-circle me-1"></i>
-                    <strong>{{ comment.author.username }}</strong>
-                    &bull; {{ comment.created_at|timesince }} ago
-                </small>
-            </li>
-            {% empty %}
-            <li class="list-group-item text-muted">No comments to display.</li>
-            {% endfor %}
+        <ul class="list-group list-group-flush">
+          {% for comment in comments %}
+          <li class="list-group-item px-0">
+            <div class="d-flex justify-content-between mb-1">
+              <strong class="small">{{ comment.author.username }}</strong>
+              <small class="text-muted">{{ comment.created_at|timesince }} ago</small>
+            </div>
+            <p class="mb-0 small">{{ comment.text|linebreaksbr }}</p>
+          </li>
+          {% empty %}
+          <li class="list-group-item px-0 text-muted">No comments yet.</li>
+          {% endfor %}
         </ul>
+      </div>
     </div>
+
+  </div>
+
+  <!-- RIGHT COLUMN: Actions -->
+  <div class="col-lg-4">
+    <div class="sticky-top" style="top:80px;">
+
+      <!-- Vote -->
+      <div class="card mb-3">
+        <div class="card-header fw-semibold">
+          <i class="bi bi-check2-square me-2"></i>Final Decision
+        </div>
+        <div class="card-body">
+          {% if user.profile.role == 'ADMIN' %}
+            {% with votes=applicant.votes_summary %}
+            <div class="d-flex gap-2 mb-3">
+              <span class="badge bg-success flex-fill text-center py-2">Accept: {{ votes.accept }}</span>
+              <span class="badge bg-danger flex-fill text-center py-2">Deny: {{ votes.deny }}</span>
+              <span class="badge bg-warning text-dark flex-fill text-center py-2">Wait: {{ votes.waitlist }}</span>
+            </div>
+            {% endwith %}
+          {% endif %}
+
+          <div class="d-flex gap-2">
+            <form action="{% url 'vote' applicant.pk '1' %}" method="POST" class="flex-fill">
+              {% csrf_token %}
+              <button type="submit" class="btn w-100 {% if current_user_vote.value == 1 %}btn-success{% else %}btn-outline-success{% endif %}">
+                <i class="bi bi-check-lg me-1"></i>Accept
+              </button>
+            </form>
+            <form action="{% url 'vote' applicant.pk '-1' %}" method="POST" class="flex-fill">
+              {% csrf_token %}
+              <button type="submit" class="btn w-100 {% if current_user_vote.value == -1 %}btn-danger{% else %}btn-outline-danger{% endif %}">
+                <i class="bi bi-x-lg me-1"></i>Deny
+              </button>
+            </form>
+            <form action="{% url 'vote' applicant.pk '0' %}" method="POST" class="flex-fill">
+              {% csrf_token %}
+              <button type="submit" class="btn w-100 {% if current_user_vote.value == 0 %}btn-warning{% else %}btn-outline-warning{% endif %}">
+                <i class="bi bi-pause me-1"></i>Wait
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Score -->
+      <div class="card mb-3">
+        <div class="card-header fw-semibold">
+          <i class="bi bi-star me-2"></i>Your Score
+        </div>
+        <div class="card-body">
+          {% if user.profile.role == 'ADMIN' and avg_scores.avg_overall %}
+          <div class="mb-3 p-2 bg-light rounded">
+            <div class="small text-muted mb-1">Average Scores</div>
+            <div class="d-flex justify-content-between small">
+              <span>Research:</span><strong>{{ avg_scores.avg_research|floatformat:1|default:"—" }}</strong>
+            </div>
+            <div class="d-flex justify-content-between small">
+              <span>Statement:</span><strong>{{ avg_scores.avg_statement|floatformat:1|default:"—" }}</strong>
+            </div>
+            <div class="d-flex justify-content-between small">
+              <span>Overall:</span><strong>{{ avg_scores.avg_overall|floatformat:1|default:"—" }}</strong>
+            </div>
+          </div>
+          {% endif %}
+          <form action="{% url 'update_score' applicant.pk %}" method="POST">
+            {% csrf_token %}
+            {% for field in score_form %}
+              <div class="mb-2">
+                <label class="form-label small mb-1">{{ field.label }}</label>
+                {% render_field field class="form-select form-select-sm" %}
+              </div>
+            {% endfor %}
+            <button type="submit" class="btn btn-success btn-sm w-100 mt-1">
+              <i class="bi bi-save me-1"></i>Save Score
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Status (admin only) -->
+      {% if user.profile.role == 'ADMIN' %}
+      <div class="card mb-3">
+        <div class="card-header fw-semibold">
+          <i class="bi bi-tag me-2"></i>Application Status
+        </div>
+        <div class="card-body">
+          <form action="{% url 'update_status' applicant.pk %}" method="POST">
+            {% csrf_token %}
+            {% render_field status_form.status class="form-select form-select-sm mb-2" %}
+            <button type="submit" class="btn btn-primary btn-sm w-100">Update Status</button>
+          </form>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Flag -->
+      <div class="card mb-3 {% if request.user in applicant.flagged_by.all %}border-danger{% endif %}">
+        <div class="card-header fw-semibold {% if request.user in applicant.flagged_by.all %}text-danger{% endif %}">
+          <i class="bi bi-flag me-2"></i>Flag for Discussion
+        </div>
+        <div class="card-body">
+          <form action="{% url 'toggle_applicant_flag' applicant.pk %}" method="post">
+            {% csrf_token %}
+            {% if request.user in applicant.flagged_by.all %}
+              <button type="submit" class="btn btn-danger btn-sm w-100">
+                <i class="bi bi-flag-fill me-1"></i>Unflag
+              </button>
+            {% else %}
+              <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+                <i class="bi bi-flag me-1"></i>Flag for Discussion
+              </button>
+            {% endif %}
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
 </div>
+
+<style>
+  .video-toggle-btn .bi-chevron-down {
+    transition: transform 0.2s ease;
+  }
+  .video-toggle-btn.open .bi-chevron-down {
+    transform: rotate(180deg);
+  }
+</style>
+
+<script>
+  document.querySelectorAll('.video-toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetId = btn.getAttribute('data-video-target');
+      const collapseEl = document.querySelector(targetId);
+      const isOpen = collapseEl.style.display !== 'none';
+
+      if (isOpen) {
+        collapseEl.style.display = 'none';
+        btn.classList.remove('open');
+        const video = collapseEl.querySelector('video');
+        if (video) video.pause();
+      } else {
+        collapseEl.style.display = 'block';
+        btn.classList.add('open');
+      }
+    });
+  });
+</script>
+<script>
+  document.querySelectorAll('.pdf-toggle-btn').forEach(btn => {
+    let pdfDoc = null;
+    let currentPage = 1;
+
+    function renderPage(container) {
+      const canvas = container.querySelector('canvas');
+      const ctx = canvas.getContext('2d');
+      pdfDoc.getPage(currentPage).then(page => {
+        const containerWidth = container.offsetWidth - 4;
+        const unscaledViewport = page.getViewport({ scale: 1 });
+        const scale = containerWidth / unscaledViewport.width;
+        const viewport = page.getViewport({ scale: scale });
+
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+        page.render({ canvasContext: ctx, viewport: viewport });
+
+        container.querySelector('.pdf-current-page').textContent = currentPage;
+        container.querySelector('.pdf-prev').disabled = (currentPage <= 1);
+        container.querySelector('.pdf-next').disabled = (currentPage >= pdfDoc.numPages);
+      });
+    }
+
+    btn.addEventListener('click', () => {
+      const targetId = btn.getAttribute('data-pdf-target');
+      const container = document.querySelector(targetId);
+      const label = btn.querySelector('.pdf-toggle-label');
+      const isOpen = container.style.display !== 'none';
+
+      if (isOpen) {
+        container.style.display = 'none';
+        label.textContent = 'Preview';
+        btn.classList.remove('active');
+        pdfDoc = null;
+        currentPage = 1;
+      } else {
+        container.style.display = 'block';
+        label.textContent = 'Hide';
+        btn.classList.add('active');
+
+        if (!pdfDoc) {
+          pdfjsLib.getDocument(btn.getAttribute('data-pdf-url')).promise.then(doc => {
+            pdfDoc = doc;
+            container.querySelector('.pdf-total-pages').textContent = doc.numPages;
+            renderPage(container);
+          }).catch(() => {
+            container.innerHTML = '<p class="text-danger text-center p-3">Failed to load PDF.</p>';
+          });
+        }
+      }
+
+      // Prev / Next buttons
+      container.querySelector('.pdf-prev').onclick = () => {
+        if (currentPage > 1) { currentPage--; renderPage(container); }
+      };
+      container.querySelector('.pdf-next').onclick = () => {
+        if (pdfDoc && currentPage < pdfDoc.numPages) { currentPage++; renderPage(container); }
+      };
+    });
+  });
+</script>
 
 {% endblock %}

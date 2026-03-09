@@ -24,6 +24,9 @@
       <a href="{% url 'batch_assign_reviewers' batch.pk %}" class="btn btn-warning btn-sm">
         <i class="bi bi-people-fill me-1"></i>Assign Reviewers
       </a>
+      <a href="{% url 'export_applicants_csv' %}?batch={{ batch.pk }}" class="btn btn-outline-success btn-sm">
+        <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV
+      </a>
       <a href="{% url 'batch_edit' batch.pk %}" class="btn btn-outline-primary btn-sm">
         <i class="bi bi-pencil me-1"></i>Edit
       </a>
@@ -39,7 +42,7 @@
 <div class="progress mb-3" style="height:10px;">
   <div class="progress-bar bg-success" style="width:{{ progress_pct }}%"></div>
 </div>
-<div class="d-flex justify-content-between text-center">
+<div class="d-flex justify-content-between text-center mb-4">
   <div>
     <div class="fw-bold fs-5">{{ total }}</div>
     <div class="text-muted" style="font-size:0.75rem;">Candidates</div>
@@ -58,38 +61,35 @@
   </div>
 </div>
 
-  <div class="col-md-4">
-    <div class="card border-0 bg-light h-100">
-      <div class="card-body">
-        <h6 class="text-muted mb-3">Batch Info</h6>
+{% if batch.Description or batch.VoteExpire or batch.AdminNotes %}
+<div class="card border-0 bg-light mb-4">
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-6">
         <p class="mb-1 small"><strong>Description:</strong> {{ batch.Description|default:"—" }}</p>
-        <p class="mb-1 small"><strong>Vote Deadline:</strong> {{ batch.VoteExpire|date:"M d, Y H:i"|default:"—" }}</p>
-        <p class="mb-0 small"><strong>Public View:</strong>
-          {% if batch.PublicView %}
-            <span class="badge bg-success">Yes</span>
-          {% else %}
-            <span class="badge bg-secondary">No</span>
-          {% endif %}
-        </p>
+        <p class="mb-0 small"><strong>Vote Deadline:</strong> {{ batch.VoteExpire|date:"M d, Y H:i"|default:"—" }}</p>
       </div>
+      {% if user.profile.role == 'ADMIN' and batch.AdminNotes %}
+      <div class="col-md-6">
+        <p class="mb-0 small"><strong>Admin Notes:</strong> {{ batch.AdminNotes }}</p>
+      </div>
+      {% endif %}
     </div>
   </div>
-
-  {% if user.profile.role == 'ADMIN' and batch.AdminNotes %}
-  <div class="col-md-4">
-    <div class="card border-0 bg-light h-100">
-      <div class="card-body">
-        <h6 class="text-muted mb-2">Admin Notes</h6>
-        <p class="mb-0 small">{{ batch.AdminNotes }}</p>
-      </div>
-    </div>
-  </div>
-  {% endif %}
 </div>
+{% endif %}
 
 <!-- Candidate Table -->
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h4 class="mb-0">Candidates <span class="text-muted fs-6 fw-normal">({{ total }})</span></h4>
+  <h4 class="mb-0">Candidates <span class="text-muted fs-6 fw-normal">({{ applicants|length }})</span></h4>
+  <form method="get" class="d-flex gap-2">
+    <input type="text" name="q" class="form-control form-control-sm" style="width:220px;"
+           placeholder="Search by name..." value="{{ search_query|default:'' }}">
+    <button type="submit" class="btn btn-outline-secondary btn-sm">Search</button>
+    {% if search_query %}
+      <a href="{% url 'batch_detail' batch.pk %}" class="btn btn-outline-danger btn-sm">Clear</a>
+    {% endif %}
+  </form>
 </div>
 
 <div class="card">
@@ -113,7 +113,9 @@
             {% else %}
               <i class="bi bi-person-circle fs-5 text-secondary me-2"></i>
             {% endif %}
-            <a href="{% url 'applicant_detail' a.pk %}">{{ a.last_name }}, {{ a.first_name }}</a>
+            <a href="{% url 'applicant_detail' a.pk %}?from=batch&batch_pk={{ batch.pk }}&q={{ search_query|default:'' }}">
+              {{ a.last_name }}, {{ a.first_name }}
+            </a>
           </td>
           <td>
             <span class="badge
@@ -149,7 +151,13 @@
         </tr>
         {% empty %}
         <tr>
-          <td colspan="5" class="text-center text-muted py-4">No candidates assigned to this batch yet.</td>
+          <td colspan="5" class="text-center text-muted py-4">
+            {% if search_query %}
+              No candidates matching "{{ search_query }}".
+            {% else %}
+              No candidates assigned to this batch yet.
+            {% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>

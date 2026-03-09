@@ -30,9 +30,9 @@
         {% for review in reviews %}
         <tr>
           <td>
-            <a href="{% url 'applicant_detail' review.applicant.pk %}" class="text-decoration-none fw-semibold">
-              {{ review.applicant.last_name }}, {{ review.applicant.first_name }}
-            </a>
+            <a href="{% url 'applicant_detail' review.applicant.pk %}?from=reviews" class="text-decoration-none fw-semibold">
+  {{ review.applicant.last_name }}, {{ review.applicant.first_name }}
+</a>
           </td>
           <td class="text-muted small">{{ review.applicant.round.DisplayName|default:"—" }}</td>
           <td class="text-center">
