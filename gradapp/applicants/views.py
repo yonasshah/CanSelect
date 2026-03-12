@@ -1154,12 +1154,16 @@ def _assign_candidates_to_batches(dataset, folder_name, candidates):
                     existing_names.append(nf)
                     changed = True
             if changed:
+                # Sort folder names so ordering is consistent
+                existing_names.sort()
                 recent_batch.DisplayName = _build_batch_display_name(existing_names)
                 recent_batch.save()
 
             result.append((recent_batch, to_fill))
 
     if not remaining:
+        # ── Clean up orphaned numbering ──────────────────────────────────
+        _cleanup_batch_numbering(dataset)
         return result
 
     # ── Step 2: Create new batches for the rest ──────────────────────────
@@ -1176,6 +1180,8 @@ def _assign_candidates_to_batches(dataset, folder_name, candidates):
         if not chunk_folders:
             chunk_folders = [folder_name]
 
+        # Sort for consistent ordering
+        chunk_folders.sort()
         base_name = _build_batch_display_name(chunk_folders)
 
         # Check if this exact name already exists — if so, add numbering
@@ -1185,13 +1191,12 @@ def _assign_candidates_to_batches(dataset, folder_name, candidates):
         ).count()
 
         if existing_with_name > 0:
-            # Number this one as (N+1)
             display_name = f"{base_name} ({existing_with_name + 1})"
 
             # Retroactively number the first one as (1) if it's unnumbered
             first_batch = Batch.objects.filter(
                 DataSet=dataset,
-                DisplayName=base_name,  # exact match = unnumbered original
+                DisplayName=base_name,
             ).first()
             if first_batch:
                 first_batch.DisplayName = f"{base_name} (1)"
@@ -1206,7 +1211,41 @@ def _assign_candidates_to_batches(dataset, folder_name, candidates):
         )
         result.append((new_batch, chunk))
 
+    # ── Clean up orphaned numbering ──────────────────────────────────────
+    _cleanup_batch_numbering(dataset)
+
     return result
+
+
+def _cleanup_batch_numbering(dataset):
+    """
+    If a batch is named "Something (1)" but there's no "Something (2)",
+    rename it back to just "Something" since numbering is unnecessary.
+    """
+    import re as _re
+    numbered_batches = Batch.objects.filter(
+        DataSet=dataset,
+        Active=True,
+        DisplayName__regex=r'.+ \(\d+\)$',
+    )
+
+    for batch in numbered_batches:
+        match = _re.match(r'^(.+?) \((\d+)\)$', batch.DisplayName)
+        if not match:
+            continue
+
+        base_name = match.group(1)
+        # Count how many batches share this base name (numbered or exact)
+        siblings = Batch.objects.filter(
+            DataSet=dataset,
+            Active=True,
+            DisplayName__startswith=base_name,
+        ).count()
+
+        # If this is the only one with this base name, drop the number
+        if siblings == 1:
+            batch.DisplayName = base_name
+            batch.save()
     
     
 @login_required

@@ -99,8 +99,8 @@
         <tr>
           <th>Name</th>
           <th>Status</th>
-          <th class="text-center">Avg Score</th>
           <th class="text-center">Votes</th>
+          <th class="text-center">Avg Score</th>
           <th class="text-center">Reviewed</th>
         </tr>
       </thead>
@@ -138,13 +138,6 @@
                 </span>
               </td>
               <td class="text-center">
-                {% if a.avg_score %}
-                  <span class="badge bg-primary">{{ a.avg_score|floatformat:1 }} / 5.0</span>
-                {% else %}
-                  <span class="text-muted small">—</span>
-                {% endif %}
-              </td>
-              <td class="text-center">
                 {% with votes=a.votes_summary %}
                   <span class="badge bg-success" title="Accept">{{ votes.accept }}</span>
                   <span class="badge bg-danger" title="Deny">{{ votes.deny }}</span>
@@ -152,11 +145,24 @@
                 {% endwith %}
               </td>
               <td class="text-center">
-                {% if a.vote_count > 0 %}
-                  <i class="bi bi-check-circle-fill text-success"></i>
+                {% if a.avg_score %}
+                  <span class="badge bg-primary">{{ a.avg_score|floatformat:1 }} / 5.0</span>
                 {% else %}
-                  <i class="bi bi-circle text-muted"></i>
+                  <span class="text-muted small">—</span>
                 {% endif %}
+              </td>
+              <td class="text-center" style="min-width:100px;">
+                <div class="d-flex align-items-center gap-2">
+                  <div class="progress flex-grow-1" style="height:6px;">
+                    {% if reviewer_count > 0 %}
+                      {% widthratio a.vote_count reviewer_count 100 as review_pct %}
+                      <div class="progress-bar {% if review_pct == '100' %}bg-success{% else %}bg-primary{% endif %}" style="width:{{ review_pct }}%"></div>
+                    {% else %}
+                      <div class="progress-bar" style="width:0%"></div>
+                    {% endif %}
+                  </div>
+                  <span class="text-muted" style="font-size:0.75rem; white-space:nowrap;">{{ a.vote_count }}/{{ reviewer_count }}</span>
+                </div>
               </td>
             </tr>
             {% endfor %}
@@ -200,13 +206,19 @@
                 <span class="badge bg-warning text-dark" title="Waitlist">{{ votes.waitlist }}</span>
               {% endwith %}
             </td>
-            <td class="text-center">
-              {% if a.vote_count > 0 %}
-                <i class="bi bi-check-circle-fill text-success"></i>
-              {% else %}
-                <i class="bi bi-circle text-muted"></i>
-              {% endif %}
-            </td>
+            <td class="text-center" style="min-width:100px;">
+                <div class="d-flex align-items-center gap-2">
+                  <div class="progress flex-grow-1" style="height:6px;">
+                    {% if reviewer_count > 0 %}
+                      {% widthratio a.vote_count reviewer_count 100 as review_pct %}
+                      <div class="progress-bar {% if review_pct == '100' %}bg-success{% else %}bg-primary{% endif %}" style="width:{{ review_pct }}%"></div>
+                    {% else %}
+                      <div class="progress-bar" style="width:0%"></div>
+                    {% endif %}
+                  </div>
+                  <span class="text-muted" style="font-size:0.75rem; white-space:nowrap;">{{ a.vote_count }}/{{ reviewer_count }}</span>
+                </div>
+              </td>
           </tr>
           {% empty %}
           <tr>
