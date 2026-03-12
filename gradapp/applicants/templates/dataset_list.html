@@ -10,11 +10,11 @@
   </div>
   <div class="d-flex gap-2">
     <div class="btn-group" role="group">
-      <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-table" onclick="setView('table')" title="Table view">
-        <i class="bi bi-list-ul"></i>
-      </button>
       <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-card" onclick="setView('card')" title="Card view">
         <i class="bi bi-grid-3x3-gap"></i>
+      </button>
+      <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-table" onclick="setView('table')" title="Table view">
+        <i class="bi bi-list-ul"></i>
       </button>
     </div>
     {% if user.profile.role == 'ADMIN' %}
@@ -29,6 +29,8 @@
 <div class="card mb-4">
   <div class="card-body py-2">
     <form method="get">
+      <!-- Preserve candidate search if active -->
+      
       <div class="row g-2 align-items-center">
         <div class="col-md-6">
           <input type="text" name="q" class="form-control form-control-sm" placeholder="Search datasets..." value="{{ search_query }}">
@@ -37,10 +39,136 @@
           <button type="submit" class="btn btn-outline-secondary btn-sm w-100">Filter</button>
         </div>
         <div class="col-md-2">
-          <a href="{% url 'dataset_list' %}" class="btn btn-outline-danger btn-sm w-100">Clear</a>
+          <a href="{% url 'dataset_list' %}{% if candidate_search %}?candidate={{ candidate_search }}{% endif %}" class="btn btn-outline-danger btn-sm w-100">Clear</a>
         </div>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!--  Candidate Search (cross-dataset)                                     -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+<div class="card mb-4">
+  <div class="card-header py-2">
+    <div class="d-flex justify-content-between align-items-center">
+      <span class="fw-semibold"><i class="bi bi-person-bounding-box me-2"></i>Find Candidate Across Datasets</span>
+      {% if candidate_search %}
+        <a href="{% url 'dataset_list' %}{% if search_query %}?q={{ search_query }}{% endif %}" class="btn btn-outline-danger btn-sm">
+          <i class="bi bi-x-lg me-1"></i>Clear Search
+        </a>
+      {% endif %}
+    </div>
+  </div>
+  <div class="card-body py-2">
+    <form method="get">
+      <!-- Preserve dataset filter if active -->
+      
+      <div class="row g-2 align-items-center">
+        <div class="col-md-6">
+          <input type="text" name="candidate" class="form-control form-control-sm"
+                 placeholder="Search by name or ID (e.g. 'Ali' or '6815031005')..."
+                 value="{{ candidate_search|default:'' }}">
+        </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-primary btn-sm">
+            <i class="bi bi-search me-1"></i>Search
+          </button>
+        </div>
+      </div>
+    </form>
+
+    {% if candidate_results is not None %}
+    <div class="mt-3">
+      {% if candidate_results %}
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <small class="text-muted">
+            Found {{ candidate_results|length }} result{{ candidate_results|length|pluralize }}
+            for "<strong>{{ candidate_search }}</strong>"
+          </small>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" style="font-size:0.88rem;">
+            <thead class="table-light">
+              <tr>
+                <th>Name</th>
+                <th>ID</th>
+                <th>Dataset</th>
+                <th>Batch</th>
+                <th>Status</th>
+                <th class="text-center">Appearances</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for a in candidate_results %}
+              <tr class="{% if a.appearance_count > 1 %}table-warning{% endif %}">
+                <td>
+                  {% if a.profile_picture %}
+                    <img src="{{ a.profile_picture.url }}" class="rounded-circle me-2" style="width:26px; height:26px; object-fit:cover;">
+                  {% else %}
+                    <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light text-secondary me-2"
+                          style="width:26px; height:26px; font-size:0.65rem; font-weight:600;">
+                      {{ a.first_name|first }}{{ a.last_name|first }}
+                    </span>
+                  {% endif %}
+                  <a href="{% url 'applicant_detail' a.pk %}" class="text-decoration-none">
+                    {{ a.last_name }}, {{ a.first_name }}
+                  </a>
+                </td>
+                <td class="text-muted small">
+                  <code>{{ a.external_id|default:"—" }}</code>
+                </td>
+                <td>
+                  {% if a.dataset %}
+                    <a href="{% url 'dataset_detail' a.dataset.pk %}" class="text-decoration-none small">
+                      {{ a.dataset.DisplayName }}
+                    </a>
+                  {% else %}
+                    <span class="text-muted small">—</span>
+                  {% endif %}
+                </td>
+                <td class="small text-muted">
+                  {% if a.round %}
+                    <a href="{% url 'batch_detail' a.round.pk %}" class="text-decoration-none">
+                      {{ a.round.DisplayName }}
+                    </a>
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+                <td>
+                  <span class="badge
+                    {% if a.status == 'NEW' %}bg-secondary
+                    {% elif a.status == 'REVIEW' %}bg-primary
+                    {% elif a.status == 'INTERVIEW' %}bg-info text-dark
+                    {% elif a.status == 'DECIDED' %}bg-success
+                    {% endif %}" style="font-size:0.7rem;">
+                    {{ a.get_status_display }}
+                  </span>
+                </td>
+                <td class="text-center">
+                  {% if a.appearance_count > 1 %}
+                    <span class="badge bg-warning text-dark">
+                      <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ a.appearance_count }} cycles
+                    </span>
+                  {% else %}
+                    <span class="text-muted small">1</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="text-center text-muted py-3">
+          <i class="bi bi-search fs-4 d-block mb-2 opacity-25"></i>
+          No candidates found matching "<strong>{{ candidate_search }}</strong>".
+        </div>
+      {% endif %}
+    </div>
+    {% endif %}
   </div>
 </div>
 
@@ -322,7 +450,7 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => {
-    const saved = localStorage.getItem('datasetView') || 'table';
+    const saved = localStorage.getItem('datasetView') || 'card';
     setView(saved);
   });
 </script>

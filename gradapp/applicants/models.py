@@ -42,7 +42,8 @@ class Applicant(models.Model):
     street = models.TextField(blank=True, max_length=100000)
     created_at = models.DateTimeField(auto_now_add=True)
     profile_picture = models.ImageField(upload_to='applicant_profiles/', blank=True, null=True)
-    external_id = models.CharField(max_length=100, blank=True, null=True, unique=True)
+    external_id = models.CharField(max_length=100, blank=True, null=True)
+    source_folder = models.CharField(max_length=255, blank=True, default='', help_text='Top-level folder name from bulk upload')
     flagged_by = models.ManyToManyField(User, blank=True, related_name='flagged_applicants')
     
     status = models.CharField(

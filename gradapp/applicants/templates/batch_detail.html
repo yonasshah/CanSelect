@@ -105,61 +105,121 @@
         </tr>
       </thead>
       <tbody>
-        {% for a in applicants %}
-        <tr>
-          <td>
-            {% if a.profile_picture %}
-              <img src="{{ a.profile_picture.url }}" class="rounded-circle me-2" style="width:32px; height:32px; object-fit:cover;">
-            {% else %}
-              <i class="bi bi-person-circle fs-5 text-secondary me-2"></i>
-            {% endif %}
-            <a href="{% url 'applicant_detail' a.pk %}?from=batch&batch_pk={{ batch.pk }}&q={{ search_query|default:'' }}">
-              {{ a.last_name }}, {{ a.first_name }}
-            </a>
-          </td>
-          <td>
-            <span class="badge
-              {% if a.status == 'NEW' %}bg-secondary
-              {% elif a.status == 'REVIEW' %}bg-primary
-              {% elif a.status == 'INTERVIEW' %}bg-info text-dark
-              {% elif a.status == 'DECIDED' %}bg-success
-              {% endif %}">
-              {{ a.get_status_display }}
-            </span>
-          </td>
-          <td class="text-center">
-            {% if a.avg_score %}
-              <span class="badge bg-primary">{{ a.avg_score|floatformat:1 }} / 5.0</span>
-            {% else %}
-              <span class="text-muted small">—</span>
-            {% endif %}
-          </td>
-          <td class="text-center">
-            {% with votes=a.votes_summary %}
-              <span class="badge bg-success" title="Accept">{{ votes.accept }}</span>
-              <span class="badge bg-danger" title="Deny">{{ votes.deny }}</span>
-              <span class="badge bg-warning text-dark" title="Waitlist">{{ votes.waitlist }}</span>
-            {% endwith %}
-          </td>
-          <td class="text-center">
-            {% if a.vote_count > 0 %}
-              <i class="bi bi-check-circle-fill text-success"></i>
-            {% else %}
-              <i class="bi bi-circle text-muted"></i>
-            {% endif %}
-          </td>
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="5" class="text-center text-muted py-4">
-            {% if search_query %}
-              No candidates matching "{{ search_query }}".
-            {% else %}
-              No candidates assigned to this batch yet.
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
+        {% if has_multiple_groups %}
+          {# ── Grouped by source folder ── #}
+          {% for folder_name, group in grouped_applicants.items %}
+            <tr class="table-light">
+              <td colspan="5" class="py-2">
+                <i class="bi bi-folder-fill me-2 text-primary"></i>
+                <strong>{{ folder_name|default:"Other" }}</strong>
+                <span class="text-muted ms-2 small">({{ group|length }} candidate{{ group|length|pluralize }})</span>
+              </td>
+            </tr>
+            {% for a in group %}
+            <tr>
+              <td class="ps-4">
+                {% if a.profile_picture %}
+                  <img src="{{ a.profile_picture.url }}" class="rounded-circle me-2" style="width:32px; height:32px; object-fit:cover;">
+                {% else %}
+                  <i class="bi bi-person-circle fs-5 text-secondary me-2"></i>
+                {% endif %}
+                <a href="{% url 'applicant_detail' a.pk %}?from=batch&batch_pk={{ batch.pk }}&q={{ search_query|default:'' }}">
+                  {{ a.last_name }}, {{ a.first_name }}
+                </a>
+              </td>
+              <td>
+                <span class="badge
+                  {% if a.status == 'NEW' %}bg-secondary
+                  {% elif a.status == 'REVIEW' %}bg-primary
+                  {% elif a.status == 'INTERVIEW' %}bg-info text-dark
+                  {% elif a.status == 'DECIDED' %}bg-success
+                  {% endif %}">
+                  {{ a.get_status_display }}
+                </span>
+              </td>
+              <td class="text-center">
+                {% if a.avg_score %}
+                  <span class="badge bg-primary">{{ a.avg_score|floatformat:1 }} / 5.0</span>
+                {% else %}
+                  <span class="text-muted small">—</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                {% with votes=a.votes_summary %}
+                  <span class="badge bg-success" title="Accept">{{ votes.accept }}</span>
+                  <span class="badge bg-danger" title="Deny">{{ votes.deny }}</span>
+                  <span class="badge bg-warning text-dark" title="Waitlist">{{ votes.waitlist }}</span>
+                {% endwith %}
+              </td>
+              <td class="text-center">
+                {% if a.vote_count > 0 %}
+                  <i class="bi bi-check-circle-fill text-success"></i>
+                {% else %}
+                  <i class="bi bi-circle text-muted"></i>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          {% endfor %}
+
+        {% else %}
+          {# ── Flat list (single source or no source_folder data) ── #}
+          {% for a in applicants %}
+          <tr>
+            <td>
+              {% if a.profile_picture %}
+                <img src="{{ a.profile_picture.url }}" class="rounded-circle me-2" style="width:32px; height:32px; object-fit:cover;">
+              {% else %}
+                <i class="bi bi-person-circle fs-5 text-secondary me-2"></i>
+              {% endif %}
+              <a href="{% url 'applicant_detail' a.pk %}?from=batch&batch_pk={{ batch.pk }}&q={{ search_query|default:'' }}">
+                {{ a.last_name }}, {{ a.first_name }}
+              </a>
+            </td>
+            <td>
+              <span class="badge
+                {% if a.status == 'NEW' %}bg-secondary
+                {% elif a.status == 'REVIEW' %}bg-primary
+                {% elif a.status == 'INTERVIEW' %}bg-info text-dark
+                {% elif a.status == 'DECIDED' %}bg-success
+                {% endif %}">
+                {{ a.get_status_display }}
+              </span>
+            </td>
+            <td class="text-center">
+              {% if a.avg_score %}
+                <span class="badge bg-primary">{{ a.avg_score|floatformat:1 }} / 5.0</span>
+              {% else %}
+                <span class="text-muted small">—</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% with votes=a.votes_summary %}
+                <span class="badge bg-success" title="Accept">{{ votes.accept }}</span>
+                <span class="badge bg-danger" title="Deny">{{ votes.deny }}</span>
+                <span class="badge bg-warning text-dark" title="Waitlist">{{ votes.waitlist }}</span>
+              {% endwith %}
+            </td>
+            <td class="text-center">
+              {% if a.vote_count > 0 %}
+                <i class="bi bi-check-circle-fill text-success"></i>
+              {% else %}
+                <i class="bi bi-circle text-muted"></i>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" class="text-center text-muted py-4">
+              {% if search_query %}
+                No candidates matching "{{ search_query }}".
+              {% else %}
+                No candidates assigned to this batch yet.
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        {% endif %}
       </tbody>
     </table>
   </div>

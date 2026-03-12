@@ -286,6 +286,7 @@ def add_files(request, pk):
 def dataset_list(request):
     search_query = request.GET.get('q', '')
     status_filter = request.GET.get('status', 'all')
+    candidate_search = request.GET.get('candidate', '').strip()
 
     datasets = DataSet.objects.annotate(
         applicant_count=Count('applicants', distinct=True),
@@ -306,11 +307,47 @@ def dataset_list(request):
     paginator = Paginator(active_datasets, 25)
     page_obj  = paginator.get_page(request.GET.get('page'))
 
+    # ── Candidate search across all datasets ─────────────────────────────
+    candidate_results = None
+    if candidate_search:
+        candidate_results = list(
+            Applicant.objects.select_related('dataset', 'round')
+            .filter(
+                Q(first_name__icontains=candidate_search) |
+                Q(last_name__icontains=candidate_search) |
+                Q(external_id__icontains=candidate_search)
+            )
+            .order_by('last_name', 'first_name')[:50]
+        )
+
+        # Count how many distinct datasets each name appears in
+        # Group by normalized name to catch the same person across datasets
+        from collections import Counter
+        name_counts = Counter()
+        for a in candidate_results:
+            key = f"{a.last_name.lower().strip()},{a.first_name.lower().strip()}"
+            name_counts[key] += 1
+
+        # Also count by external_id if present
+        id_counts = Counter()
+        for a in candidate_results:
+            if a.external_id:
+                id_counts[a.external_id] += 1
+
+        # Attach appearance_count to each result
+        for a in candidate_results:
+            key = f"{a.last_name.lower().strip()},{a.first_name.lower().strip()}"
+            by_name = name_counts.get(key, 1)
+            by_id = id_counts.get(a.external_id, 1) if a.external_id else 1
+            a.appearance_count = max(by_name, by_id)
+
     return render(request, "dataset_list.html", {
         'page_obj': page_obj,
         'archived_datasets': archived_datasets,
         'search_query': search_query,
         'status_filter': status_filter,
+        'candidate_search': candidate_search,
+        'candidate_results': candidate_results,
         'crumbs': [{'label': 'Datasets', 'url': ''}],
     })
     
@@ -363,6 +400,14 @@ def dataset_detail(request, pk):
             distinct=True
         ),
     ).order_by('DisplayName')
+
+    # Prefetch candidates for each batch with their avg scores
+    for batch in batches:
+        batch.candidates = (
+            Applicant.objects.filter(round=batch)
+            .annotate(avg_score=Avg('scores__overall_score'))
+            .order_by('last_name', 'first_name')
+        )
 
     applicant_count = Applicant.objects.filter(dataset=dataset).count()
 
@@ -472,18 +517,18 @@ def batch_create(request):
 def batch_detail(request, pk):
     batch = get_object_or_404(Batch, pk=pk)
     search_query = request.GET.get('q', '')
-
+ 
     applicants = Applicant.objects.filter(round=batch).annotate(
         avg_score=Avg('scores__overall_score'),
         vote_count=Count('votes')
     ).order_by('last_name')
-
+ 
     if search_query:
         applicants = applicants.filter(
             Q(first_name__icontains=search_query) |
             Q(last_name__icontains=search_query)
         )
-
+ 
     assigned_reviewers = batch.assigned_reviewers.all()
     reviewer_count = assigned_reviewers.count()
     actual_votes = Vote.objects.filter(
@@ -494,10 +539,22 @@ def batch_detail(request, pk):
     potential_votes = total * reviewer_count
     progress_pct = round((actual_votes / potential_votes) * 100) if potential_votes > 0 else 0
     pending = potential_votes - actual_votes
-
+ 
+    # ── Group applicants by source_folder for display ────────────────────
+    from collections import OrderedDict
+    grouped_applicants = OrderedDict()
+    for a in applicants:
+        folder = a.source_folder or ''
+        grouped_applicants.setdefault(folder, []).append(a)
+ 
+    # If there's only one group (or all empty), don't bother with headers
+    has_multiple_groups = len(grouped_applicants) > 1 or (len(grouped_applicants) == 1 and '' not in grouped_applicants)
+ 
     context = {
         'batch': batch,
         'applicants': applicants,
+        'grouped_applicants': grouped_applicants,
+        'has_multiple_groups': has_multiple_groups,
         'total': total,
         'reviewer_count': reviewer_count,
         'actual_votes': actual_votes,
@@ -857,40 +914,44 @@ def bulk_upload_applicants(request):
             import json
             path_map = json.loads(path_map_raw)
             candidate_groups = {}
+            folder_name_map = {}  # candidate_folder -> top-level batch folder name
             for i, f in enumerate(files):
                 relative_path = path_map.get(str(i), f.name)
                 parts = relative_path.replace('\\', '/').split('/')
                 if len(parts) < 3:
                     continue
+                batch_folder = parts[0]
                 candidate_folder = parts[1]
                 candidate_groups.setdefault(candidate_folder, []).append(f)
+                folder_name_map[candidate_folder] = batch_folder
         else:
             candidate_groups = {}
+            folder_name_map = {}
             for f in files:
                 parts = f.name.replace('\\', '/').split('/')
                 if len(parts) < 3:
                     continue
+                batch_folder = parts[0]
                 candidate_folder = parts[1]
                 candidate_groups.setdefault(candidate_folder, []).append(f)
+                folder_name_map[candidate_folder] = batch_folder
 
-
-
-        # Optional dataset / batch assignment from the form
+        # ── Dataset is now required ──────────────────────────────────────
         dataset_id = request.POST.get('dataset_id') or None
-        batch_id   = request.POST.get('batch_id')   or None
 
         selected_dataset = None
-        selected_batch   = None
         if dataset_id:
             try:
                 selected_dataset = DataSet.objects.get(pk=dataset_id)
             except DataSet.DoesNotExist:
                 pass
-        if batch_id:
-            try:
-                selected_batch = Batch.objects.get(pk=batch_id)
-            except Batch.DoesNotExist:
-                pass
+
+        if not selected_dataset:
+            messages.error(
+                request,
+                "Please select a dataset. Batches are auto-created and must be linked to a dataset."
+            )
+            return redirect('bulk_upload')
 
         if not candidate_groups:
             messages.warning(
@@ -900,8 +961,15 @@ def bulk_upload_applicants(request):
             )
             return redirect('bulk_upload')
 
+        # ── Determine the combined folder name for batch naming ──────────
+        unique_batch_folders = list(dict.fromkeys(folder_name_map.values()))
+        combined_folder_name = ' - '.join(unique_batch_folders) if unique_batch_folders else 'Bulk Upload'
+
         created_count = 0
         skipped_count = 0
+
+        # ── Parse all candidates first ───────────────────────────────────
+        parsed_candidates = []
 
         for folder_name, group_files in candidate_groups.items():
             # ── Parse "Last, First - UniqueID" ───────────────────────────
@@ -941,42 +1009,204 @@ def bulk_upload_applicants(request):
                         print(f"PDF parse error for {f.name}: {e}")
                     break   # only check the first PDF
 
-            # ── Create Applicant ─────────────────────────────────────────
             jpg_files = [f for f in group_files if f.name.lower().endswith(('.jpg', '.jpeg'))]
             profile_pic = jpg_files[2] if len(jpg_files) >= 3 else None
 
-            applicant = Applicant.objects.create(
-                first_name=first_name,
-                last_name=last_name,
-                email=email,
-                age=0,                      # placeholder — can be edited later
-                gender='Not Specified',     # placeholder
-                dataset=selected_dataset,
-                round=selected_batch,
-                external_id=unique_id or None,
-                profile_picture=profile_pic,
-            )
+            source = folder_name_map.get(folder_name, '')
 
-            # ── Attach all files ─────────────────────────────────────────
-            for f in group_files:
-                ApplicantFile.objects.create(applicant=applicant, file=f)
+            parsed_candidates.append({
+                'first_name': first_name,
+                'last_name': last_name,
+                'email': email,
+                'unique_id': unique_id,
+                'profile_pic': profile_pic,
+                'group_files': group_files,
+                'source_folder': source,
+            })
 
-            created_count += 1
+        # ── Place candidates into auto-created batches ───────────────────
+        batch_placements = _assign_candidates_to_batches(
+            dataset=selected_dataset,
+            folder_name=combined_folder_name,
+            candidates=parsed_candidates,
+        )
 
+        batch_summary = []
+
+        for batch_obj, candidate_chunk in batch_placements:
+            for cand in candidate_chunk:
+                applicant = Applicant.objects.create(
+                    first_name=cand['first_name'],
+                    last_name=cand['last_name'],
+                    email=cand['email'],
+                    age=0,
+                    gender='Not Specified',
+                    dataset=selected_dataset,
+                    round=batch_obj,
+                    external_id=cand['unique_id'] or None,
+                    profile_picture=cand['profile_pic'],
+                    source_folder=cand['source_folder'],
+                )
+
+                # ── Attach all files ─────────────────────────────────────
+                for f in cand['group_files']:
+                    ApplicantFile.objects.create(applicant=applicant, file=f)
+
+                created_count += 1
+
+            count_in_batch = Applicant.objects.filter(round=batch_obj).count()
+            batch_summary.append(f'"{batch_obj.DisplayName}" ({count_in_batch}/{BATCH_MAX_SIZE})')
+
+        batch_details = ', '.join(batch_summary)
         messages.success(
             request,
-            f"✅ Successfully imported {created_count} candidate profile(s). "
+            f"✅ Successfully imported {created_count} candidate profile(s) "
+            f"into {len(batch_placements)} batch(es): {batch_details}. "
             f"Review each profile to complete missing details like age and gender."
         )
         return redirect('applicant_list')
 
     # GET — render the upload page
-    datasets = DataSet.objects.all().order_by('DisplayName')
-    batches  = Batch.objects.select_related('DataSet').order_by('DisplayName')
+    datasets = DataSet.objects.filter(Active=True).order_by('DisplayName')
     return render(request, "bulk_upload.html", {
         "datasets": datasets,
-        "batches": batches,
     })
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  BATCH AUTO-CREATION HELPERS (used by bulk_upload_applicants)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+BATCH_MAX_SIZE = 10
+
+
+def _get_batch_folder_names(batch):
+    """
+    Extract the list of source folder names from a batch's DisplayName.
+
+    "December 1 - December 2"  →  ["December 1", "December 2"]
+    "December 1 (2)"           →  ["December 1"]
+    "December 1"               →  ["December 1"]
+    """
+    name = batch.DisplayName
+    # Strip overflow suffix like " (2)"
+    base = re.sub(r'\s*\(\d+\)\s*$', '', name)
+    return [part.strip() for part in base.split(' - ') if part.strip()]
+
+
+def _build_batch_display_name(folder_names, overflow_index=None):
+    """
+    Build a display name from unique folder names + optional overflow number.
+
+    (["December 1"])                        →  "December 1"
+    (["December 1", "December 2"])          →  "December 1 - December 2"
+    (["December 1"], overflow_index=2)      →  "December 1 (2)"
+    """
+    seen = set()
+    unique = []
+    for n in folder_names:
+        if n not in seen:
+            seen.add(n)
+            unique.append(n)
+
+    base = ' - '.join(unique)
+    if overflow_index and overflow_index > 1:
+        base = f"{base} ({overflow_index})"
+    return base
+
+
+def _assign_candidates_to_batches(dataset, folder_name, candidates):
+    """
+    Place a list of parsed candidate dicts into batches of max BATCH_MAX_SIZE.
+    Fills the most recent underfull batch first, then creates new ones.
+    Batch names reflect only the source folders of candidates actually in that batch.
+    Overflow numbering only applies when names would collide.
+
+    Returns: list of (Batch, [candidate_dicts]) tuples.
+    """
+    result = []
+    remaining = list(candidates)
+
+    # ── Step 1: Try to fill the most recent underfull batch ───────────────
+    recent_batch = (
+        Batch.objects.filter(DataSet=dataset, Active=True)
+        .annotate(candidate_count=Count('applicant'))
+        .filter(candidate_count__lt=BATCH_MAX_SIZE)
+        .order_by('-CreatedAt')
+        .first()
+    )
+
+    if recent_batch:
+        current_count = Applicant.objects.filter(round=recent_batch).count()
+        slots = BATCH_MAX_SIZE - current_count
+        if slots > 0:
+            to_fill = remaining[:slots]
+            remaining = remaining[slots:]
+
+            # Update batch name based on NEW candidates' actual source folders
+            new_folders = list(dict.fromkeys(
+                c['source_folder'] for c in to_fill if c.get('source_folder')
+            ))
+            existing_names = _get_batch_folder_names(recent_batch)
+            changed = False
+            for nf in new_folders:
+                if nf not in existing_names:
+                    existing_names.append(nf)
+                    changed = True
+            if changed:
+                recent_batch.DisplayName = _build_batch_display_name(existing_names)
+                recent_batch.save()
+
+            result.append((recent_batch, to_fill))
+
+    if not remaining:
+        return result
+
+    # ── Step 2: Create new batches for the rest ──────────────────────────
+    chunks = []
+    while remaining:
+        chunks.append(remaining[:BATCH_MAX_SIZE])
+        remaining = remaining[BATCH_MAX_SIZE:]
+
+    for chunk in chunks:
+        # Derive name from the actual source folders in THIS chunk
+        chunk_folders = list(dict.fromkeys(
+            c['source_folder'] for c in chunk if c.get('source_folder')
+        ))
+        if not chunk_folders:
+            chunk_folders = [folder_name]
+
+        base_name = _build_batch_display_name(chunk_folders)
+
+        # Check if this exact name already exists — if so, add numbering
+        existing_with_name = Batch.objects.filter(
+            DataSet=dataset,
+            DisplayName__startswith=base_name
+        ).count()
+
+        if existing_with_name > 0:
+            # Number this one as (N+1)
+            display_name = f"{base_name} ({existing_with_name + 1})"
+
+            # Retroactively number the first one as (1) if it's unnumbered
+            first_batch = Batch.objects.filter(
+                DataSet=dataset,
+                DisplayName=base_name,  # exact match = unnumbered original
+            ).first()
+            if first_batch:
+                first_batch.DisplayName = f"{base_name} (1)"
+                first_batch.save()
+        else:
+            display_name = base_name
+
+        new_batch = Batch.objects.create(
+            DataSet=dataset,
+            DisplayName=display_name,
+            Active=True,
+        )
+        result.append((new_batch, chunk))
+
+    return result
     
     
 @login_required

@@ -49,11 +49,6 @@
          href="{% url 'dashboard' %}"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a>
     </li>
     <li class="nav-item">
-      <a class="nav-link {% if request.resolver_match.url_name == 'applicant_list' %}active{% endif %}"
-   href="{% url 'applicant_list' %}">
-  <i class="bi bi-people-fill me-2"></i>Applicants
-</a>
-    <li class="nav-item">
       <a class="nav-link {% if 'dataset' in request.resolver_match.url_name|default:'' %}active{% endif %}"
          href="{% url 'dataset_list' %}"><i class="bi bi-stack me-2"></i>DataSets</a>
     </li>
@@ -62,12 +57,18 @@
          href="{% url 'batch_list' %}"><i class="bi bi-collection-fill me-2"></i>Batches</a>
     </li>
     <li class="nav-item">
-      <a class="nav-link {% if request.resolver_match.url_name == 'applicant_queue' %}active{% endif %}"
-         href="{% url 'applicant_queue' %}"><i class="bi bi-inbox-fill me-2"></i>My Queue</a>
+      <a class="nav-link {% if request.resolver_match.url_name == 'applicant_list' %}active{% endif %}"
+   href="{% url 'applicant_list' %}">
+  <i class="bi bi-people-fill me-2"></i>Applicants
+</a>
     </li>
     <li class="nav-item">
       <a class="nav-link {% if request.resolver_match.url_name == 'bulk_upload' %}active{% endif %}"
          href="{% url 'bulk_upload' %}"><i class="bi bi-folder2-open me-2"></i>Bulk Upload</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if request.resolver_match.url_name == 'applicant_queue' %}active{% endif %}"
+         href="{% url 'applicant_queue' %}"><i class="bi bi-inbox-fill me-2"></i>My Queue</a>
     </li>
   {% else %}
     <li class="nav-item">

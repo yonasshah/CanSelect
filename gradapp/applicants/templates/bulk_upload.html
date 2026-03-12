@@ -112,7 +112,7 @@
         <div class="step-circle">3</div>
         <div>
           <div class="fw-semibold">Click Upload</div>
-            <small class="text-muted">A profile is created for each candidate with their files attached. You can fill in missing details afterwards.</small>
+            <small class="text-muted">Candidates are auto-assigned to batches of 10.</small>
         </div>
       </div>
     </div>
@@ -124,6 +124,19 @@
         <div class="mt-1 text-muted" style="font-size:0.8rem;">The candidate's name and ID are read from the folder name. All files inside are attached to their profile.</div>
       </small>
     </div>
+
+    <div class="mt-3 p-2 rounded bg-white border">
+      <small class="text-muted">
+        <strong>Auto-batching rules:</strong>
+        <ul class="mb-0 mt-1" style="font-size:0.8rem;">
+          <li>Each batch holds a <strong>maximum of 10 candidates</strong>.</li>
+          <li>If the most recent batch for this dataset has open slots, new candidates fill it first and the batch name is updated.</li>
+          <li>Batch names come from the uploaded folder name (e.g. "December 1").</li>
+          <li>If overflow is needed: "December 1 (1)", "December 1 (2)", etc.</li>
+          <li>Multiple folders combine names: "December 1 - December 2".</li>
+        </ul>
+      </small>
+    </div>
   </div>
 </div>
 
@@ -131,28 +144,20 @@
 <form method="post" enctype="multipart/form-data" id="upload-form" action="{% url 'bulk_upload' %}">
   {% csrf_token %}
 
-  <!-- Dataset assignment (optional) -->
+  <!-- Dataset assignment (REQUIRED) -->
   <div class="card mb-4">
     <div class="card-body">
-      <h6 class="fw-semibold mb-3">Assign to Dataset &amp; Batch <span class="text-muted fw-normal">(optional)</span></h6>
+      <h6 class="fw-semibold mb-3">Assign to Dataset <span class="text-danger">*</span></h6>
       <div class="row g-3">
         <div class="col-md-6">
-          <label class="form-label">Dataset</label>
-          <select name="dataset_id" class="form-select">
-            <option value="">— None —</option>
+          <label class="form-label">Dataset <span class="text-danger">*</span></label>
+          <select name="dataset_id" class="form-select" id="dataset-select" required>
+            <option value="">— Select a dataset —</option>
             {% for ds in datasets %}
               <option value="{{ ds.pk }}">{{ ds.DisplayName }}</option>
             {% endfor %}
           </select>
-        </div>
-        <div class="col-md-6">
-          <label class="form-label">Batch / Round</label>
-          <select name="batch_id" class="form-select">
-            <option value="">— None —</option>
-            {% for b in batches %}
-              <option value="{{ b.pk }}">{{ b.DisplayName }}</option>
-            {% endfor %}
-          </select>
+          <div class="form-text">Batches are auto-created within this dataset (max 10 candidates each).</div>
         </div>
       </div>
     </div>
@@ -184,6 +189,7 @@
         <div class="text-end">
           <div class="candidate-count-badge" id="candidate-count">0</div>
           <div class="text-muted" style="font-size:0.8rem;">candidates detected</div>
+          <div class="text-muted" style="font-size:0.75rem;" id="batch-estimate"></div>
         </div>
       </div>
       <div class="card-body" id="preview-list" style="max-height:420px; overflow-y:auto;">
@@ -211,6 +217,7 @@
 </div>
 
 <script>
+  const BATCH_MAX = 10;
   let dragDropFiles = [];  // stores files from drag-drop
   let isDragDrop = false;
 
@@ -280,7 +287,7 @@
 
     const getPath = f => f.webkitRelativePath || f.name;
     const batchFolders = [...new Set(files.map(f => getPath(f).split('/')[0]))];
-document.getElementById('batch-folder-name').textContent = batchFolders.join(', ');
+    document.getElementById('batch-folder-name').textContent = batchFolders.join(', ');
 
     const candidates = {};
     files.forEach(f => {
@@ -292,7 +299,17 @@ document.getElementById('batch-folder-name').textContent = batchFolders.join(', 
     });
 
     const candidateList = Object.entries(candidates);
-    document.getElementById('candidate-count').textContent = candidateList.length;
+    const count = candidateList.length;
+    document.getElementById('candidate-count').textContent = count;
+
+    // Show batch estimate
+    const estimateEl = document.getElementById('batch-estimate');
+    if (count > 0) {
+      const batchCount = Math.ceil(count / BATCH_MAX);
+      estimateEl.textContent = `≈ ${batchCount} batch${batchCount !== 1 ? 'es' : ''} of up to ${BATCH_MAX}`;
+    } else {
+      estimateEl.textContent = '';
+    }
 
     let html = '';
     candidateList.forEach(([folder, cFiles]) => {
@@ -340,10 +357,22 @@ document.getElementById('batch-folder-name').textContent = batchFolders.join(', 
     document.getElementById('preview-list').innerHTML = '';
     document.getElementById('batch-folder-name').textContent = '—';
     document.getElementById('candidate-count').textContent = '0';
+    document.getElementById('batch-estimate').textContent = '';
   }
 
-  // On submit — use AJAX if drag-drop, normal form if click-selected
+  // On submit — validate dataset, then upload
   document.getElementById('upload-form').addEventListener('submit', function(e) {
+    // Validate dataset is selected
+    const datasetSelect = document.getElementById('dataset-select');
+    if (!datasetSelect.value) {
+      e.preventDefault();
+      datasetSelect.focus();
+      datasetSelect.classList.add('is-invalid');
+      alert('Please select a dataset before uploading.');
+      return;
+    }
+    datasetSelect.classList.remove('is-invalid');
+
     if (isDragDrop) {
       e.preventDefault();
       if (dragDropFiles.length === 0) {
@@ -354,39 +383,38 @@ document.getElementById('batch-folder-name').textContent = batchFolders.join(', 
       document.getElementById('submit-btn').disabled = true;
 
       const formData = new FormData();
-formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-formData.append('dataset_id', document.querySelector('[name=dataset_id]').value);
-formData.append('batch_id', document.querySelector('[name=batch_id]').value);
+      formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+      formData.append('dataset_id', datasetSelect.value);
 
-const pathMap = {};
-dragDropFiles.forEach((f, i) => {
-    formData.append('folder_files', f);
-    pathMap[i] = f.webkitRelativePath;
-});
-formData.append('path_map', JSON.stringify(pathMap));
+      const pathMap = {};
+      dragDropFiles.forEach((f, i) => {
+          formData.append('folder_files', f);
+          pathMap[i] = f.webkitRelativePath;
+      });
+      formData.append('path_map', JSON.stringify(pathMap));
 
       fetch("{% url 'bulk_upload' %}", {
-    method: 'POST',
-    body: formData,
-}).then(res => {
-    if (res.ok && res.redirected) {
-        window.location.href = res.url;
-    } else if (res.ok) {
-        window.location.href = "{% url 'applicant_list' %}";
-    } else {
-        return res.text().then(text => {
-            console.error('Server response:', text);
-            alert('Upload failed — server returned an error. Check the console for details.');
-            document.getElementById('upload-overlay').style.display = 'none';
-            document.getElementById('submit-btn').disabled = false;
-        });
-    }
-}).catch(err => {
-    console.error('Fetch error:', err);
-    alert('Upload failed. Please try again.');
-    document.getElementById('upload-overlay').style.display = 'none';
-    document.getElementById('submit-btn').disabled = false;
-});
+        method: 'POST',
+        body: formData,
+      }).then(res => {
+          if (res.ok && res.redirected) {
+              window.location.href = res.url;
+          } else if (res.ok) {
+              window.location.href = "{% url 'applicant_list' %}";
+          } else {
+              return res.text().then(text => {
+                  console.error('Server response:', text);
+                  alert('Upload failed — server returned an error. Check the console for details.');
+                  document.getElementById('upload-overlay').style.display = 'none';
+                  document.getElementById('submit-btn').disabled = false;
+              });
+          }
+      }).catch(err => {
+          console.error('Fetch error:', err);
+          alert('Upload failed. Please try again.');
+          document.getElementById('upload-overlay').style.display = 'none';
+          document.getElementById('submit-btn').disabled = false;
+      });
     } else {
       // Normal form submit (click-selected folder)
       document.getElementById('upload-overlay').style.display = 'flex';
