@@ -35,4 +35,10 @@ urlpatterns = [
     path("committee/reviews/", views.my_reviews, name="my_reviews"),
     path("committee/activity/", views.my_activity, name="my_activity"),
     path("batches/bulk-action/", views.batch_bulk_action, name="batch_bulk_action"),
+    path("reviewer-groups/", views.manage_reviewer_groups, name="manage_reviewer_groups"),
+    path("notifications/", views.notification_list, name="notification_list"),
+    path("notifications/<int:pk>/", views.notification_detail, name="notification_detail"),
+    path("notifications/mark-all-read/", views.mark_all_notifications_read, name="mark_all_notifications_read"),
+    path("notifications/<int:pk>/read/", views.mark_notification_read, name="mark_notification_read"),
+    path("notifications/send/", views.send_notification, name="send_notification"),
     ]

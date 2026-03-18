@@ -1,7 +1,7 @@
 # applicants/views.py
 import csv
 import random
-from django.db.models import Count, Q, Avg, Exists, OuterRef
+from django.db.models import Case, Count, Q, Avg, Exists, IntegerField, OuterRef, Value, When
 import json
 from itertools import cycle
 from django.utils.safestring import mark_safe
@@ -17,8 +17,8 @@ import re
 from .decorators import admin_required
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
-from .models import Activity, Applicant, ApplicantFile, Score, Vote, DataSet, Batch
-from .forms import ApplicantForm, ApplicantStatusForm, BatchAssignmentForm, BulkUploadForm, UploadManyFilesForm, EmailLoginForm,DataSetForm, BatchForm, CommentForm, ScoreForm
+from .models import Activity, Applicant, ApplicantFile, Notification, Score, Vote, DataSet, Batch
+from .forms import ApplicantForm, ApplicantStatusForm, BatchAssignmentForm, BulkUploadForm, ReviewerGroupForm, SendNotificationForm, UploadManyFilesForm, EmailLoginForm,DataSetForm, BatchForm, CommentForm, ScoreForm
 
 def email_login(request):
     if request.method == "POST":
@@ -449,6 +449,7 @@ def dataset_edit(request, pk):
 def batch_list(request):
     search_query = request.GET.get('q', '')
     status_filter = request.GET.get('status', 'all')
+    group_filter = request.GET.get('group', '')
 
     batches_list = Batch.objects.select_related("DataSet").annotate(
         applicant_count=Count('applicant', distinct=True),
@@ -461,6 +462,11 @@ def batch_list(request):
         batches_list = batches_list.filter(Active=True)
     elif status_filter == 'inactive':
         batches_list = batches_list.filter(Active=False)
+
+    if group_filter == 'none':
+        batches_list = batches_list.filter(review_group='')
+    elif group_filter:
+        batches_list = batches_list.filter(review_group=group_filter)
         
     show_archived = request.GET.get('show_archived')
     if not show_archived:
@@ -487,6 +493,7 @@ def batch_list(request):
         'page_obj': page_obj,
         'search_query': search_query,
         'status_filter': status_filter,
+        'group_filter': group_filter,
         'show_archived': show_archived,
         'crumbs': [{'label': 'Batches', 'url': ''}],
     })
@@ -518,9 +525,14 @@ def batch_detail(request, pk):
     batch = get_object_or_404(Batch, pk=pk)
     search_query = request.GET.get('q', '')
  
+    assigned_reviewer_ids = batch.assigned_reviewers.values_list('pk', flat=True)
+
     applicants = Applicant.objects.filter(round=batch).annotate(
         avg_score=Avg('scores__overall_score'),
-        vote_count=Count('votes')
+        vote_count=Count(
+            'votes',
+            filter=Q(votes__voter_id__in=assigned_reviewer_ids)
+        )
     ).order_by('last_name')
  
     if search_query:
@@ -540,6 +552,22 @@ def batch_detail(request, pk):
     progress_pct = round((actual_votes / potential_votes) * 100) if potential_votes > 0 else 0
     pending = potential_votes - actual_votes
  
+    # ── Per-reviewer progress ────────────────────────────────────────────
+    reviewer_progress = []
+    for reviewer in assigned_reviewers.select_related('profile'):
+        votes_cast = Vote.objects.filter(
+            applicant__round=batch,
+            voter=reviewer,
+        ).count()
+        pct = round((votes_cast / total) * 100) if total > 0 else 0
+        reviewer_progress.append({
+            'user': reviewer,
+            'votes_cast': votes_cast,
+            'total': total,
+            'pct': pct,
+        })
+    reviewer_progress.sort(key=lambda r: r['pct'], reverse=True)
+ 
     # ── Group applicants by source_folder for display ────────────────────
     from collections import OrderedDict
     grouped_applicants = OrderedDict()
@@ -547,7 +575,6 @@ def batch_detail(request, pk):
         folder = a.source_folder or ''
         grouped_applicants.setdefault(folder, []).append(a)
  
-    # If there's only one group (or all empty), don't bother with headers
     has_multiple_groups = len(grouped_applicants) > 1 or (len(grouped_applicants) == 1 and '' not in grouped_applicants)
  
     context = {
@@ -561,6 +588,7 @@ def batch_detail(request, pk):
         'pending': pending,
         'progress_pct': progress_pct,
         'search_query': search_query,
+        'reviewer_progress': reviewer_progress,
         'crumbs': [
             {'label': 'Batches', 'url': '/batches/'},
             {'label': batch.DisplayName},
@@ -572,10 +600,21 @@ def batch_detail(request, pk):
 @admin_required
 def batch_edit(request, pk):
     batch = get_object_or_404(Batch, pk=pk)
+    old_group = batch.review_group
     if request.method == "POST":
         form = BatchForm(request.POST, instance=batch)
         if form.is_valid():
-            form.save()
+            batch = form.save()
+
+            # If the group changed, sync reviewers to the new group
+            if batch.review_group != old_group and batch.review_group:
+                from .models import Profile
+                group_members = User.objects.filter(
+                    profile__role=Profile.Role.COMMITTEE_MEMBER,
+                    profile__review_group=batch.review_group,
+                )
+                batch.assigned_reviewers.set(group_members)
+
             messages.success(request, f"Batch '{batch.DisplayName}' updated successfully.")
             return redirect("batch_detail", pk=batch.pk)
     else:
@@ -998,7 +1037,8 @@ def bulk_upload_applicants(request):
             for f in group_files:
                 if f.name.lower().endswith('.pdf'):
                     try:
-                        import pypdf, io
+                        import pypdf, io, logging
+                        logging.getLogger('pypdf').setLevel(logging.ERROR)
                         reader = pypdf.PdfReader(f)
                         text = ''.join(page.extract_text() or '' for page in reader.pages)
                         email_match = _re.search(r'[\w\.-]+@[\w\.-]+\.\w+', text)
@@ -1024,6 +1064,9 @@ def bulk_upload_applicants(request):
                 'source_folder': source,
             })
 
+        # Sort candidates by source folder so earlier dates fill first
+        parsed_candidates.sort(key=lambda c: c.get('source_folder', ''))
+        
         # ── Place candidates into auto-created batches ───────────────────
         batch_placements = _assign_candidates_to_batches(
             dataset=selected_dataset,
@@ -1209,6 +1252,7 @@ def _assign_candidates_to_batches(dataset, folder_name, candidates):
             DisplayName=display_name,
             Active=True,
         )
+        _auto_assign_batch_to_group(new_batch)
         result.append((new_batch, chunk))
 
     # ── Clean up orphaned numbering ──────────────────────────────────────
@@ -1383,3 +1427,206 @@ def batch_bulk_action(request):
             messages.error(request, "No valid action selected.")
 
     return redirect('batch_list')
+
+@login_required
+@admin_required
+def manage_reviewer_groups(request):
+    """Admin page to assign committee members to review groups (A, B, C)."""
+    members = (
+        User.objects.filter(profile__role='COMMITTEE_MEMBER')
+        .select_related('profile')
+        .order_by('username')
+    )
+
+    if request.method == 'POST':
+        form = ReviewerGroupForm(request.POST, members=members)
+        if form.is_valid():
+            for user in members:
+                field_name = f'user_{user.pk}'
+                new_group = form.cleaned_data.get(field_name, '')
+                if user.profile.review_group != new_group:
+                    user.profile.review_group = new_group
+                    user.profile.save()
+
+            # Sync batch reviewers to match current group assignments
+            for group_code in ['A', 'B', 'C']:
+                group_members = User.objects.filter(
+                    profile__role='COMMITTEE_MEMBER',
+                    profile__review_group=group_code,
+                )
+                group_batches = Batch.objects.filter(
+                    review_group=group_code,
+                    Active=True,
+                )
+                for batch in group_batches:
+                    batch.assigned_reviewers.set(group_members)
+
+            messages.success(request, "Reviewer group assignments updated.")
+            return redirect('manage_reviewer_groups')
+    else:
+        form = ReviewerGroupForm(members=members)
+
+    groups = {
+        'A': members.filter(profile__review_group='A'),
+        'B': members.filter(profile__review_group='B'),
+        'C': members.filter(profile__review_group='C'),
+        'unassigned': members.filter(profile__review_group=''),
+    }
+
+    return render(request, 'manage_reviewer_groups.html', {
+        'form': form,
+        'members': members,
+        'groups': groups,
+    })
+
+
+def _auto_assign_batch_to_group(batch):
+    """
+    Assign a batch to the review group (A, B, C) with the fewest active batches.
+    Then set the batch's assigned_reviewers to all committee members in that group.
+    """
+    from .models import Profile
+
+    group_choices = ['A', 'B', 'C']
+
+    group_counts = {}
+    for g in group_choices:
+        group_counts[g] = Batch.objects.filter(
+            DataSet=batch.DataSet,
+            Active=True,
+            review_group=g,
+        ).count()
+
+    selected_group = min(group_choices, key=lambda g: group_counts[g])
+
+    batch.review_group = selected_group
+    batch.save()
+
+    group_members = User.objects.filter(
+        profile__role=Profile.Role.COMMITTEE_MEMBER,
+        profile__review_group=selected_group,
+    )
+    batch.assigned_reviewers.set(group_members)
+
+    return selected_group
+
+@login_required
+@admin_required
+def send_notification(request):
+    if request.method == 'POST':
+        form = SendNotificationForm(request.POST)
+        if form.is_valid():
+            recipient_type = form.cleaned_data['recipient_type']
+            subject = form.cleaned_data['subject']
+            message = form.cleaned_data['message']
+ 
+            # Determine recipients
+            recipients = User.objects.none()
+ 
+            if recipient_type == 'dataset':
+                dataset = form.cleaned_data.get('dataset')
+                if dataset:
+                    batch_ids = Batch.objects.filter(DataSet=dataset).values_list('pk', flat=True)
+                    reviewer_ids = Batch.objects.filter(pk__in=batch_ids).values_list('assigned_reviewers', flat=True)
+                    recipients = User.objects.filter(pk__in=reviewer_ids).distinct()
+ 
+            elif recipient_type == 'group':
+                group = form.cleaned_data.get('group')
+                if group:
+                    recipients = User.objects.filter(
+                        profile__role='COMMITTEE_MEMBER',
+                        profile__review_group=group,
+                    )
+ 
+            elif recipient_type == 'batch':
+                batch = form.cleaned_data.get('batch')
+                if batch:
+                    recipients = batch.assigned_reviewers.all()
+ 
+            elif recipient_type == 'individual':
+                recipients = form.cleaned_data.get('individual_reviewers', User.objects.none())
+ 
+            # Create notifications
+            count = 0
+            for user in recipients:
+                Notification.objects.create(
+                    recipient=user,
+                    sender=request.user,
+                    subject=subject,
+                    message=message,
+                    deadline=form.cleaned_data.get('deadline'),
+                )
+                count += 1
+ 
+            if count:
+                messages.success(request, f"Notification sent to {count} reviewer(s).")
+            else:
+                messages.warning(request, "No recipients found for your selection.")
+            return redirect('send_notification')
+    else:
+        form = SendNotificationForm()
+ 
+    return render(request, 'send_notification.html', {'form': form})
+ 
+ 
+@login_required
+def notification_list(request):
+    from django.db.models import Case, When, Value, IntegerField
+    notifications = (
+        request.user.notifications
+        .annotate(
+            has_deadline=Case(
+                When(deadline__isnull=False, then=Value(0)),
+                default=Value(1),
+                output_field=IntegerField(),
+            )
+        )
+        .order_by('has_deadline', 'deadline', '-created_at')[:50]
+    )
+    unread_count = request.user.notifications.filter(is_read=False).count()
+
+    return render(request, 'notification_list.html', {
+        'notifications': notifications,
+        'unread_count': unread_count,
+    })
+ 
+ 
+@login_required
+def notification_detail(request, pk):
+    notification = get_object_or_404(Notification, pk=pk, recipient=request.user)
+ 
+    from django.utils import timezone
+    if not notification.is_read:
+        # Only auto-mark read if no deadline or deadline has passed
+        if not notification.deadline or notification.deadline <= timezone.now():
+            notification.is_read = True
+            notification.read_at = timezone.now()
+            notification.save()
+ 
+    return render(request, 'notification_detail.html', {
+        'notification': notification,
+    })
+ 
+ 
+@login_required
+@require_POST
+def mark_all_notifications_read(request):
+    from django.utils import timezone
+    now = timezone.now()
+    # Delete all except those with upcoming deadlines
+    request.user.notifications.filter(
+        Q(deadline__isnull=True) | Q(deadline__lte=now)
+    ).delete()
+    messages.success(request, "Cleared all notifications (except those with upcoming deadlines).")
+    return redirect('notification_list')
+
+@login_required
+@require_POST
+def mark_notification_read(request, pk):
+    from django.utils import timezone
+    notification = get_object_or_404(Notification, pk=pk, recipient=request.user)
+    if notification.deadline and notification.deadline > timezone.now():
+        messages.warning(request, "Cannot dismiss a notification with an upcoming deadline.")
+        return redirect('notification_list')
+    notification.delete()
+    return redirect('notification_list')

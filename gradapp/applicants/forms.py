@@ -66,6 +66,7 @@ class BatchForm(BootstrapFormMixin, forms.ModelForm):
             "PublicView",
             "Active",
             "RoundId",
+            "review_group",
         ]
         widgets = {
             'VoteExpire': forms.DateTimeInput(attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'),
@@ -122,4 +123,71 @@ class BulkUploadForm(forms.Form):
         }),
         required=True,
         help_text="Select a folder containing subdirectories for each candidate."
+    )
+    
+class ReviewerGroupForm(forms.Form):
+    """
+    Dynamic form that renders one select per committee member.
+    Field names are like 'user_5' where 5 is the user PK.
+    """
+    def __init__(self, *args, **kwargs):
+        members = kwargs.pop('members', [])
+        super().__init__(*args, **kwargs)
+ 
+        GROUP_CHOICES = [
+            ('', 'Unassigned'),
+            ('A', 'Group A'),
+            ('B', 'Group B'),
+            ('C', 'Group C'),
+        ]
+ 
+        for user in members:
+            self.fields[f'user_{user.pk}'] = forms.ChoiceField(
+                choices=GROUP_CHOICES,
+                required=False,
+                initial=user.profile.review_group,
+                label=user.username,
+                widget=forms.Select(attrs={'class': 'form-select form-select-sm'}),
+            )
+            
+class SendNotificationForm(BootstrapFormMixin, forms.Form):
+    RECIPIENT_TYPE_CHOICES = [
+        ('', '— Select recipient type —'),
+        ('dataset', 'All reviewers in a Dataset'),
+        ('group', 'All reviewers in a Group'),
+        ('batch', 'All reviewers in a Batch'),
+        ('individual', 'Specific reviewers'),
+    ]
+ 
+    GROUP_CHOICES = [
+        ('', '— Select group —'),
+        ('A', 'Group A'),
+        ('B', 'Group B'),
+        ('C', 'Group C'),
+    ]
+ 
+    recipient_type = forms.ChoiceField(choices=RECIPIENT_TYPE_CHOICES)
+    dataset = forms.ModelChoiceField(
+        queryset=DataSet.objects.filter(Active=True).order_by('DisplayName'),
+        required=False,
+        empty_label='— Select dataset —',
+    )
+    group = forms.ChoiceField(choices=GROUP_CHOICES, required=False)
+    batch = forms.ModelChoiceField(
+        queryset=Batch.objects.filter(Active=True).order_by('DisplayName'),
+        required=False,
+        empty_label='— Select batch —',
+    )
+    individual_reviewers = forms.ModelMultipleChoiceField(
+        queryset=User.objects.filter(profile__role='COMMITTEE_MEMBER').order_by('username'),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+    )
+    subject = forms.CharField(max_length=255)
+    message = forms.CharField(widget=forms.Textarea(attrs={'rows': 5, 'placeholder': 'Write your message here...'}))
+    
+    deadline = forms.DateTimeField(
+        required=False,
+        widget=forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
+        help_text='Optional. Reminders with deadlines stay pinned at the top.',
     )

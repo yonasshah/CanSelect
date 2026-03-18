@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+{% load form_tags %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-0">Reviewer Groups</h2>
+    <p class="text-muted mb-0">Assign committee members to review groups. Batches are auto-distributed evenly across groups.</p>
+  </div>
+</div>
+
+<!-- Groups Overview -->
+<div class="row g-4 mb-5">
+
+  <!-- Group A -->
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header d-flex justify-content-between align-items-center py-3 px-4" style="border-bottom: 3px solid #0d6efd; background: #f0f4ff;">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-people-fill text-primary"></i>
+          <span class="fw-bold fs-5 text-primary">Group A</span>
+        </div>
+        <span class="badge bg-primary px-3">{{ groups.A|length }} members</span>
+      </div>
+      <div class="card-body p-0">
+        {% if groups.A %}
+        <ul class="list-group list-group-flush" style="max-height: 285px; overflow-y: auto;">
+          {% for member in groups.A %}
+          <li class="list-group-item d-flex align-items-center gap-3 px-4 py-3">
+            <i class="bi bi-person-circle fs-4 text-primary opacity-75"></i>
+            <div>
+              <div class="fw-semibold">{{ member.get_full_name|default:member.username }}</div>
+              {% if member.first_name or member.last_name %}
+                <div class="text-muted small">{{ member.username }}</div>
+              {% endif %}
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="text-center text-muted py-5 fst-italic small">
+          <i class="bi bi-person-dash fs-2 d-block mb-2 opacity-25"></i>
+          No members assigned
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Group B -->
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header d-flex justify-content-between align-items-center py-3 px-4" style="border-bottom: 3px solid #198754; background: #f0fff6;">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-people-fill text-success"></i>
+          <span class="fw-bold fs-5 text-success">Group B</span>
+        </div>
+        <span class="badge bg-success px-3">{{ groups.B|length }} members</span>
+      </div>
+      <div class="card-body p-0">
+        {% if groups.B %}
+        <ul class="list-group list-group-flush" style="max-height: 285px; overflow-y: auto;">
+          {% for member in groups.B %}
+          <li class="list-group-item d-flex align-items-center gap-3 px-4 py-3">
+            <i class="bi bi-person-circle fs-4 text-success opacity-75"></i>
+            <div>
+              <div class="fw-semibold">{{ member.get_full_name|default:member.username }}</div>
+              {% if member.first_name or member.last_name %}
+                <div class="text-muted small">{{ member.username }}</div>
+              {% endif %}
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="text-center text-muted py-5 fst-italic small">
+          <i class="bi bi-person-dash fs-2 d-block mb-2 opacity-25"></i>
+          No members assigned
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Group C -->
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header d-flex justify-content-between align-items-center py-3 px-4" style="border-bottom: 3px solid #ffc107; background: #fffdf0;">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-people-fill text-warning"></i>
+          <span class="fw-bold fs-5 text-warning">Group C</span>
+        </div>
+        <span class="badge bg-warning text-dark px-3">{{ groups.C|length }} members</span>
+      </div>
+      <div class="card-body p-0">
+        {% if groups.C %}
+        <ul class="list-group list-group-flush" style="max-height: 285px; overflow-y: auto;">
+          {% for member in groups.C %}
+          <li class="list-group-item d-flex align-items-center gap-3 px-4 py-3">
+            <i class="bi bi-person-circle fs-4 text-warning opacity-75"></i>
+            <div>
+              <div class="fw-semibold">{{ member.get_full_name|default:member.username }}</div>
+              {% if member.first_name or member.last_name %}
+                <div class="text-muted small">{{ member.username }}</div>
+              {% endif %}
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="text-center text-muted py-5 fst-italic small">
+          <i class="bi bi-person-dash fs-2 d-block mb-2 opacity-25"></i>
+          No members assigned
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Unassigned -->
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header d-flex justify-content-between align-items-center py-3 px-4" style="border-bottom: 3px solid #6c757d; background: #f8f9fa;">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-people-fill text-secondary"></i>
+          <span class="fw-bold fs-5 text-secondary">Unassigned</span>
+        </div>
+        <span class="badge bg-secondary px-3">{{ groups.unassigned|length }} members</span>
+      </div>
+      <div class="card-body p-0">
+        {% if groups.unassigned %}
+        <ul class="list-group list-group-flush" style="max-height: 285px; overflow-y: auto;">
+          {% for member in groups.unassigned %}
+          <li class="list-group-item d-flex align-items-center gap-3 px-4 py-3">
+            <i class="bi bi-person-circle fs-4 text-secondary opacity-75"></i>
+            <div>
+              <div class="fw-semibold">{{ member.get_full_name|default:member.username }}</div>
+              {% if member.first_name or member.last_name %}
+                <div class="text-muted small">{{ member.username }}</div>
+              {% endif %}
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="text-center text-muted py-5 fst-italic small">
+          <i class="bi bi-check-circle fs-2 d-block mb-2 opacity-25"></i>
+          Everyone is assigned
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Edit Assignments -->
+<div class="d-flex align-items-center gap-2 mb-3">
+  <h5 class="mb-0 fw-bold">Edit Assignments</h5>
+  <hr class="flex-grow-1 m-0">
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <table class="table align-middle mb-3">
+        <thead class="table-dark">
+          <tr>
+            <th>Committee Member</th>
+            <th style="width:200px;">Group</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for member in members %}
+          <tr>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-person-circle fs-5 text-secondary"></i>
+                <div>
+                  <div class="fw-semibold">{{ member.get_full_name|default:member.username }}</div>
+                  {% if member.first_name or member.last_name %}
+                    <div class="text-muted small">{{ member.username }}</div>
+                  {% endif %}
+                </div>
+              </div>
+            </td>
+            <td>
+              {{ form|get_field:member.pk }}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="2" class="text-center text-muted py-4">No committee members found.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="d-flex justify-content-end">
+        <button type="submit" class="btn btn-primary px-4">
+          <i class="bi bi-save me-1"></i>Save Assignments
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

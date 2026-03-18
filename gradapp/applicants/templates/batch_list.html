@@ -44,7 +44,7 @@
         <div class="col-md-5">
           <input type="text" name="q" class="form-control form-control-sm" placeholder="Search batches..." value="{{ search_query }}">
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
           <select name="status" class="form-select form-select-sm">
             <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Statuses</option>
             <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active Only</option>
@@ -52,10 +52,17 @@
           </select>
         </div>
         <div class="col-md-2">
-          <button type="submit" class="btn btn-outline-secondary btn-sm w-100">Filter</button>
+          <select name="group" class="form-select form-select-sm">
+            <option value="" {% if not group_filter %}selected{% endif %}>All Groups</option>
+            <option value="A" {% if group_filter == 'A' %}selected{% endif %}>Group A</option>
+            <option value="B" {% if group_filter == 'B' %}selected{% endif %}>Group B</option>
+            <option value="C" {% if group_filter == 'C' %}selected{% endif %}>Group C</option>
+            <option value="none" {% if group_filter == 'none' %}selected{% endif %}>Unassigned</option>
+          </select>
         </div>
-        <div class="col-md-2">
-          <a href="{% url 'batch_list' %}" class="btn btn-outline-danger btn-sm w-100">Clear</a>
+        <div class="col-md-2 d-flex gap-1">
+          <button type="submit" class="btn btn-outline-secondary btn-sm flex-fill">Filter</button>
+          <a href="{% url 'batch_list' %}" class="btn btn-outline-danger btn-sm flex-fill">Clear</a>
         </div>
         <div class="col-md-auto d-flex align-items-center">
           <div class="form-check mb-0">
@@ -89,6 +96,7 @@
               <th style="width:220px;">Progress</th>
               <th class="text-center">Candidates</th>
               <th class="text-center">Deadline</th>
+              <th class="text-center">Group</th>
               <th class="text-center">Status</th>
               {% if user.profile.role == 'ADMIN' %}<th></th>{% endif %}
             </tr>
@@ -131,6 +139,15 @@
                 <span class="small text-muted">{{ batch.VoteExpire|date:"M d, Y"|default:"—" }}</span>
               </td>
               <td class="text-center">
+                {% if batch.review_group %}
+                  <span class="badge {% if batch.review_group == 'A' %}bg-primary{% elif batch.review_group == 'B' %}bg-success{% elif batch.review_group == 'C' %}bg-warning text-dark{% endif %}">
+                    Group {{ batch.review_group }}
+                  </span>
+                {% else %}
+                  <span class="text-muted small">—</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
                 {% if batch.Active %}
                   <span class="badge bg-success">Active</span>
                 {% else %}
@@ -138,15 +155,10 @@
                 {% endif %}
               </td>
               {% if user.profile.role == 'ADMIN' %}
-              <td class="text-end">
-                <div class="d-flex gap-1 justify-content-end">
-                  <a href="{% url 'batch_edit' batch.pk %}" class="btn btn-outline-secondary btn-sm" title="Edit">
-                    <i class="bi bi-pencil"></i>
-                  </a>
-                  <a href="{% url 'batch_assign_reviewers' batch.pk %}" class="btn btn-outline-warning btn-sm" title="Assign Reviewers">
-                    <i class="bi bi-people"></i>
-                  </a>
-                </div>
+              <td>
+                <a href="{% url 'batch_edit' batch.pk %}" class="btn btn-sm btn-outline-secondary">
+                  <i class="bi bi-pencil"></i>
+                </a>
               </td>
               {% endif %}
             </tr>
@@ -184,6 +196,11 @@
                 <span class="badge bg-success">Active</span>
               {% else %}
                 <span class="badge bg-secondary">Inactive</span>
+              {% endif %}
+              {% if batch.review_group %}
+                <span class="badge {% if batch.review_group == 'A' %}bg-primary{% elif batch.review_group == 'B' %}bg-success{% elif batch.review_group == 'C' %}bg-warning text-dark{% endif %}">
+                  Group {{ batch.review_group }}
+                </span>
               {% endif %}
             </div>
             <p class="text-muted small mb-3">

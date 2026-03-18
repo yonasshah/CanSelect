@@ -12,6 +12,11 @@
       {% else %}
         <span class="badge bg-secondary fs-6">Inactive</span>
       {% endif %}
+      {% if batch.review_group %}
+        <span class="badge fs-6 {% if batch.review_group == 'A' %}bg-primary{% elif batch.review_group == 'B' %}bg-success{% elif batch.review_group == 'C' %}bg-warning text-dark{% endif %}">
+          Group {{ batch.review_group }}
+        </span>
+      {% endif %}
     </div>
     <p class="text-muted mb-0 mt-1">
       <a href="{% url 'dataset_detail' batch.DataSet.pk %}" class="text-decoration-none">
@@ -21,11 +26,11 @@
   </div>
   {% if user.profile.role == 'ADMIN' %}
     <div class="d-flex gap-2">
-      <a href="{% url 'batch_assign_reviewers' batch.pk %}" class="btn btn-warning btn-sm">
-        <i class="bi bi-people-fill me-1"></i>Assign Reviewers
-      </a>
       <a href="{% url 'export_applicants_csv' %}?batch={{ batch.pk }}" class="btn btn-outline-success btn-sm">
         <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV
+      </a>
+      <a href="{% url 'batch_assign_reviewers' batch.pk %}" class="btn btn-outline-warning btn-sm">
+        <i class="bi bi-people me-1"></i>Reviewers
       </a>
       <a href="{% url 'batch_edit' batch.pk %}" class="btn btn-outline-primary btn-sm">
         <i class="bi bi-pencil me-1"></i>Edit
@@ -60,6 +65,42 @@
     <div class="text-muted" style="font-size:0.75rem;">Remaining</div>
   </div>
 </div>
+
+{% if user.profile.role == 'ADMIN' and reviewer_progress %}
+<div class="card mb-4">
+  <div class="card-header fw-semibold py-2">
+    <i class="bi bi-people-fill me-2"></i>Reviewer Progress
+  </div>
+  <div class="card-body py-2">
+    {% for r in reviewer_progress %}
+    <div class="d-flex align-items-center gap-3 {% if not forloop.last %}mb-2{% endif %}">
+      <div style="width:140px;" class="text-truncate">
+        <i class="bi bi-person-circle text-secondary me-1"></i>
+        <span class="small fw-semibold">{{ r.user.username }}</span>
+      </div>
+      <div class="flex-grow-1">
+        <div class="progress" style="height:8px;">
+          <div class="progress-bar {% if r.pct == 100 %}bg-success{% elif r.pct >= 50 %}bg-primary{% elif r.pct > 0 %}bg-warning{% else %}bg-secondary{% endif %}"
+               style="width:{{ r.pct }}%"></div>
+        </div>
+      </div>
+      <div style="width:80px;" class="text-end">
+        <span class="small {% if r.pct == 100 %}text-success fw-semibold{% else %}text-muted{% endif %}">
+          {{ r.votes_cast }}/{{ r.total }}
+        </span>
+      </div>
+      <div style="width:45px;" class="text-end">
+        {% if r.pct == 100 %}
+          <i class="bi bi-check-circle-fill text-success"></i>
+        {% else %}
+          <span class="small text-muted">{{ r.pct }}%</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
 
 {% if batch.Description or batch.VoteExpire or batch.AdminNotes %}
 <div class="card border-0 bg-light mb-4">
@@ -193,32 +234,32 @@
               </span>
             </td>
             <td class="text-center">
-              {% if a.avg_score %}
-                <span class="badge bg-primary">{{ a.avg_score|floatformat:1 }} / 5.0</span>
-              {% else %}
-                <span class="text-muted small">—</span>
-              {% endif %}
-            </td>
-            <td class="text-center">
               {% with votes=a.votes_summary %}
                 <span class="badge bg-success" title="Accept">{{ votes.accept }}</span>
                 <span class="badge bg-danger" title="Deny">{{ votes.deny }}</span>
                 <span class="badge bg-warning text-dark" title="Waitlist">{{ votes.waitlist }}</span>
               {% endwith %}
             </td>
+            <td class="text-center">
+              {% if a.avg_score %}
+                <span class="badge bg-primary">{{ a.avg_score|floatformat:1 }} / 5.0</span>
+              {% else %}
+                <span class="text-muted small">—</span>
+              {% endif %}
+            </td>
             <td class="text-center" style="min-width:100px;">
-                <div class="d-flex align-items-center gap-2">
-                  <div class="progress flex-grow-1" style="height:6px;">
-                    {% if reviewer_count > 0 %}
-                      {% widthratio a.vote_count reviewer_count 100 as review_pct %}
-                      <div class="progress-bar {% if review_pct == '100' %}bg-success{% else %}bg-primary{% endif %}" style="width:{{ review_pct }}%"></div>
-                    {% else %}
-                      <div class="progress-bar" style="width:0%"></div>
-                    {% endif %}
-                  </div>
-                  <span class="text-muted" style="font-size:0.75rem; white-space:nowrap;">{{ a.vote_count }}/{{ reviewer_count }}</span>
+              <div class="d-flex align-items-center gap-2">
+                <div class="progress flex-grow-1" style="height:6px;">
+                  {% if reviewer_count > 0 %}
+                    {% widthratio a.vote_count reviewer_count 100 as review_pct %}
+                    <div class="progress-bar {% if review_pct == '100' %}bg-success{% else %}bg-primary{% endif %}" style="width:{{ review_pct }}%"></div>
+                  {% else %}
+                    <div class="progress-bar" style="width:0%"></div>
+                  {% endif %}
                 </div>
-              </td>
+                <span class="text-muted" style="font-size:0.75rem; white-space:nowrap;">{{ a.vote_count }}/{{ reviewer_count }}</span>
+              </div>
+            </td>
           </tr>
           {% empty %}
           <tr>

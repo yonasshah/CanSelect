@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-0">Send Notification</h2>
+    <p class="text-muted mb-0">Send a message to reviewers by dataset, group, batch, or individually.</p>
+  </div>
+  <a href="{% url 'notification_list' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-bell me-1"></i>View All Notifications
+  </a>
+</div>
+
+<form method="post">
+  {% csrf_token %}
+
+  <div class="card mb-4">
+    <div class="card-header fw-semibold">Recipients</div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Send to <span class="text-danger">*</span></label>
+          {{ form.recipient_type }}
+        </div>
+      </div>
+
+      <!-- Dataset selector -->
+      <div class="row g-3 mt-1 recipient-option" id="option-dataset" style="display:none;">
+        <div class="col-md-6">
+          <label class="form-label">Dataset</label>
+          {{ form.dataset }}
+        </div>
+      </div>
+
+      <!-- Group selector -->
+      <div class="row g-3 mt-1 recipient-option" id="option-group" style="display:none;">
+        <div class="col-md-6">
+          <label class="form-label">Group</label>
+          {{ form.group }}
+        </div>
+      </div>
+
+      <!-- Batch selector -->
+      <div class="row g-3 mt-1 recipient-option" id="option-batch" style="display:none;">
+        <div class="col-md-6">
+          <label class="form-label">Batch</label>
+          {{ form.batch }}
+        </div>
+      </div>
+
+      <!-- Individual reviewers -->
+      <div class="row g-3 mt-1 recipient-option" id="option-individual" style="display:none;">
+        <div class="col-12">
+          <label class="form-label">Select reviewers</label>
+          <div class="card">
+            <div class="card-body" style="max-height:250px; overflow-y:auto;">
+              <div class="row row-cols-1 row-cols-md-3 g-2">
+                {% for checkbox in form.individual_reviewers %}
+                <div class="col">
+                  <div class="form-check">
+                    {{ checkbox.tag }}
+                    <label class="form-check-label small" for="{{ checkbox.id_for_label }}">
+                      {{ checkbox.choice_label }}
+                    </label>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header fw-semibold">Message</div>
+    <div class="card-body">
+      <div class="mb-3">
+        <label class="form-label">Subject <span class="text-danger">*</span></label>
+        {{ form.subject }}
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Message <span class="text-danger">*</span></label>
+        {{ form.message }}
+      </div>
+      <div class="mb-0">
+        <label class="form-label">Deadline</label>
+        {{ form.deadline }}
+        <div class="form-text">Optional. Notifications with deadlines stay pinned at the top.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-end gap-2 mb-5">
+    <a href="{% url 'notification_list' %}" class="btn btn-outline-secondary">Cancel</a>
+    <button type="submit" class="btn btn-primary">
+      <i class="bi bi-send me-1"></i>Send Notification
+    </button>
+  </div>
+</form>
+
+<script>
+  const recipientType = document.getElementById('id_recipient_type');
+
+  function updateRecipientOptions() {
+    document.querySelectorAll('.recipient-option').forEach(el => el.style.display = 'none');
+    const selected = recipientType.value;
+    if (selected) {
+      const target = document.getElementById('option-' + selected);
+      if (target) target.style.display = 'flex';
+    }
+  }
+
+  recipientType.addEventListener('change', updateRecipientOptions);
+  updateRecipientOptions();
+</script>
+
+{% endblock %}

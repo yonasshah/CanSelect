@@ -10,18 +10,29 @@ class Profile(models.Model):
     class Role(models.TextChoices):
         ADMIN = 'ADMIN', 'Admin'
         COMMITTEE_MEMBER = 'COMMITTEE_MEMBER', 'Committee Member'
-        
-        # test 
-
+ 
+    class ReviewGroup(models.TextChoices):
+        UNASSIGNED = '', 'Unassigned'
+        GROUP_A = 'A', 'Group A'
+        GROUP_B = 'B', 'Group B'
+        GROUP_C = 'C', 'Group C'
+ 
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     role = models.CharField(
         max_length=50,
         choices=Role.choices,
         default=Role.COMMITTEE_MEMBER
     )
-
+    review_group = models.CharField(
+        max_length=1,
+        choices=ReviewGroup.choices,
+        default=ReviewGroup.UNASSIGNED,
+        blank=True,
+    )
+ 
     def __str__(self):
-        return f"{self.user.username} - {self.get_role_display()}"
+        group_label = f" [{self.get_review_group_display()}]" if self.review_group else ""
+        return f"{self.user.username} - {self.get_role_display()}{group_label}"
 
 class Applicant(models.Model):   
     class Status(models.TextChoices):
@@ -163,6 +174,12 @@ class Batch(models.Model):
         blank=True,
         limit_choices_to={'profile__role': Profile.Role.COMMITTEE_MEMBER}
     )
+    review_group = models.CharField(
+        max_length=1,
+        choices=[('', 'Unassigned'), ('A', 'Group A'), ('B', 'Group B'), ('C', 'Group C')],
+        blank=True,
+        default='',
+    )
 
     class Meta:
         ordering = ["DisplayName"]
@@ -216,3 +233,19 @@ class Comment(models.Model):
 
     def __str__(self):
         return f"Comment by {self.author.username} on {self.applicant}"
+    
+class Notification(models.Model):
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    sender = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='sent_notifications')
+    subject = models.CharField(max_length=255)
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    read_at = models.DateTimeField(blank=True, null=True)
+    deadline = models.DateTimeField(blank=True, null=True)
+ 
+    class Meta:
+        ordering = ['-created_at']
+ 
+    def __str__(self):
+        return f"To {self.recipient.username}: {self.subject}"

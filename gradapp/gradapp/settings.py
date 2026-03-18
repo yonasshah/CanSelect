@@ -41,6 +41,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "applicants.context_processors.unread_notification_count",
             ],
         },
     },
@@ -74,6 +75,6 @@ MEDIA_ROOT = BASE_DIR / "media"
 USE_L10N = False
 DATETIME_INPUT_FORMATS = ['%Y-%m-%dT%H:%M']
 
-DATA_UPLOAD_MAX_NUMBER_FILES = 5000
+DATA_UPLOAD_MAX_NUMBER_FILES = 1000
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
