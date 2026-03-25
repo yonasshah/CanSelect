@@ -17,7 +17,7 @@ import re
 from .decorators import admin_required
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
-from .models import Activity, Applicant, ApplicantFile, Notification, Score, Vote, DataSet, Batch
+from .models import Activity, Applicant, ApplicantFile, Notification, NotificationAttachment, Score, Vote, DataSet, Batch
 from .forms import ApplicantForm, ApplicantStatusForm, BatchAssignmentForm, BulkUploadForm, ReviewerGroupForm, SendNotificationForm, UploadManyFilesForm, EmailLoginForm,DataSetForm, BatchForm, CommentForm, ScoreForm
 
 def email_login(request):
@@ -112,6 +112,12 @@ def applicant_detail(request, pk):
 
     comment_form = CommentForm()
     current_user_vote = Vote.objects.filter(applicant=applicant, voter=request.user).first()
+    
+    v_options = [
+        ('1', 'Accept', 'btn-success' if current_user_vote and current_user_vote.value == 1 else 'btn-outline-success'),
+        ('-1', 'Deny', 'btn-danger' if current_user_vote and current_user_vote.value == -1 else 'btn-outline-danger'),
+        ('0', 'Wait', 'btn-warning' if current_user_vote and current_user_vote.value == 0 else 'btn-outline-warning'),
+    ]
 
     if request.user.profile.role == 'ADMIN':
         comments = applicant.comments.select_related('author').all()
@@ -129,8 +135,26 @@ def applicant_detail(request, pk):
             return redirect('applicant_detail', pk=applicant.pk)
 
     all_files = applicant.files.all()
-    video_files = [f for f in all_files if f.is_video]
-    other_files = [f for f in all_files if not f.is_video]
+    
+    # Categorize files into organized sections
+    video_files = []
+    application_docs = []
+    evaluation_docs = []
+    photo_files = []
+    other_docs = []
+    
+    for f in all_files:
+        fname = f.file.name.lower()
+        if f.is_video:
+            video_files.append(f)
+        elif fname.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp')):
+            photo_files.append(f)
+        elif 'application' in fname and fname.endswith('.pdf'):
+            application_docs.append(f)
+        elif 'evaluation' in fname and fname.endswith('.pdf'):
+            evaluation_docs.append(f)
+        else:
+            other_docs.append(f)
 
     # ── Next / Previous Navigation ────────────────────────────────────────────
     batch_id     = request.GET.get('batch')
@@ -216,7 +240,10 @@ def applicant_detail(request, pk):
         'comment_form': comment_form,
         'current_user_vote': current_user_vote,
         'video_files': video_files,
-        'other_files': other_files,
+        'application_docs': application_docs,
+        'evaluation_docs': evaluation_docs,
+        'photo_files': photo_files,
+        'other_docs': other_docs,
         'score_form': score_form,
         'status_form': status_form,
         'avg_scores': avg_scores,
@@ -226,6 +253,7 @@ def applicant_detail(request, pk):
         'nav_total': nav_total,
         'nav_params': nav_params,
         'back_url': back_url,
+        'v_options': v_options,
     }
     return render(request, "applicant_detail.html", context)
 
@@ -260,16 +288,28 @@ def applicant_edit(request, pk):
     return render(request, "applicant_edit.html", {"form": form, "applicant": applicant})
 
 
-@login_required
+from django.utils.safestring import mark_safe # REQUIRED
+
 def vote(request, pk, value):
     if request.method == "POST":
         applicant = get_object_or_404(Applicant, pk=pk)
-        if value not in ["1", "-1", "0"]:   # 1=Accept, -1=Deny, 0=Waitlist
-            return redirect("applicant_detail", pk=pk)
         Vote.objects.update_or_create(
             applicant=applicant, voter=request.user, defaults={"value": int(value)}
         )
-    return redirect("applicant_detail", pk=pk)
+        
+        next_id = request.POST.get('next_id')
+        nav_params = request.POST.get('nav_params', '')
+        
+        if next_id and next_id != 'None':
+            # Create a clickable banner to advance
+            link = f'<a href="/applicant/{next_id}/?{nav_params}" class="alert-link ms-2">Go to Next Candidate &raquo;</a>'
+            messages.success(request, mark_safe(f"Vote recorded for {applicant.first_name}. {link}"))
+        else:
+            back_url = request.POST.get('back_url', '/applicant/')
+            link = f'<a href="{back_url}" class="alert-link ms-2">Return to List</a>'
+            messages.success(request, mark_safe(f"Vote recorded. End of queue. {link}"))
+            
+    return redirect('applicant_detail', pk=pk)
 
 @login_required
 def add_files(request, pk):
@@ -822,15 +862,27 @@ def applicant_queue(request):
     selected_batch_id = request.GET.get('batch')
     search_query = request.GET.get('q', '')
 
-    user_has_voted_subquery = Vote.objects.filter(
-    applicant=OuterRef('pk'),
-    voter=request.user
-)
-
-    user_batches = request.user.assigned_batches.all()
+    # --- PROGRESS CALCULATION ---
+    # Total applicants assigned to this user across all their batches
+    total_assigned = Applicant.objects.filter(round__in=batches).count()
     
+    # Total applicants the user has already voted for in those batches
+    voted_count = Vote.objects.filter(
+        voter=request.user, 
+        applicant__round__in=batches
+    ).count()
+
+    # Calculate percentage (prevent division by zero)
+    progress_pct = int((voted_count / total_assigned * 100)) if total_assigned > 0 else 0
+    # ----------------------------
+
+    user_has_voted_subquery = Vote.objects.filter(
+        applicant=OuterRef('pk'),
+        voter=request.user
+    )
+
     applicants_list = Applicant.objects.filter(
-        round__in=user_batches
+        round__in=batches
     ).exclude( 
         votes__voter=request.user
     ).select_related('dataset', 'round').annotate( 
@@ -856,7 +908,10 @@ def applicant_queue(request):
         'batches': batches,
         'selected_batch_id': selected_batch_id,
         'search_query': search_query,
-        'is_queue_page': True, 
+        'is_queue_page': True,
+        'voted_count': voted_count,
+        'total_assigned': total_assigned,
+        'progress_pct': progress_pct,
     }
     return render(request, "applicant_list.html", context)
 
@@ -1514,7 +1569,7 @@ def _auto_assign_batch_to_group(batch):
 @admin_required
 def send_notification(request):
     if request.method == 'POST':
-        form = SendNotificationForm(request.POST)
+        form = SendNotificationForm(request.POST, request.FILES)
         if form.is_valid():
             recipient_type = form.cleaned_data['recipient_type']
             subject = form.cleaned_data['subject']
@@ -1549,13 +1604,18 @@ def send_notification(request):
             # Create notifications
             count = 0
             for user in recipients:
-                Notification.objects.create(
+                notification = Notification.objects.create(
                     recipient=user,
                     sender=request.user,
                     subject=subject,
                     message=message,
                     deadline=form.cleaned_data.get('deadline'),
                 )
+                for f in request.FILES.getlist('attachments'):
+                    NotificationAttachment.objects.create(
+                        notification=notification,
+                        file=f,
+                    )
                 count += 1
  
             if count:
@@ -1565,6 +1625,7 @@ def send_notification(request):
             return redirect('send_notification')
     else:
         form = SendNotificationForm()
+    
  
     return render(request, 'send_notification.html', {'form': form})
  
