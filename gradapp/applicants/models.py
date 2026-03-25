@@ -249,3 +249,17 @@ class Notification(models.Model):
  
     def __str__(self):
         return f"To {self.recipient.username}: {self.subject}"
+    
+    
+class NotificationAttachment(models.Model):
+    notification = models.ForeignKey(Notification, on_delete=models.CASCADE, related_name='attachments')
+    file = models.FileField(upload_to='notification_attachments/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Attachment for: {self.notification.subject}"
+
+    @property
+    def filename(self):
+        import os
+        return os.path.basename(self.file.name)

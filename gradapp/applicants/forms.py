@@ -186,6 +186,7 @@ class SendNotificationForm(BootstrapFormMixin, forms.Form):
     subject = forms.CharField(max_length=255)
     message = forms.CharField(widget=forms.Textarea(attrs={'rows': 5, 'placeholder': 'Write your message here...'}))
     
+    
     deadline = forms.DateTimeField(
         required=False,
         widget=forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
