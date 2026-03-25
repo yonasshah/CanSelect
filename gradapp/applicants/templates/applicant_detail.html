@@ -2,6 +2,48 @@
 {% load widget_tweaks %}
 {% block content %}
 
+<style>
+  .pdf-viewer-container {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+  [data-bs-theme="dark"] .pdf-viewer-container {
+    border-color: #373b3f;
+  }
+  .pdf-viewer-container .pdf-controls {
+    background: #e9ecef;
+    border-bottom: 1px solid #dee2e6;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    padding: 6px 12px;
+  }
+  [data-bs-theme="dark"] .pdf-viewer-container .pdf-controls {
+    background: #3a3d40;
+    border-bottom-color: #4a4d50;
+  }
+  .pdf-viewer-container .pdf-scroll-area {
+    background: #525659;
+    max-height: 800px;
+    overflow: auto;
+    display: flex;
+    justify-content: center;
+    padding: 16px;
+  }
+  .pdf-viewer-container canvas {
+    display: block;
+    box-shadow: 0 1px 8px rgba(0,0,0,0.3);
+  }
+  .pdf-zoom-label {
+    min-width: 45px;
+    text-align: center;
+    font-family: monospace;
+    font-size: 0.8rem;
+  }
+</style>
+
 {% if applicant.is_incomplete and user.profile.role == 'ADMIN' %}
 <div class="alert alert-warning alert-dismissible fade show" role="alert">
   <i class="bi bi-exclamation-circle-fill me-2"></i>
@@ -202,14 +244,28 @@
               </div>
             </div>
             <div id="pdf-viewer-{{ doc.pk }}" class="pdf-viewer-container" style="display:none;">
-              <div class="pdf-controls d-flex justify-content-between align-items-center mt-2 mb-1 px-1">
+              <div class="pdf-controls d-flex justify-content-between align-items-center">
                 <div class="d-flex align-items-center gap-2">
-                  <button class="btn btn-sm btn-outline-secondary pdf-prev" disabled>&laquo; Prev</button>
-                  <span class="small text-muted pdf-page-info">Page <span class="pdf-current-page">1</span> of <span class="pdf-total-pages">?</span></span>
-                  <button class="btn btn-sm btn-outline-secondary pdf-next">Next &raquo;</button>
+                  <button class="btn btn-sm btn-outline-secondary pdf-prev" disabled>&laquo;</button>
+                  <span class="small text-muted pdf-page-info">
+                    <span class="pdf-current-page">1</span> / <span class="pdf-total-pages">?</span>
+                  </span>
+                  <button class="btn btn-sm btn-outline-secondary pdf-next">&raquo;</button>
+                </div>
+                <div class="d-flex align-items-center gap-1">
+                  <button class="btn btn-sm btn-outline-secondary pdf-zoom-out" title="Zoom out">
+                    <i class="bi bi-zoom-out"></i>
+                  </button>
+                  <span class="pdf-zoom-label">100%</span>
+                  <button class="btn btn-sm btn-outline-secondary pdf-zoom-in" title="Zoom in">
+                    <i class="bi bi-zoom-in"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-secondary pdf-zoom-fit" title="Fit to width">Fit</button>
                 </div>
               </div>
-              <canvas class="w-100 rounded border"></canvas>
+              <div class="pdf-scroll-area">
+                <canvas></canvas>
+              </div>
             </div>
           </div>
           {% endfor %}
@@ -247,14 +303,28 @@
               </div>
             </div>
             <div id="pdf-viewer-{{ doc.pk }}" class="pdf-viewer-container" style="display:none;">
-              <div class="pdf-controls d-flex justify-content-between align-items-center mt-2 mb-1 px-1">
+              <div class="pdf-controls d-flex justify-content-between align-items-center">
                 <div class="d-flex align-items-center gap-2">
-                  <button class="btn btn-sm btn-outline-secondary pdf-prev" disabled>&laquo; Prev</button>
-                  <span class="small text-muted pdf-page-info">Page <span class="pdf-current-page">1</span> of <span class="pdf-total-pages">?</span></span>
-                  <button class="btn btn-sm btn-outline-secondary pdf-next">Next &raquo;</button>
+                  <button class="btn btn-sm btn-outline-secondary pdf-prev" disabled>&laquo;</button>
+                  <span class="small text-muted pdf-page-info">
+                    <span class="pdf-current-page">1</span> / <span class="pdf-total-pages">?</span>
+                  </span>
+                  <button class="btn btn-sm btn-outline-secondary pdf-next">&raquo;</button>
+                </div>
+                <div class="d-flex align-items-center gap-1">
+                  <button class="btn btn-sm btn-outline-secondary pdf-zoom-out" title="Zoom out">
+                    <i class="bi bi-zoom-out"></i>
+                  </button>
+                  <span class="pdf-zoom-label">100%</span>
+                  <button class="btn btn-sm btn-outline-secondary pdf-zoom-in" title="Zoom in">
+                    <i class="bi bi-zoom-in"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-secondary pdf-zoom-fit" title="Fit to width">Fit</button>
                 </div>
               </div>
-              <canvas class="w-100 rounded border"></canvas>
+              <div class="pdf-scroll-area">
+                <canvas></canvas>
+              </div>
             </div>
           </div>
           {% endfor %}
@@ -330,14 +400,28 @@
             {% with doc.file.name|lower as fname %}
               {% if '.pdf' in fname %}
               <div id="pdf-viewer-{{ doc.pk }}" class="pdf-viewer-container" style="display:none;">
-                <div class="pdf-controls d-flex justify-content-between align-items-center mt-2 mb-1 px-1">
+                <div class="pdf-controls d-flex justify-content-between align-items-center">
                   <div class="d-flex align-items-center gap-2">
-                    <button class="btn btn-sm btn-outline-secondary pdf-prev" disabled>&laquo; Prev</button>
-                    <span class="small text-muted pdf-page-info">Page <span class="pdf-current-page">1</span> of <span class="pdf-total-pages">?</span></span>
-                    <button class="btn btn-sm btn-outline-secondary pdf-next">Next &raquo;</button>
+                    <button class="btn btn-sm btn-outline-secondary pdf-prev" disabled>&laquo;</button>
+                    <span class="small text-muted pdf-page-info">
+                      <span class="pdf-current-page">1</span> / <span class="pdf-total-pages">?</span>
+                    </span>
+                    <button class="btn btn-sm btn-outline-secondary pdf-next">&raquo;</button>
+                  </div>
+                  <div class="d-flex align-items-center gap-1">
+                    <button class="btn btn-sm btn-outline-secondary pdf-zoom-out" title="Zoom out">
+                      <i class="bi bi-zoom-out"></i>
+                    </button>
+                    <span class="pdf-zoom-label">100%</span>
+                    <button class="btn btn-sm btn-outline-secondary pdf-zoom-in" title="Zoom in">
+                      <i class="bi bi-zoom-in"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary pdf-zoom-fit" title="Fit to width">Fit</button>
                   </div>
                 </div>
-                <canvas class="w-100 rounded border"></canvas>
+                <div class="pdf-scroll-area">
+                  <canvas></canvas>
+                </div>
               </div>
               {% endif %}
             {% endwith %}
@@ -567,59 +651,94 @@
   document.querySelectorAll('.pdf-toggle-btn').forEach(btn => {
     let pdfDoc = null;
     let currentPage = 1;
-
+    let currentScale = 1.0;
+    let fitScale = 1.0;
+ 
     function renderPage(container) {
+      const scrollArea = container.querySelector('.pdf-scroll-area');
       const canvas = container.querySelector('canvas');
       const ctx = canvas.getContext('2d');
+ 
       pdfDoc.getPage(currentPage).then(page => {
-        const containerWidth = container.offsetWidth - 4;
-        const unscaledViewport = page.getViewport({ scale: 1 });
-        const scale = containerWidth / unscaledViewport.width;
-        const viewport = page.getViewport({ scale: scale });
-
+        const viewport = page.getViewport({ scale: currentScale });
         canvas.height = viewport.height;
         canvas.width = viewport.width;
         page.render({ canvasContext: ctx, viewport: viewport });
-
+ 
         container.querySelector('.pdf-current-page').textContent = currentPage;
         container.querySelector('.pdf-prev').disabled = (currentPage <= 1);
         container.querySelector('.pdf-next').disabled = (currentPage >= pdfDoc.numPages);
+ 
+        const pct = Math.round((currentScale / fitScale) * 100);
+        container.querySelector('.pdf-zoom-label').textContent = pct + '%';
       });
     }
-
+ 
+    function calcFitScale(container) {
+      const scrollArea = container.querySelector('.pdf-scroll-area');
+      return pdfDoc.getPage(currentPage).then(page => {
+        const unscaled = page.getViewport({ scale: 1 });
+        const availableWidth = scrollArea.clientWidth - 32;
+        fitScale = availableWidth / unscaled.width;
+        // Cap at 1.5x so small PDFs don't get blown up too large
+        currentScale = Math.min(fitScale, 1.5);
+        fitScale = currentScale;
+      });
+    }
+ 
     btn.addEventListener('click', () => {
       const targetId = btn.getAttribute('data-pdf-target');
       const container = document.querySelector(targetId);
       const label = btn.querySelector('.pdf-toggle-label');
       const isOpen = container.style.display !== 'none';
-
+ 
       if (isOpen) {
         container.style.display = 'none';
         label.textContent = 'Preview';
         btn.classList.remove('active');
         pdfDoc = null;
         currentPage = 1;
+        currentScale = 1.0;
       } else {
         container.style.display = 'block';
         label.textContent = 'Hide';
         btn.classList.add('active');
-
+ 
         if (!pdfDoc) {
           pdfjsLib.getDocument(btn.getAttribute('data-pdf-url')).promise.then(doc => {
             pdfDoc = doc;
             container.querySelector('.pdf-total-pages').textContent = doc.numPages;
-            renderPage(container);
+            // Small delay to ensure container has rendered and has width
+            setTimeout(() => {
+              calcFitScale(container).then(() => renderPage(container));
+            }, 50);
           }).catch(() => {
-            container.innerHTML = '<p class="text-danger text-center p-3">Failed to load PDF.</p>';
+            const scrollArea = container.querySelector('.pdf-scroll-area');
+            scrollArea.innerHTML = '<p class="text-center p-3"><a href="' + btn.getAttribute('data-pdf-url') + '" target="_blank" class="btn btn-outline-light btn-sm"><i class="bi bi-box-arrow-up-right me-1"></i>Open in new tab instead</a></p>';
           });
         }
       }
-
+ 
+      // Page navigation
       container.querySelector('.pdf-prev').onclick = () => {
         if (currentPage > 1) { currentPage--; renderPage(container); }
       };
       container.querySelector('.pdf-next').onclick = () => {
         if (pdfDoc && currentPage < pdfDoc.numPages) { currentPage++; renderPage(container); }
+      };
+ 
+      // Zoom controls
+      container.querySelector('.pdf-zoom-in').onclick = () => {
+        currentScale *= 1.25;
+        renderPage(container);
+      };
+      container.querySelector('.pdf-zoom-out').onclick = () => {
+        currentScale *= 0.8;
+        if (currentScale < fitScale * 0.25) currentScale = fitScale * 0.25;
+        renderPage(container);
+      };
+      container.querySelector('.pdf-zoom-fit').onclick = () => {
+        calcFitScale(container).then(() => renderPage(container));
       };
     });
   });
