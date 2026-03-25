@@ -60,7 +60,29 @@
     {% endif %}
   </div>
 </div>
-
+{% if is_queue_page %}
+<div class="card mb-4 border-0 shadow-sm">
+    <div class="card-body bg-light rounded">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h5 class="mb-0 text-primary"><i class="bi bi-speedometer2 me-2"></i>Your Review Progress</h5>
+            <span class="badge bg-primary fs-6">{{ voted_count }} / {{ total_assigned }} Candidates Reviewed</span>
+        </div>
+        <div class="progress" style="height: 12px;">
+            <div class="progress-bar bg-success" 
+                 role="progressbar" 
+                 style="width: {{ progress_pct }}%;" 
+                 aria-valuenow="{{ progress_pct }}" 
+                 aria-valuemin="0" 
+                 aria-valuemax="100">
+            </div>
+        </div>
+        <div class="d-flex justify-content-between mt-2">
+            <small class="text-muted">Completion: <strong>{{ progress_pct }}%</strong></small>
+            <small class="text-muted"><strong>{{ page_obj.paginator.count }}</strong> candidates remaining</small>
+        </div>
+    </div>
+</div>
+{% endif %}
 <!-- Filters -->
 <div class="card mb-4">
   <div class="card-body py-3">
