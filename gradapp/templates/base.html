@@ -246,6 +246,8 @@
       <ul class="dropdown-menu">
         <li><a class="dropdown-item {% if request.resolver_match.url_name == 'bulk_upload' %}active{% endif %}" href="{% url 'bulk_upload' %}">
           <i class="bi bi-folder2-open me-2"></i>Bulk Upload</a></li>
+        <li><a class="dropdown-item {% if request.resolver_match.url_name == 'candidate_info_upload' %}active{% endif %}" href="{% url 'candidate_info_upload' %}">
+          <i class="bi bi-file-earmark-spreadsheet me-2"></i>Candidate Info Upload</a></li>
         <li><a class="dropdown-item {% if request.resolver_match.url_name == 'manage_reviewer_groups' %}active{% endif %}" href="{% url 'manage_reviewer_groups' %}">
           <i class="bi bi-diagram-3-fill me-2"></i>Groups</a></li>
         <li><a class="dropdown-item {% if request.resolver_match.url_name == 'send_notification' %}active{% endif %}" href="{% url 'send_notification' %}">

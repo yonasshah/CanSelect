@@ -12,6 +12,8 @@ from django.core.paginator import Paginator
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login
 from django.contrib import messages
+import pandas as pd
+from decimal import Decimal, InvalidOperation
 import pypdf
 import re
 from .decorators import admin_required
@@ -59,7 +61,8 @@ def applicant_list(request):
     if search_query:
         applicants_list = applicants_list.filter(
             Q(first_name__icontains=search_query) |
-            Q(last_name__icontains=search_query)
+            Q(last_name__icontains=search_query) |
+            Q(external_id__icontains=search_query)
         )
 
     if status_filter:
@@ -578,7 +581,8 @@ def batch_detail(request, pk):
     if search_query:
         applicants = applicants.filter(
             Q(first_name__icontains=search_query) |
-            Q(last_name__icontains=search_query)
+            Q(last_name__icontains=search_query) |
+            Q(external_id__icontains=search_query)
         )
  
     assigned_reviewers = batch.assigned_reviewers.all()
@@ -775,17 +779,23 @@ def compare_applicants(request):
     if not applicant_ids:
         messages.warning(request, "You must select at least two applicants to compare.")
         return redirect("applicant_list")
-
-    applicants = Applicant.objects.filter(pk__in=applicant_ids)
-    
-    # Determine column size for Bootstrap grid
+ 
+    applicants = Applicant.objects.filter(pk__in=applicant_ids).select_related('dataset', 'round')
+ 
+    # Annotate average scores for each applicant
+    for applicant in applicants:
+        applicant.avg_scores = Score.objects.filter(applicant=applicant).aggregate(
+            avg_research=Avg('research_score'),
+            avg_statement=Avg('statement_score'),
+            avg_overall=Avg('overall_score'),
+        )
+ 
     column_count = len(applicants)
     col_class = f"col-md-{12 // column_count if column_count > 0 else 12}"
-
-
+ 
     context = {
         'applicants': applicants,
-        'col_class': col_class
+        'col_class': col_class,
     }
     return render(request, "compare_applicants.html", context)
 
@@ -795,31 +805,45 @@ def compare_applicants(request):
 def export_applicants_csv(request):
     selected_dataset_id = request.GET.get('dataset')
     selected_batch_id = request.GET.get('batch')
-
+ 
     applicants = Applicant.objects.all().order_by("-created_at")
-
+ 
     if selected_batch_id:
         applicants = applicants.filter(round_id=selected_batch_id)
     elif selected_dataset_id:
         applicants = applicants.filter(dataset_id=selected_dataset_id)
-
+ 
     response = HttpResponse(
         content_type='text/csv',
         headers={'Content-Disposition': 'attachment; filename="applicants.csv"'},
     )
     writer = csv.writer(response)
-    writer.writerow(['First Name', 'Last Name', 'Email', 'Age', 'Gender', 'Ethnicity', 'Status', 'Dataset', 'Round'])
+    writer.writerow([
+        'First Name', 'Last Name', 'Email', 'External ID', 'Age', 'Gender', 'Ethnicity',
+        'Status', 'Dataset', 'Round',
+        'Total AI', 'Total NC', 'Z-Score', 'First Gen', 'Re-Applicant',
+        'PB to DMD', 'Former Post Bacc', '3+4',
+    ])
     for applicant in applicants:
         writer.writerow([
             applicant.first_name,
             applicant.last_name,
             applicant.email,
+            applicant.external_id or '',
             applicant.age,
             applicant.gender,
             applicant.ethnicity,
             applicant.get_status_display(),
             applicant.dataset.DisplayName if applicant.dataset else '',
             applicant.round.DisplayName if applicant.round else '',
+            applicant.total_ai if applicant.total_ai is not None else '',
+            applicant.total_nc if applicant.total_nc is not None else '',
+            applicant.z_score if applicant.z_score is not None else '',
+            'Yes' if applicant.first_gen else 'No',
+            'Yes' if applicant.re_applicant else 'No',
+            'Yes' if applicant.pb_to_dmd else 'No',
+            'Yes' if applicant.former_post_bacc else 'No',
+            'Yes' if applicant.three_plus_four else 'No',
         ])
     return response
 
@@ -896,7 +920,8 @@ def applicant_queue(request):
     if search_query:
         applicants_list = applicants_list.filter(
             Q(first_name__icontains=search_query) |
-            Q(last_name__icontains=search_query)
+            Q(last_name__icontains=search_query) |
+            Q(external_id__icontains=search_query)
         )
         
     paginator = Paginator(applicants_list, 25)
@@ -1176,6 +1201,185 @@ def bulk_upload_applicants(request):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 BATCH_MAX_SIZE = 10
+
+@login_required
+@admin_required
+def candidate_info_upload(request):
+    """
+    Upload an Excel file with candidate information.
+    Matches rows to Applicant records by external_id (which can be an AADSAS ID or TUID).
+    """
+    import pandas as pd
+    from decimal import Decimal, InvalidOperation
+ 
+    datasets = DataSet.objects.filter(Active=True).order_by('DisplayName')
+    results = None
+ 
+    if request.method == 'POST':
+        excel_file = request.FILES.get('excel_file')
+        dataset_id = request.POST.get('dataset_id') or None
+ 
+        if not excel_file:
+            messages.error(request, "Please select a file to upload.")
+            return redirect('candidate_info_upload')
+ 
+        # Read the file
+        try:
+            fname = excel_file.name.lower()
+            if fname.endswith('.csv'):
+                df = pd.read_csv(excel_file, dtype=str)
+            elif fname.endswith(('.xlsx', '.xls')):
+                df = pd.read_excel(excel_file, dtype=str)
+            else:
+                messages.error(request, "Unsupported file type. Please upload an .xlsx, .xls, or .csv file.")
+                return redirect('candidate_info_upload')
+        except Exception as e:
+            messages.error(request, f"Could not read file: {e}")
+            return redirect('candidate_info_upload')
+ 
+        # Normalize column names for flexible matching
+        col_map = {}
+        for col in df.columns:
+            normalized = col.strip().lower().replace(' ', '_').replace('-', '_')
+            col_map[normalized] = col
+ 
+        # Detect the ID column — AADSAS ID or TUID, whichever is present
+        id_col = None
+        id_col_label = None
+        for possible, label in [
+            ('aadsas_id', 'AADSAS ID'),
+            ('aadsasid', 'AADSAS ID'),
+            ('tuid', 'TUID'),
+            ('tu_id', 'TUID'),
+            ('temple_id', 'TUID'),
+            ('external_id', 'External ID'),
+            ('unique_id', 'Unique ID'),
+            ('id', 'ID'),
+        ]:
+            if possible in col_map:
+                id_col = col_map[possible]
+                id_col_label = label
+                break
+ 
+        if id_col is None:
+            messages.error(
+                request,
+                "Could not find an ID column. "
+                "Expected a column named 'AADSAS ID', 'TUID', or similar."
+            )
+            return redirect('candidate_info_upload')
+ 
+        # Parsers
+        def parse_bool_yes_no(val):
+            if pd.isna(val) or val is None:
+                return False
+            return str(val).strip().lower() in ('yes', 'y', 'true', '1')
+ 
+        def parse_decimal(val):
+            if pd.isna(val) or val is None or str(val).strip() == '':
+                return None
+            try:
+                return Decimal(str(val).strip())
+            except (InvalidOperation, ValueError):
+                return None
+ 
+        # Column name -> (model_field, parser)
+        field_mapping = {
+            'total_ai':         ('total_ai',         parse_decimal),
+            'total_nc':         ('total_nc',         parse_decimal),
+            'first_gen':        ('first_gen',        parse_bool_yes_no),
+            'first_generation': ('first_gen',        parse_bool_yes_no),
+            're_applicant':     ('re_applicant',     parse_bool_yes_no),
+            'reapplicant':      ('re_applicant',     parse_bool_yes_no),
+            'pb_to_dmd':        ('pb_to_dmd',        parse_bool_yes_no),
+            'z_score':          ('z_score',          parse_decimal),
+            'zscore':           ('z_score',          parse_decimal),
+            'former_post_bacc': ('former_post_bacc', parse_bool_yes_no),
+            'formerpostbacc':   ('former_post_bacc', parse_bool_yes_no),
+            '3+4':              ('three_plus_four',  parse_bool_yes_no),
+            '3_4':              ('three_plus_four',  parse_bool_yes_no),
+            'three_plus_four':  ('three_plus_four',  parse_bool_yes_no),
+            'gender':           ('gender',           lambda v: str(v).strip() if pd.notna(v) and str(v).strip() else None),
+        }
+ 
+        # Build active column mapping for this file
+        active_mappings = {}
+        for normalized, excel_col in col_map.items():
+            if normalized in field_mapping:
+                active_mappings[excel_col] = field_mapping[normalized]
+ 
+        # Process rows
+        total_rows = len(df)
+        matched = 0
+        unmatched = 0
+        errors = 0
+        unmatched_ids = []
+        error_details = []
+        matched_applicants = []
+ 
+        for idx, row in df.iterrows():
+            ext_id = str(row[id_col]).strip() if pd.notna(row.get(id_col)) else ''
+            if not ext_id:
+                errors += 1
+                error_details.append(f"Row {idx + 2}: Missing {id_col_label}")
+                continue
+ 
+            # Find matching applicant(s) by external_id
+            applicant_qs = Applicant.objects.filter(external_id=ext_id)
+            if dataset_id:
+                applicant_qs = applicant_qs.filter(dataset_id=dataset_id)
+ 
+            applicants_found = list(applicant_qs)
+ 
+            if not applicants_found:
+                unmatched += 1
+                unmatched_ids.append(ext_id)
+                continue
+ 
+            for applicant in applicants_found:
+                update_fields = ['candidate_info_imported']
+                applicant.candidate_info_imported = True
+ 
+                for excel_col, (model_field, parser) in active_mappings.items():
+                    raw_value = row.get(excel_col)
+                    parsed_value = parser(raw_value)
+ 
+                    # For gender, only update if we got a non-None value
+                    if model_field == 'gender' and parsed_value is None:
+                        continue
+ 
+                    setattr(applicant, model_field, parsed_value)
+                    if model_field not in update_fields:
+                        update_fields.append(model_field)
+ 
+                try:
+                    applicant.save(update_fields=update_fields)
+                    matched += 1
+                    matched_applicants.append(applicant)
+                except Exception as e:
+                    errors += 1
+                    error_details.append(f"Row {idx + 2} (ID {ext_id}): {e}")
+ 
+        results = {
+            'total_rows': total_rows,
+            'matched': matched,
+            'unmatched': unmatched,
+            'errors': errors,
+            'unmatched_ids': unmatched_ids[:20],
+            'error_details': error_details[:10],
+            'matched_applicants': matched_applicants[:25],
+            'id_col_label': id_col_label,
+        }
+ 
+        if matched > 0:
+            messages.success(request, f"Successfully updated {matched} candidate(s) from {total_rows} rows.")
+        if unmatched > 0:
+            messages.warning(request, f"{unmatched} row(s) had no matching candidate (matched by {id_col_label}).")
+ 
+    return render(request, "candidate_info_upload.html", {
+        'datasets': datasets,
+        'results': results,
+    })
 
 
 def _get_batch_folder_names(batch):

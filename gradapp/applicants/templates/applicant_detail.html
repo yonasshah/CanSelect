@@ -170,6 +170,79 @@
             </div>
           </div>
         </div>
+ 
+        <!-- ── Candidate Info (from Excel Upload) ── -->
+        {% if applicant.candidate_info_imported %}
+        <hr class="my-3">
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <i class="bi bi-file-earmark-spreadsheet text-success"></i>
+          <span class="fw-semibold small">Candidate Data</span>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-3">
+            <div class="text-muted small mb-1">Total AI</div>
+            <div class="fw-semibold">{{ applicant.total_ai|default:"—" }}</div>
+          </div>
+          <div class="col-md-3">
+            <div class="text-muted small mb-1">Total NC</div>
+            <div class="fw-semibold">{{ applicant.total_nc|default:"—" }}</div>
+          </div>
+          <div class="col-md-3">
+            <div class="text-muted small mb-1">Z-Score</div>
+            <div class="fw-semibold">{{ applicant.z_score|default:"—" }}</div>
+          </div>
+          <div class="col-md-3">
+            <div class="text-muted small mb-1">First Generation</div>
+            <div>
+              {% if applicant.first_gen %}
+                <span class="badge bg-success">Yes</span>
+              {% else %}
+                <span class="text-muted">No</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="text-muted small mb-1">Re-Applicant</div>
+            <div>
+              {% if applicant.re_applicant %}
+                <span class="badge bg-info text-dark">Yes</span>
+              {% else %}
+                <span class="text-muted">No</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="text-muted small mb-1">PB to DMD</div>
+            <div>
+              {% if applicant.pb_to_dmd %}
+                <span class="badge bg-primary">Yes</span>
+              {% else %}
+                <span class="text-muted">No</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="text-muted small mb-1">Former Post Bacc</div>
+            <div>
+              {% if applicant.former_post_bacc %}
+                <span class="badge bg-warning text-dark">Yes</span>
+              {% else %}
+                <span class="text-muted">No</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="text-muted small mb-1">3+4</div>
+            <div>
+              {% if applicant.three_plus_four %}
+                <span class="badge bg-secondary">Yes</span>
+              {% else %}
+                <span class="text-muted">No</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endif %}
       </div>
     </div>
 

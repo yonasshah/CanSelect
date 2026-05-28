@@ -56,6 +56,17 @@ class Applicant(models.Model):
     external_id = models.CharField(max_length=100, blank=True, null=True)
     source_folder = models.CharField(max_length=255, blank=True, default='', help_text='Top-level folder name from bulk upload')
     flagged_by = models.ManyToManyField(User, blank=True, related_name='flagged_applicants')
+    # ── Candidate Info (populated via Excel upload, matched by external_id) ──
+    total_ai = models.DecimalField(max_digits=6, decimal_places=2, blank=True, null=True, verbose_name='Total AI')
+    total_nc = models.DecimalField(max_digits=6, decimal_places=2, blank=True, null=True, verbose_name='Total NC')
+    first_gen = models.BooleanField(default=False, verbose_name='First Generation')
+    re_applicant = models.BooleanField(default=False, verbose_name='Re-Applicant')
+    pb_to_dmd = models.BooleanField(default=False, verbose_name='PB to DMD')
+    z_score = models.DecimalField(max_digits=6, decimal_places=2, blank=True, null=True, verbose_name='Z-Score')
+    former_post_bacc = models.BooleanField(default=False, verbose_name='Former Post Bacc')
+    three_plus_four = models.BooleanField(default=False, verbose_name='3+4')
+    candidate_info_imported = models.BooleanField(default=False, help_text='Whether candidate info was imported from Excel')
+
     
     status = models.CharField(
         max_length=50,

@@ -1,56 +1,365 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h2>Comparing {{ applicants|length }} Applicants</h2>
-  <a href="{% url 'applicant_list' %}" class="btn btn-outline-secondary">Back to List</a>
+
+<style>
+  .compare-card {
+    border: none;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: box-shadow 0.2s ease;
+  }
+  .compare-card:hover {
+    box-shadow: 0 6px 24px rgba(0,0,0,0.1);
+  }
+  [data-bs-theme="dark"] .compare-card:hover {
+    box-shadow: 0 6px 24px rgba(0,0,0,0.35);
+  }
+  .compare-header {
+    padding: 1.25rem;
+    text-align: center;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+  }
+  [data-bs-theme="dark"] .compare-header {
+    border-bottom-color: rgba(255,255,255,0.06);
+  }
+  .compare-header .initials-circle {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    font-size: 1.1rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 0.75rem;
+  }
+  .compare-section-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #6c757d;
+    padding: 0.5rem 1rem;
+    margin: 0;
+    background: rgba(0,0,0,0.015);
+    border-top: 1px solid rgba(0,0,0,0.04);
+    border-bottom: 1px solid rgba(0,0,0,0.04);
+  }
+  [data-bs-theme="dark"] .compare-section-label {
+    background: rgba(255,255,255,0.02);
+    border-color: rgba(255,255,255,0.04);
+  }
+  .compare-field {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    font-size: 0.88rem;
+    border-bottom: 1px solid rgba(0,0,0,0.03);
+  }
+  [data-bs-theme="dark"] .compare-field {
+    border-bottom-color: rgba(255,255,255,0.03);
+  }
+  .compare-field:last-child {
+    border-bottom: none;
+  }
+  .compare-field .field-label {
+    color: #6c757d;
+    font-size: 0.82rem;
+  }
+  .compare-field .field-value {
+    font-weight: 600;
+    text-align: right;
+  }
+  .compare-votes {
+    display: flex;
+    gap: 0.4rem;
+    justify-content: center;
+    padding: 0.75rem 1rem;
+  }
+  .compare-votes .vote-chip {
+    flex: 1;
+    text-align: center;
+    padding: 0.4rem 0;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+  .vote-chip.accept { background: rgba(25,135,84,0.1); color: #198754; }
+  .vote-chip.deny   { background: rgba(220,53,69,0.1);  color: #dc3545; }
+  .vote-chip.wait   { background: rgba(255,193,7,0.15); color: #997404; }
+  [data-bs-theme="dark"] .vote-chip.accept { background: rgba(25,135,84,0.2); color: #75b798; }
+  [data-bs-theme="dark"] .vote-chip.deny   { background: rgba(220,53,69,0.2);  color: #ea868f; }
+  [data-bs-theme="dark"] .vote-chip.wait   { background: rgba(255,193,7,0.2);  color: #ffda6a; }
+
+  .score-bar-track {
+    height: 6px;
+    background: rgba(0,0,0,0.06);
+    border-radius: 3px;
+    overflow: hidden;
+    width: 60px;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  [data-bs-theme="dark"] .score-bar-track {
+    background: rgba(255,255,255,0.1);
+  }
+  .score-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+  }
+  .comment-bubble {
+    background: rgba(0,0,0,0.03);
+    border-radius: 8px;
+    padding: 0.6rem 0.8rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.82rem;
+  }
+  [data-bs-theme="dark"] .comment-bubble {
+    background: rgba(255,255,255,0.04);
+  }
+  .comment-bubble .comment-author {
+    font-size: 0.72rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+  }
+  .bool-indicator {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 4px;
+  }
+  .bool-yes { background: #198754; }
+  .bool-no  { background: #dee2e6; }
+  [data-bs-theme="dark"] .bool-no { background: #495057; }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-0">Compare Candidates</h2>
+    <p class="text-muted mb-0">Side-by-side comparison of {{ applicants|length }} candidate{{ applicants|length|pluralize }}.</p>
+  </div>
+  <a href="{% url 'applicant_list' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>Back to List
+  </a>
 </div>
 
-<div class="row g-4">
+<div class="row g-3">
   {% for applicant in applicants %}
-    <div class="{{ col_class }}">
-      <div class="card h-100 shadow-sm">
-        <div class="card-header bg-light">
-          <h4 class="mb-0 text-center">
-            <a href="{% url 'applicant_detail' applicant.pk %}">
-              {{ applicant.first_name }} {{ applicant.last_name }}
-            </a>
-          </h4>
+  <div class="{{ col_class }}">
+    <div class="card compare-card shadow-sm h-100">
+
+      <!-- Header -->
+      <div class="compare-header">
+        {% if applicant.profile_picture %}
+          <img src="{{ applicant.profile_picture.url }}" class="rounded-circle mb-2" style="width:56px;height:56px;object-fit:cover;">
+        {% else %}
+          <div class="initials-circle bg-primary text-white">
+            {{ applicant.first_name|first }}{{ applicant.last_name|first }}
+          </div>
+        {% endif %}
+        <h5 class="mb-1">
+          <a href="{% url 'applicant_detail' applicant.pk %}" class="text-decoration-none">
+            {{ applicant.first_name }} {{ applicant.last_name }}
+          </a>
+        </h5>
+        <div class="text-muted small">
+          {{ applicant.email|default:"No email" }}
+          {% if applicant.external_id %}
+            <span class="ms-1">&bull; <code style="font-size:0.75rem;">{{ applicant.external_id }}</code></span>
+          {% endif %}
         </div>
-        <div class="card-body">
-          <h5 class="card-title text-muted">Demographics</h5>
-          <p><strong>Email:</strong> {{ applicant.email }}</p>
-          <p><strong>Age:</strong> {{ applicant.age }}</p>
-          <p><strong>DataSet:</strong> {{ applicant.dataset.DisplayName|default:"—" }}</p>
-          <p><strong>Round:</strong> {{ applicant.round.DisplayName|default:"—" }}</p>
-
-          <hr>
-          
-          <h5 class="card-title text-muted">Votes</h5>
-          <p class="text-center">
-            <span class="badge bg-success fs-6" title="Accepts">Accept: {{ applicant.votes_summary.accept }}</span>
-            <span class="badge bg-danger fs-6" title="Denials">Deny: {{ applicant.votes_summary.deny }}</span>
-            <span class="badge bg-warning text-dark fs-6" title="Waitlists">Waitlist: {{ applicant.votes_summary.waitlist }}</span>
-          </p>
-
-          <hr>
-
-          <h5 class="card-title text-muted">Recent Comments</h5>
-          <ul class="list-group list-group-flush small">
-            {% for comment in applicant.comments.all|slice:":2" %}
-              <li class="list-group-item">
-                "{{ comment.text|truncatechars:80 }}"
-                <div class="text-end text-muted">&mdash; {{ comment.author.username }}</div>
-              </li>
-            {% empty %}
-              <li class="list-group-item text-muted">No comments yet.</li>
-            {% endfor %}
-          </ul>
-        </div>
-        <div class="card-footer text-center">
-            <a href="{% url 'applicant_detail' applicant.pk %}" class="btn btn-sm btn-outline-primary">View Full Profile</a>
+        <div class="mt-2">
+          <span class="badge fs-6
+            {% if applicant.status == 'NEW' %}bg-secondary
+            {% elif applicant.status == 'REVIEW' %}bg-primary
+            {% elif applicant.status == 'INTERVIEW' %}bg-info text-dark
+            {% elif applicant.status == 'DECIDED' %}bg-success
+            {% endif %}">
+            {{ applicant.get_status_display }}
+          </span>
         </div>
       </div>
+
+      <!-- Votes -->
+      {% with votes=applicant.votes_summary %}
+      <div class="compare-votes">
+        <div class="vote-chip accept">
+          <i class="bi bi-check-lg me-1"></i>{{ votes.accept }}
+        </div>
+        <div class="vote-chip deny">
+          <i class="bi bi-x-lg me-1"></i>{{ votes.deny }}
+        </div>
+        <div class="vote-chip wait">
+          <i class="bi bi-pause me-1"></i>{{ votes.waitlist }}
+        </div>
+      </div>
+      {% endwith %}
+
+      <!-- Demographics -->
+      <div class="compare-section-label">Demographics</div>
+      <div class="compare-field">
+        <span class="field-label">Age</span>
+        <span class="field-value">{% if applicant.age == 0 %}<span class="text-warning">Not set</span>{% else %}{{ applicant.age }}{% endif %}</span>
+      </div>
+      <div class="compare-field">
+        <span class="field-label">Gender</span>
+        <span class="field-value">{{ applicant.gender|default:"—" }}</span>
+      </div>
+      <div class="compare-field">
+        <span class="field-label">Ethnicity</span>
+        <span class="field-value">{{ applicant.ethnicity|default:"—" }}</span>
+      </div>
+      <div class="compare-field">
+        <span class="field-label">Dataset</span>
+        <span class="field-value">{{ applicant.dataset.DisplayName|default:"—" }}</span>
+      </div>
+      <div class="compare-field">
+        <span class="field-label">Batch</span>
+        <span class="field-value">{{ applicant.round.DisplayName|default:"—" }}</span>
+      </div>
+
+      <!-- Imported Candidate Data -->
+      {% if applicant.candidate_info_imported %}
+      <div class="compare-section-label">
+        Candidate Data
+      </div>
+      <div class="compare-field">
+        <span class="field-label">Total AI</span>
+        <span class="field-value">
+          {% if applicant.total_ai is not None %}
+            <span class="score-bar-track">
+              <span class="score-bar-fill bg-primary" style="width:{{ applicant.total_ai }}%;"></span>
+            </span>
+            {{ applicant.total_ai }}
+          {% else %}
+            —
+          {% endif %}
+        </span>
+      </div>
+      <div class="compare-field">
+        <span class="field-label">Total NC</span>
+        <span class="field-value">
+          {% if applicant.total_nc is not None %}
+            <span class="score-bar-track">
+              <span class="score-bar-fill bg-info" style="width:{{ applicant.total_nc }}%;"></span>
+            </span>
+            {{ applicant.total_nc }}
+          {% else %}
+            —
+          {% endif %}
+        </span>
+      </div>
+      <div class="compare-field">
+        <span class="field-label">Z-Score</span>
+        <span class="field-value">
+          {% if applicant.z_score is not None %}
+            <span class="badge {% if applicant.z_score > 0 %}bg-success{% elif applicant.z_score == 0 %}bg-secondary{% else %}bg-danger{% endif %}" style="font-size:0.78rem;">
+              {{ applicant.z_score }}
+            </span>
+          {% else %}
+            —
+          {% endif %}
+        </span>
+      </div>
+      <div class="compare-field">
+        <span class="field-label">First Gen</span>
+        <span class="field-value">
+          <span class="bool-indicator {% if applicant.first_gen %}bool-yes{% else %}bool-no{% endif %}"></span>
+          {% if applicant.first_gen %}Yes{% else %}No{% endif %}
+        </span>
+      </div>
+      <div class="compare-field">
+        <span class="field-label">Re-Applicant</span>
+        <span class="field-value">
+          <span class="bool-indicator {% if applicant.re_applicant %}bool-yes{% else %}bool-no{% endif %}"></span>
+          {% if applicant.re_applicant %}Yes{% else %}No{% endif %}
+        </span>
+      </div>
+      <div class="compare-field">
+        <span class="field-label">PB to DMD</span>
+        <span class="field-value">
+          <span class="bool-indicator {% if applicant.pb_to_dmd %}bool-yes{% else %}bool-no{% endif %}"></span>
+          {% if applicant.pb_to_dmd %}Yes{% else %}No{% endif %}
+        </span>
+      </div>
+      <div class="compare-field">
+        <span class="field-label">Former Post Bacc</span>
+        <span class="field-value">
+          <span class="bool-indicator {% if applicant.former_post_bacc %}bool-yes{% else %}bool-no{% endif %}"></span>
+          {% if applicant.former_post_bacc %}Yes{% else %}No{% endif %}
+        </span>
+      </div>
+      <div class="compare-field">
+        <span class="field-label">3+4</span>
+        <span class="field-value">
+          <span class="bool-indicator {% if applicant.three_plus_four %}bool-yes{% else %}bool-no{% endif %}"></span>
+          {% if applicant.three_plus_four %}Yes{% else %}No{% endif %}
+        </span>
+      </div>
+      {% endif %}
+
+      <!-- Scores -->
+      {% if applicant.avg_scores.avg_overall %}
+      <div class="compare-section-label">Average Scores</div>
+      <div class="compare-field">
+        <span class="field-label">Research</span>
+        <span class="field-value">
+          {% if applicant.avg_scores.avg_research %}
+            <span class="score-bar-track">
+              <span class="score-bar-fill bg-success" style="width:{% widthratio applicant.avg_scores.avg_research 5 100 %}%;"></span>
+            </span>
+            {{ applicant.avg_scores.avg_research|floatformat:1 }} / 5
+          {% else %}—{% endif %}
+        </span>
+      </div>
+      <div class="compare-field">
+        <span class="field-label">Statement</span>
+        <span class="field-value">
+          {% if applicant.avg_scores.avg_statement %}
+            <span class="score-bar-track">
+              <span class="score-bar-fill bg-warning" style="width:{% widthratio applicant.avg_scores.avg_statement 5 100 %}%;"></span>
+            </span>
+            {{ applicant.avg_scores.avg_statement|floatformat:1 }} / 5
+          {% else %}—{% endif %}
+        </span>
+      </div>
+      <div class="compare-field">
+        <span class="field-label">Overall</span>
+        <span class="field-value">
+          {% if applicant.avg_scores.avg_overall %}
+            <span class="score-bar-track">
+              <span class="score-bar-fill bg-primary" style="width:{% widthratio applicant.avg_scores.avg_overall 5 100 %}%;"></span>
+            </span>
+            <strong>{{ applicant.avg_scores.avg_overall|floatformat:1 }} / 5</strong>
+          {% else %}—{% endif %}
+        </span>
+      </div>
+      {% endif %}
+
+      <!-- Comments -->
+      <div class="compare-section-label">Recent Comments</div>
+      <div class="p-3">
+        {% for comment in applicant.comments.all|slice:":3" %}
+          <div class="comment-bubble">
+            {{ comment.text|truncatechars:120 }}
+            <div class="comment-author">— {{ comment.author.username }}, {{ comment.created_at|timesince }} ago</div>
+          </div>
+        {% empty %}
+          <p class="text-muted small text-center mb-0 py-2">No comments yet.</p>
+        {% endfor %}
+      </div>
+
+      <!-- Footer -->
+      <div class="card-footer bg-transparent text-center py-2">
+        <a href="{% url 'applicant_detail' applicant.pk %}" class="btn btn-sm btn-outline-primary">
+          <i class="bi bi-person-lines-fill me-1"></i>Full Profile
+        </a>
+      </div>
+
     </div>
+  </div>
   {% endfor %}
 </div>
+
 {% endblock %}
