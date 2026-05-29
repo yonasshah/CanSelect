@@ -127,7 +127,13 @@
             <li class="list-group-item">
                 <div class="d-flex w-100 justify-content-between">
                     <div>
-                        <i class="bi bi-person-check-fill me-2 text-primary"></i>
+                        {% if activity.action_type == 'vote_cast' %}
+                            <i class="bi bi-person-check-fill me-2 text-primary"></i>
+                        {% elif activity.action_type == 'comment_added' %}
+                            <i class="bi bi-chat-dots-fill me-2 text-info"></i>
+                        {% elif activity.action_type == 'decision_made' %}
+                            <i class="bi bi-check2-square me-2 text-success"></i>
+                        {% endif %}
                         <strong>{{ activity.actor.username }}</strong>
                         {{ activity.details }}
                         <a href="#" data-bs-toggle="modal" data-bs-target="#applicantModal" data-profile-url="{% url 'applicant_profile_partial' activity.target_applicant.pk %}">
@@ -138,7 +144,7 @@
                 </div>
             </li>
             {% empty %}
-            <li class="list-group-item text-muted">No votes have been cast recently.</li>
+            <li class="list-group-item text-muted">No recent activity.</li>
             {% endfor %}
         </ul>
     </div>

@@ -1,7 +1,7 @@
 # applicants/views.py
 import csv
 import random
-from django.db.models import Case, Count, Q, Avg, Exists, IntegerField, OuterRef, Value, When
+from django.db.models import Avg, Case, Count, Exists, F, IntegerField, OuterRef, Q, Value, When
 import json
 from itertools import cycle
 from django.utils.safestring import mark_safe
@@ -464,6 +464,8 @@ def dataset_detail(request, pk):
         ],
     })
 
+
+
 @login_required
 @admin_required
 def dataset_edit(request, pk):
@@ -486,6 +488,243 @@ def dataset_edit(request, pk):
         ],
     })
 
+@login_required
+@admin_required
+def dataset_decisions(request, pk):
+    dataset = get_object_or_404(DataSet, pk=pk)
+
+    THRESHOLD_OPTIONS = [
+        (60,  '60%+'),
+        (67,  '67%+'),
+        (75,  '75%+'),
+        (80,  '80%+'),
+        (100, '100% (unanimous)'),
+    ]
+    threshold = int(request.GET.get('threshold', 80))
+    if threshold not in [v for v, _ in THRESHOLD_OPTIONS]:
+        threshold = 80
+    threshold_display = next(label for val, label in THRESHOLD_OPTIONS if val == threshold)
+
+    # Class size cap — URL param overrides stored dataset value
+    cap_param = request.GET.get('cap', '')
+    if cap_param.isdigit():
+        cap = int(cap_param)
+    elif dataset.target_class_size:
+        cap = dataset.target_class_size
+    else:
+        cap = None
+
+    applicants = (
+        Applicant.objects.filter(dataset=dataset)
+        .select_related('round')
+        .prefetch_related('flagged_by')
+        .annotate(
+            avg_score=Avg('scores__overall_score'),
+            accept_ct=Count('votes', filter=Q(votes__value=1),  distinct=True),
+            deny_ct=Count('votes',   filter=Q(votes__value=-1), distinct=True),
+            wait_ct=Count('votes',   filter=Q(votes__value=0),  distinct=True),
+            total_votes=Count('votes', distinct=True),
+        )
+    )
+
+    FINAL_STATUSES = {'ACCEPTED', 'REJECTED', 'WAITLISTED'}
+
+    clear_accepts    = []
+    clear_denies     = []
+    split_candidates = []
+    no_votes         = []
+
+    for a in applicants:
+        a.is_final   = a.status in FINAL_STATUSES
+        a.is_flagged = a.flagged_by.exists()
+
+        if a.total_votes == 0:
+            a.accept_pct = 0
+            a.deny_pct   = 0
+            no_votes.append(a)
+            continue
+
+        a.accept_pct = round(a.accept_ct / a.total_votes * 100)
+        a.deny_pct   = round(a.deny_ct   / a.total_votes * 100)
+
+        if a.accept_pct >= threshold:
+            clear_accepts.append(a)
+        elif a.deny_pct >= threshold:
+            clear_denies.append(a)
+        else:
+            split_candidates.append(a)
+
+    # Sort by vote % descending, ties broken by avg score descending
+    clear_accepts.sort(key=lambda a: (-(a.accept_pct), -(a.avg_score or 0)))
+    clear_denies.sort(key=lambda a:  (-(a.deny_pct),   -(a.avg_score or 0)))
+
+    # Split: flagged float to top, then sort by accept %
+    split_candidates.sort(key=lambda a: (not a.is_flagged, -(a.accept_pct), -(a.avg_score or 0)))
+
+    split_flagged_count = sum(1 for a in split_candidates if a.is_flagged)
+
+    # Batch readiness — which batches still have outstanding votes
+    batches = dataset.batches.annotate(
+        applicant_count=Count('applicant', distinct=True),
+        reviewer_count=Count('assigned_reviewers', distinct=True),
+    )
+    pending_batches  = []
+    complete_batches = []
+    for b in batches:
+        potential = b.applicant_count * b.reviewer_count
+        actual    = Vote.objects.filter(
+            applicant__round=b,
+            voter__in=b.assigned_reviewers.all()
+        ).count()
+        b.votes_remaining = potential - actual
+        if b.votes_remaining > 0:
+            pending_batches.append(b)
+        else:
+            complete_batches.append(b)
+
+    all_candidates   = clear_accepts + clear_denies + split_candidates + no_votes
+    total            = len(all_candidates)
+    accepted_count   = sum(1 for a in all_candidates if a.status == 'ACCEPTED')
+    rejected_count   = sum(1 for a in all_candidates if a.status == 'REJECTED')
+    waitlisted_count = sum(1 for a in all_candidates if a.status == 'WAITLISTED')
+    decided_count    = accepted_count + rejected_count + waitlisted_count
+    undecided_count  = total - decided_count
+    spots_remaining  = (cap - accepted_count) if cap else None
+
+    decided_pct    = round(decided_count    / total * 100) if total > 0 else 0
+    accepted_pct   = round(accepted_count   / total * 100) if total > 0 else 0
+    rejected_pct   = round(rejected_count   / total * 100) if total > 0 else 0
+    waitlisted_pct = round(waitlisted_count / total * 100) if total > 0 else 0
+
+    # Decision log — most recent 50 decisions for this dataset
+    decision_log = Activity.objects.filter(
+        action_type=Activity.DECISION_MADE,
+        target_applicant__dataset=dataset,
+    ).select_related('actor', 'target_applicant').order_by('-created_at')[:50]
+
+    return render(request, 'dataset_decisions.html', {
+        'dataset':             dataset,
+        'clear_accepts':       clear_accepts,
+        'clear_denies':        clear_denies,
+        'split_candidates':    split_candidates,
+        'split_flagged_count': split_flagged_count,
+        'no_votes':            no_votes,
+        'pending_batches':     pending_batches,
+        'complete_batches':    complete_batches,
+        'total':               total,
+        'accepted_count':      accepted_count,
+        'rejected_count':      rejected_count,
+        'waitlisted_count':    waitlisted_count,
+        'decided_count':       decided_count,
+        'undecided_count':     undecided_count,
+        'decided_pct':         decided_pct,
+        'accepted_pct':        accepted_pct,
+        'rejected_pct':        rejected_pct,
+        'waitlisted_pct':      waitlisted_pct,
+        'threshold':           threshold,
+        'threshold_display':   threshold_display,
+        'threshold_options':   THRESHOLD_OPTIONS,
+        'cap':                 cap,
+        'spots_remaining':     spots_remaining,
+        'decision_log':        decision_log,
+        'crumbs': [
+            {'label': 'Datasets',          'url': '/datasets/'},
+            {'label': dataset.DisplayName, 'url': f'/datasets/{dataset.pk}/'},
+            {'label': 'Final Decisions',   'url': ''},
+        ],
+    })
+
+
+@login_required
+@admin_required
+@require_POST
+def dataset_decisions_action(request, pk):
+    dataset   = get_object_or_404(DataSet, pk=pk)
+    action    = request.POST.get('action')
+    ids       = request.POST.getlist('ids')
+    threshold = request.POST.get('threshold', '80')
+    cap       = request.POST.get('cap', '')
+
+    if not ids:
+        messages.warning(request, "No candidates selected.")
+        return redirect('dataset_decisions', pk=pk)
+
+    # Safety: only update applicants that belong to this dataset
+    qs = Applicant.objects.filter(pk__in=ids, dataset=dataset)
+
+    STATUS_MAP = {
+        'set_accepted':   (Applicant.Status.ACCEPTED,   'accepted'),
+        'set_rejected':   (Applicant.Status.REJECTED,   'rejected'),
+        'set_waitlisted': (Applicant.Status.WAITLISTED, 'waitlisted'),
+    }
+
+    if action in STATUS_MAP:
+        new_status, label = STATUS_MAP[action]
+        updated = list(qs)
+        qs.update(status=new_status)
+
+        # Log each decision individually for FERPA compliance
+        for applicant in updated:
+            Activity.objects.create(
+                actor=request.user,
+                action_type=Activity.DECISION_MADE,
+                details=label,
+                target_applicant=applicant,
+            )
+
+        messages.success(request, f"Marked {len(updated)} candidate(s) as {label}.")
+    else:
+        messages.error(request, "Invalid action.")
+
+    params = f"threshold={threshold}"
+    if cap:
+        params += f"&cap={cap}"
+    return redirect(f'/datasets/{pk}/decisions/?{params}')
+ 
+ 
+@login_required
+@admin_required
+def export_decisions_csv(request, pk):
+    dataset = get_object_or_404(DataSet, pk=pk)
+ 
+    applicants = (
+        Applicant.objects.filter(dataset=dataset)
+        .select_related('round')
+        .annotate(
+            accept_ct=Count('votes', filter=Q(votes__value=1),  distinct=True),
+            deny_ct=Count('votes',   filter=Q(votes__value=-1), distinct=True),
+            wait_ct=Count('votes',   filter=Q(votes__value=0),  distinct=True),
+            avg_score=Avg('scores__overall_score'),
+        )
+        .filter(status__in=['ACCEPTED', 'REJECTED', 'WAITLISTED'])
+        .order_by('status', 'last_name', 'first_name')
+    )
+ 
+    response = HttpResponse(
+        content_type='text/csv',
+        headers={'Content-Disposition': f'attachment; filename="{dataset.DisplayName} - Decisions.csv"'},
+    )
+    writer = csv.writer(response)
+    writer.writerow([
+        'Last Name', 'First Name', 'Email', 'External ID',
+        'Batch', 'Decision',
+        'Accept Votes', 'Deny Votes', 'Waitlist Votes',
+        'Avg Score',
+    ])
+    for a in applicants:
+        writer.writerow([
+            a.last_name,
+            a.first_name,
+            a.email or '',
+            a.external_id or '',
+            a.round.DisplayName if a.round else '',
+            a.get_status_display(),
+            a.accept_ct,
+            a.deny_ct,
+            a.wait_ct,
+            f"{a.avg_score:.1f}" if a.avg_score else '',
+        ])
+    return response
 
 @login_required
 @admin_required
@@ -704,7 +943,7 @@ def dashboard(request):
     recent_activities = []
     if request.user.profile.role == 'ADMIN':
         recent_activities = Activity.objects.filter(
-            action_type__in=[Activity.VOTE_CAST, Activity.COMMENT_ADDED]
+            action_type__in=[Activity.VOTE_CAST, Activity.COMMENT_ADDED, Activity.DECISION_MADE]
         ).select_related('actor', 'target_applicant')[:7]
 
     # --- 4. Run queries for charts *using the filtered applicants_qs* ---
@@ -851,7 +1090,7 @@ def export_applicants_csv(request):
 @admin_required
 def activity_feed(request):
     activities = Activity.objects.filter(
-        action_type__in=[Activity.VOTE_CAST, Activity.COMMENT_ADDED]
+        action_type__in=[Activity.VOTE_CAST, Activity.COMMENT_ADDED, Activity.DECISION_MADE]
     ).select_related('actor', 'target_applicant')[:50]
     context = {
         'activities': activities

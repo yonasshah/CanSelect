@@ -1,0 +1,20 @@
+{% comment %}
+  Reusable status badge.
+  Usage: {% include "partials/status_badge.html" with status=a.status display=a.get_status_display %}
+{% endcomment %}
+{% if status == 'ACCEPTED' %}
+  <span class="status-accepted"><i class="bi bi-check-circle-fill me-1"></i>Accepted</span>
+{% elif status == 'REJECTED' %}
+  <span class="status-rejected"><i class="bi bi-x-circle-fill me-1"></i>Rejected</span>
+{% elif status == 'WAITLISTED' %}
+  <span class="status-waitlisted"><i class="bi bi-pause-circle-fill me-1"></i>Waitlisted</span>
+{% else %}
+  <span class="badge
+    {% if status == 'NEW' %}bg-secondary
+    {% elif status == 'REVIEW' %}bg-primary
+    {% elif status == 'INTERVIEW' %}bg-info text-dark
+    {% elif status == 'DECIDED' %}bg-dark
+    {% endif %}">
+    {{ display }}
+  </span>
+{% endif %}

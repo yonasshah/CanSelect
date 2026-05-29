@@ -40,6 +40,9 @@ class Applicant(models.Model):
         UNDER_REVIEW = 'REVIEW', 'Under Review'
         INTERVIEW = 'INTERVIEW', 'Interview'
         DECIDED = 'DECIDED', 'Decision Made'
+        ACCEPTED = 'ACCEPTED', 'Accepted'
+        REJECTED = 'REJECTED', 'Rejected'
+        WAITLISTED = 'WAITLISTED', 'Waitlisted'
         
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
@@ -134,7 +137,11 @@ class DataSet(models.Model):
     PublicView = models.BooleanField(default=False)
     ProgramId = models.IntegerField(blank=True, null=True)
     Active = models.BooleanField(default=True)
-    IsLive = models.BooleanField(default=False)   # 
+    IsLive = models.BooleanField(default=False)   #
+    target_class_size = models.PositiveIntegerField(
+            blank=True, null=True,
+            help_text='Target number of students to accept for this program.'
+        ) 
     CreatedAt = models.DateTimeField(auto_now_add=True)
     UpdatedAt = models.DateTimeField(auto_now=True)
 
@@ -213,12 +220,15 @@ class Activity(models.Model):
     VOTE_CAST = 'vote_cast'
     COMMENT_ADDED = 'comment_added'
     FLAG_ADDED = 'flag_added'
+    DECISION_MADE = 'decision_made'
 
     ACTION_CHOICES = [
         (VOTE_CAST, 'Vote Cast'),
         (COMMENT_ADDED, 'Comment Added'),
         (FLAG_ADDED, 'Flag Added'),
+        (DECISION_MADE, 'Decision Made'),
     ]
+    
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     action_type = models.CharField(max_length=50, choices=ACTION_CHOICES)
     details = models.TextField()

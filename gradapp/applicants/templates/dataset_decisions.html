@@ -1,0 +1,757 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% include "partials/breadcrumbs.html" with crumbs=crumbs %}
+
+<style>
+  /* ── Section headers ───────────────────────────────────────────── */
+  .decision-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.65rem 1rem;
+    border-radius: 8px 8px 0 0;
+    font-weight: 600;
+    font-size: 0.88rem;
+  }
+  .section-accept  { background: rgba(25,135,84,0.12);  border: 1px solid rgba(25,135,84,0.25);  color: #146c43; }
+  .section-split   { background: rgba(255,193,7,0.12);  border: 1px solid rgba(255,193,7,0.3);   color: #997404; }
+  .section-deny    { background: rgba(220,53,69,0.12);  border: 1px solid rgba(220,53,69,0.25);  color: #b02a37; }
+  .section-novotes { background: rgba(108,117,125,0.1); border: 1px solid rgba(108,117,125,0.2); color: #495057; }
+
+  [data-bs-theme="dark"] .section-accept  { color: #75b798; background: rgba(25,135,84,0.18);  border-color: rgba(25,135,84,0.3);  }
+  [data-bs-theme="dark"] .section-split   { color: #ffda6a; background: rgba(255,193,7,0.15);  border-color: rgba(255,193,7,0.3);  }
+  [data-bs-theme="dark"] .section-deny    { color: #ea868f; background: rgba(220,53,69,0.18);  border-color: rgba(220,53,69,0.3);  }
+  [data-bs-theme="dark"] .section-novotes { color: #adb5bd; background: rgba(108,117,125,0.12); }
+
+  /* ── Tables ────────────────────────────────────────────────────── */
+  .decision-table {
+    border: 1px solid rgba(0,0,0,0.08);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    overflow: hidden;
+    margin-bottom: 1.75rem;
+  }
+  [data-bs-theme="dark"] .decision-table { border-color: rgba(255,255,255,0.08); }
+
+  /* ── Vote bar ──────────────────────────────────────────────────── */
+  .vote-bar {
+    display: flex;
+    height: 6px;
+    border-radius: 3px;
+    overflow: hidden;
+    width: 90px;
+    background: rgba(0,0,0,0.06);
+    flex-shrink: 0;
+  }
+  [data-bs-theme="dark"] .vote-bar { background: rgba(255,255,255,0.08); }
+  .vote-bar-accept { background: #198754; }
+  .vote-bar-deny   { background: #dc3545; }
+  .vote-bar-wait   { background: #ffc107; }
+
+  /* ── Final status labels ───────────────────────────────────────── */
+  .status-accepted   { color: #198754; font-weight: 600; font-size: 0.82rem; }
+  .status-rejected   { color: #dc3545; font-weight: 600; font-size: 0.82rem; }
+  .status-waitlisted { color: #997404; font-weight: 600; font-size: 0.82rem; }
+
+  /* ── Already-decided rows — subtle highlight, not disabled ─────── */
+  tr.is-decided { background: rgba(0,0,0,0.015); }
+  [data-bs-theme="dark"] tr.is-decided { background: rgba(255,255,255,0.02); }
+
+  /* ── Sticky action bar ─────────────────────────────────────────── */
+  .sticky-action-bar {
+    position: sticky;
+    bottom: 0;
+    background: var(--bs-body-bg);
+    border-top: 2px solid rgba(0,0,0,0.1);
+    padding: 0.75rem 0;
+    z-index: 100;
+    display: none;
+  }
+  [data-bs-theme="dark"] .sticky-action-bar { border-top-color: rgba(255,255,255,0.12); }
+  .sticky-action-bar.visible { display: block; }
+
+  /* ── Progress summary strip ────────────────────────────────────── */
+  .stat-strip { display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap; }
+  .stat-strip .stat { text-align: center; }
+  .stat-strip .stat-num   { font-size: 1.5rem; font-weight: 700; line-height: 1; }
+  .stat-strip .stat-label { font-size: 0.72rem; color: #6c757d; margin-top: 2px; }
+
+  /* ── Batch readiness pills ─────────────────────────────────────── */
+  .batch-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin: 2px;
+  }
+  .batch-pill-complete { background: rgba(25,135,84,0.1);  color: #146c43; border: 1px solid rgba(25,135,84,0.2);  }
+  .batch-pill-pending  { background: rgba(255,193,7,0.12); color: #997404; border: 1px solid rgba(255,193,7,0.25); }
+  [data-bs-theme="dark"] .batch-pill-complete { color: #75b798; background: rgba(25,135,84,0.18); }
+  [data-bs-theme="dark"] .batch-pill-pending  { color: #ffda6a; background: rgba(255,193,7,0.15); }
+
+  /* ── Cap tracker ───────────────────────────────────────────────── */
+  .cap-tracker {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.85rem;
+    border-radius: 8px;
+    background: rgba(13,110,253,0.07);
+    border: 1px solid rgba(13,110,253,0.18);
+    font-size: 0.82rem;
+  }
+  .cap-tracker.at-cap    { background: rgba(220,53,69,0.08);  border-color: rgba(220,53,69,0.2);  }
+  .cap-tracker.near-cap  { background: rgba(255,193,7,0.1);   border-color: rgba(255,193,7,0.25); }
+  .cap-tracker.under-cap { background: rgba(25,135,84,0.08);  border-color: rgba(25,135,84,0.2);  }
+
+  /* ── Activity log ──────────────────────────────────────────────── */
+  .activity-log-item {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    font-size: 0.83rem;
+  }
+  .activity-log-item:last-child { border-bottom: none; }
+  [data-bs-theme="dark"] .activity-log-item { border-bottom-color: rgba(255,255,255,0.05); }
+
+  /* ── Flagged row highlight ─────────────────────────────────────── */
+  tr.flagged-candidate { background: rgba(220,53,69,0.03); }
+  [data-bs-theme="dark"] tr.flagged-candidate { background: rgba(220,53,69,0.06); }
+</style>
+
+<!-- ── Page header ────────────────────────────────────────────────── -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h2 class="mb-0">Final Decisions</h2>
+    <p class="text-muted mb-0 small">
+      <a href="{% url 'dataset_detail' dataset.pk %}" class="text-decoration-none">
+        <i class="bi bi-stack me-1"></i>{{ dataset.DisplayName }}
+      </a>
+    </p>
+  </div>
+  <div class="d-flex gap-2 align-items-center">
+    <a href="{% url 'export_decisions_csv' dataset.pk %}" class="btn btn-outline-success btn-sm">
+      <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export Decisions
+    </a>
+    <a href="{% url 'dataset_detail' dataset.pk %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Back to Dataset
+    </a>
+  </div>
+</div>
+
+<!-- ── Batch readiness warning ───────────────────────────────────── -->
+{% if pending_batches %}
+<div class="alert alert-warning d-flex align-items-start gap-3 mb-4">
+  <i class="bi bi-exclamation-triangle-fill fs-5 mt-1 flex-shrink-0"></i>
+  <div>
+    <strong>{{ pending_batches|length }} batch{{ pending_batches|length|pluralize }} still have outstanding votes.</strong>
+    You can still make decisions now, but you may be working with incomplete data.
+    <div class="mt-2">
+      {% for b in pending_batches %}
+        <span class="batch-pill batch-pill-pending">
+          <i class="bi bi-hourglass-split"></i>
+          {{ b.DisplayName }} — {{ b.votes_remaining }} vote{{ b.votes_remaining|pluralize }} remaining
+        </span>
+      {% endfor %}
+      {% for b in complete_batches %}
+        <span class="batch-pill batch-pill-complete">
+          <i class="bi bi-check-circle-fill"></i>
+          {{ b.DisplayName }}
+        </span>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="alert alert-success d-flex align-items-center gap-3 mb-4">
+  <i class="bi bi-check-circle-fill fs-5 flex-shrink-0"></i>
+  <div>
+    <strong>All batches fully voted.</strong>
+    All {{ complete_batches|length }} batch{{ complete_batches|length|pluralize }} in this dataset have complete vote data — you're ready to make final decisions.
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Progress summary + controls ──────────────────────────────── -->
+<div class="card mb-4 border-0 bg-light">
+  <div class="card-body py-3">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+
+      <!-- Stats -->
+      <div class="stat-strip">
+        <div class="stat">
+          <div class="stat-num">{{ total }}</div>
+          <div class="stat-label">Total Candidates</div>
+        </div>
+        <div class="vr"></div>
+        <div class="stat">
+          <div class="stat-num text-success">{{ accepted_count }}</div>
+          <div class="stat-label">Accepted</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num text-danger">{{ rejected_count }}</div>
+          <div class="stat-label">Rejected</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num text-warning">{{ waitlisted_count }}</div>
+          <div class="stat-label">Waitlisted</div>
+        </div>
+        <div class="vr"></div>
+        <div class="stat">
+          <div class="stat-num text-muted">{{ undecided_count }}</div>
+          <div class="stat-label">Pending</div>
+        </div>
+      </div>
+
+      <!-- Progress bar -->
+      <div style="min-width:200px;">
+        <div class="d-flex justify-content-between mb-1" style="font-size:0.8rem;">
+          <span class="text-muted">Decisions made</span>
+          <span class="fw-semibold">{{ decided_pct }}%</span>
+        </div>
+        <div class="progress mb-1" style="height:8px;">
+          <div class="progress-bar bg-success" style="width:{{ accepted_pct }}%;"  title="Accepted"></div>
+          <div class="progress-bar bg-danger"  style="width:{{ rejected_pct }}%;"  title="Rejected"></div>
+          <div class="progress-bar bg-warning" style="width:{{ waitlisted_pct }}%;" title="Waitlisted"></div>
+        </div>
+        <div class="d-flex gap-3" style="font-size:0.7rem; color:#6c757d;">
+          <span><span style="color:#198754;">■</span> Accepted</span>
+          <span><span style="color:#dc3545;">■</span> Rejected</span>
+          <span><span style="color:#ffc107;">■</span> Waitlisted</span>
+        </div>
+      </div>
+
+      <!-- Right side controls -->
+      <div class="d-flex flex-column gap-2 align-items-end">
+
+        <!-- Class size cap tracker -->
+        <form method="get" class="d-flex align-items-center gap-2">
+          <input type="hidden" name="threshold" value="{{ threshold }}">
+          <label class="small text-muted text-nowrap">Class size cap:</label>
+          <input type="number" name="cap" value="{{ cap }}" min="1"
+                 class="form-control form-control-sm" style="width:70px;"
+                 onchange="this.form.submit()">
+          {% if cap %}
+            <span class="cap-tracker {% if accepted_count >= cap %}at-cap{% elif spots_remaining <= 5 %}near-cap{% else %}under-cap{% endif %}">
+              {% if accepted_count >= cap %}
+                <i class="bi bi-exclamation-circle-fill"></i>
+                <strong>Class full</strong> ({{ accepted_count }}/{{ cap }})
+              {% else %}
+                <i class="bi bi-people-fill"></i>
+                {{ accepted_count }}/{{ cap }} accepted &mdash;
+                <strong>{{ spots_remaining }} spot{{ spots_remaining|pluralize }} remaining</strong>
+              {% endif %}
+            </span>
+          {% endif %}
+        </form>
+
+        <!-- Threshold control -->
+        <form method="get" class="d-flex align-items-center gap-2">
+          <input type="hidden" name="cap" value="{{ cap }}">
+          <label class="small text-muted text-nowrap fw-semibold">"Clear" threshold:</label>
+          <select name="threshold" class="form-select form-select-sm" style="width:auto;"
+                  onchange="this.form.submit()">
+            {% for val, label in threshold_options %}
+              <option value="{{ val }}" {% if val == threshold %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <span class="small text-muted text-nowrap">of votes</span>
+        </form>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<form id="decisions-form" action="{% url 'dataset_decisions_action' dataset.pk %}" method="POST">
+  {% csrf_token %}
+  <input type="hidden" name="threshold" value="{{ threshold }}">
+  <input type="hidden" name="cap" value="{{ cap }}">
+
+  <!-- ── CLEAR ACCEPTS ──────────────────────────────────────────── -->
+  {% if clear_accepts %}
+  <div class="decision-section-header section-accept">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <i class="bi bi-check-circle-fill"></i>
+      <span>Clear Accepts</span>
+      <span class="badge bg-success">{{ clear_accepts|length }}</span>
+      <span style="font-size:0.72rem; background:rgba(25,135,84,0.15); color:#146c43;
+                   padding:2px 8px; border-radius:20px; font-weight:600;">
+        ≥ {{ threshold_display }} voted Accept
+      </span>
+    </div>
+    <button type="button" class="btn btn-sm btn-success" onclick="selectGroup('accept')">
+      <i class="bi bi-check-all me-1"></i>Select All
+    </button>
+  </div>
+  <div class="decision-table">
+    <table class="table table-hover align-middle mb-0" style="font-size:0.87rem;">
+      <thead class="table-light">
+        <tr>
+          <th style="width:1%;"><input type="checkbox" class="form-check-input group-check" data-group="accept" onchange="toggleGroup('accept', this.checked)"></th>
+          <th>Candidate</th>
+          <th>Batch</th>
+          <th class="text-center">Votes</th>
+          <th style="width:140px;">Breakdown</th>
+          <th class="text-center">Score</th>
+          <th class="text-center">Decision</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in clear_accepts %}
+        <tr class="{% if a.is_final %}is-decided{% endif %} {% if a.is_flagged %}flagged-candidate{% endif %}"
+            data-name="{{ a.last_name }}, {{ a.first_name }}"
+            data-status="{{ a.status }}">
+          <td>
+            <input type="checkbox" name="ids" value="{{ a.pk }}"
+                   class="form-check-input candidate-cb cb-accept"
+                   data-name="{{ a.last_name }}, {{ a.first_name }}">
+          </td>
+          <td>
+            <a href="{% url 'applicant_detail' a.pk %}" class="text-decoration-none fw-semibold">
+              {{ a.last_name }}, {{ a.first_name }}
+            </a>
+            {% if a.is_flagged %}
+              <span class="badge bg-danger ms-1" title="Flagged for discussion">
+                <i class="bi bi-flag-fill"></i>
+              </span>
+            {% endif %}
+          </td>
+          <td class="text-muted small">{{ a.round.DisplayName|default:"—" }}</td>
+          <td class="text-center">
+            <span class="badge bg-success"           title="Accept">{{ a.accept_ct }}</span>
+            <span class="badge bg-danger mx-1"       title="Deny">{{ a.deny_ct }}</span>
+            <span class="badge bg-warning text-dark" title="Waitlist">{{ a.wait_ct }}</span>
+          </td>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <div class="vote-bar">
+                <div class="vote-bar-accept" style="width:{% widthratio a.accept_ct a.total_votes 100 %}%;"></div>
+                <div class="vote-bar-deny"   style="width:{% widthratio a.deny_ct   a.total_votes 100 %}%;"></div>
+                <div class="vote-bar-wait"   style="width:{% widthratio a.wait_ct   a.total_votes 100 %}%;"></div>
+              </div>
+              <span style="font-size:0.72rem; color:#6c757d;">{{ a.accept_pct }}%</span>
+            </div>
+          </td>
+          <td class="text-center">
+            {% if a.avg_score %}<span class="badge bg-primary">{{ a.avg_score|floatformat:1 }}</span>
+            {% else %}<span class="text-muted small">—</span>{% endif %}
+          </td>
+          <td class="text-center">
+            {% if a.status == 'ACCEPTED' %}
+              <span class="status-accepted"><i class="bi bi-check-circle-fill me-1"></i>Accepted</span>
+            {% elif a.status == 'REJECTED' %}
+              <span class="status-rejected"><i class="bi bi-x-circle-fill me-1"></i>Rejected</span>
+            {% elif a.status == 'WAITLISTED' %}
+              <span class="status-waitlisted"><i class="bi bi-pause-circle-fill me-1"></i>Waitlisted</span>
+            {% else %}
+              <span class="badge {% if a.status == 'NEW' %}bg-secondary{% elif a.status == 'REVIEW' %}bg-primary{% elif a.status == 'INTERVIEW' %}bg-info text-dark{% elif a.status == 'DECIDED' %}bg-dark{% endif %}">
+                {{ a.get_status_display }}
+              </span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <!-- ── SPLIT / NEEDS DISCUSSION ──────────────────────────────── -->
+  {% if split_candidates %}
+  <div class="decision-section-header section-split">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <i class="bi bi-exclamation-circle-fill"></i>
+      <span>Split — Needs Discussion</span>
+      <span class="badge bg-warning text-dark">{{ split_candidates|length }}</span>
+      {% if split_flagged_count %}
+        <span style="font-size:0.72rem; background:rgba(220,53,69,0.12); color:#b02a37;
+                     padding:2px 8px; border-radius:20px; font-weight:600;">
+          <i class="bi bi-flag-fill me-1"></i>{{ split_flagged_count }} flagged
+        </span>
+      {% endif %}
+      <span style="font-size:0.72rem; color:#6c757d; font-weight:400;">
+        No clear majority at {{ threshold_display }} threshold
+      </span>
+    </div>
+    <button type="button" class="btn btn-sm btn-outline-warning" onclick="selectGroup('split')">
+      <i class="bi bi-check-all me-1"></i>Select All
+    </button>
+  </div>
+  <div class="decision-table">
+    <table class="table table-hover align-middle mb-0" style="font-size:0.87rem;">
+      <thead class="table-light">
+        <tr>
+          <th style="width:1%;"><input type="checkbox" class="form-check-input group-check" data-group="split" onchange="toggleGroup('split', this.checked)"></th>
+          <th>Candidate</th>
+          <th>Batch</th>
+          <th class="text-center">Votes</th>
+          <th style="width:140px;">Breakdown</th>
+          <th class="text-center">Score</th>
+          <th class="text-center">Decision</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in split_candidates %}
+        <tr class="{% if a.is_final %}is-decided{% endif %} {% if a.is_flagged %}flagged-candidate{% endif %}"
+            data-name="{{ a.last_name }}, {{ a.first_name }}"
+            data-status="{{ a.status }}">
+          <td>
+            <input type="checkbox" name="ids" value="{{ a.pk }}"
+                   class="form-check-input candidate-cb cb-split"
+                   data-name="{{ a.last_name }}, {{ a.first_name }}">
+          </td>
+          <td>
+            <a href="{% url 'applicant_detail' a.pk %}" class="text-decoration-none fw-semibold">
+              {{ a.last_name }}, {{ a.first_name }}
+            </a>
+            {% if a.is_flagged %}
+              <span class="badge bg-danger ms-1" title="Flagged for discussion">
+                <i class="bi bi-flag-fill"></i>
+              </span>
+            {% endif %}
+          </td>
+          <td class="text-muted small">{{ a.round.DisplayName|default:"—" }}</td>
+          <td class="text-center">
+            <span class="badge bg-success"           title="Accept">{{ a.accept_ct }}</span>
+            <span class="badge bg-danger mx-1"       title="Deny">{{ a.deny_ct }}</span>
+            <span class="badge bg-warning text-dark" title="Waitlist">{{ a.wait_ct }}</span>
+          </td>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              {% if a.total_votes > 0 %}
+              <div class="vote-bar">
+                <div class="vote-bar-accept" style="width:{% widthratio a.accept_ct a.total_votes 100 %}%;"></div>
+                <div class="vote-bar-deny"   style="width:{% widthratio a.deny_ct   a.total_votes 100 %}%;"></div>
+                <div class="vote-bar-wait"   style="width:{% widthratio a.wait_ct   a.total_votes 100 %}%;"></div>
+              </div>
+              <span style="font-size:0.72rem; color:#6c757d;">{{ a.accept_pct }}%</span>
+              {% else %}
+              <span class="text-muted small">—</span>
+              {% endif %}
+            </div>
+          </td>
+          <td class="text-center">
+            {% if a.avg_score %}<span class="badge bg-primary">{{ a.avg_score|floatformat:1 }}</span>
+            {% else %}<span class="text-muted small">—</span>{% endif %}
+          </td>
+          <td class="text-center">
+            {% if a.status == 'ACCEPTED' %}
+              <span class="status-accepted"><i class="bi bi-check-circle-fill me-1"></i>Accepted</span>
+            {% elif a.status == 'REJECTED' %}
+              <span class="status-rejected"><i class="bi bi-x-circle-fill me-1"></i>Rejected</span>
+            {% elif a.status == 'WAITLISTED' %}
+              <span class="status-waitlisted"><i class="bi bi-pause-circle-fill me-1"></i>Waitlisted</span>
+            {% else %}
+              <span class="badge {% if a.status == 'NEW' %}bg-secondary{% elif a.status == 'REVIEW' %}bg-primary{% elif a.status == 'INTERVIEW' %}bg-info text-dark{% elif a.status == 'DECIDED' %}bg-dark{% endif %}">
+                {{ a.get_status_display }}
+              </span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <!-- ── CLEAR DENIES ───────────────────────────────────────────── -->
+  {% if clear_denies %}
+  <div class="decision-section-header section-deny">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <i class="bi bi-x-circle-fill"></i>
+      <span>Clear Denies</span>
+      <span class="badge bg-danger">{{ clear_denies|length }}</span>
+      <span style="font-size:0.72rem; background:rgba(220,53,69,0.12); color:#b02a37;
+                   padding:2px 8px; border-radius:20px; font-weight:600;">
+        ≥ {{ threshold_display }} voted Deny
+      </span>
+    </div>
+    <button type="button" class="btn btn-sm btn-danger" onclick="selectGroup('deny')">
+      <i class="bi bi-check-all me-1"></i>Select All
+    </button>
+  </div>
+  <div class="decision-table">
+    <table class="table table-hover align-middle mb-0" style="font-size:0.87rem;">
+      <thead class="table-light">
+        <tr>
+          <th style="width:1%;"><input type="checkbox" class="form-check-input group-check" data-group="deny" onchange="toggleGroup('deny', this.checked)"></th>
+          <th>Candidate</th>
+          <th>Batch</th>
+          <th class="text-center">Votes</th>
+          <th style="width:140px;">Breakdown</th>
+          <th class="text-center">Score</th>
+          <th class="text-center">Decision</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in clear_denies %}
+        <tr class="{% if a.is_final %}is-decided{% endif %} {% if a.is_flagged %}flagged-candidate{% endif %}"
+            data-name="{{ a.last_name }}, {{ a.first_name }}"
+            data-status="{{ a.status }}">
+          <td>
+            <input type="checkbox" name="ids" value="{{ a.pk }}"
+                   class="form-check-input candidate-cb cb-deny"
+                   data-name="{{ a.last_name }}, {{ a.first_name }}">
+          </td>
+          <td>
+            <a href="{% url 'applicant_detail' a.pk %}" class="text-decoration-none fw-semibold">
+              {{ a.last_name }}, {{ a.first_name }}
+            </a>
+            {% if a.is_flagged %}
+              <span class="badge bg-danger ms-1" title="Flagged for discussion">
+                <i class="bi bi-flag-fill"></i>
+              </span>
+            {% endif %}
+          </td>
+          <td class="text-muted small">{{ a.round.DisplayName|default:"—" }}</td>
+          <td class="text-center">
+            <span class="badge bg-success"           title="Accept">{{ a.accept_ct }}</span>
+            <span class="badge bg-danger mx-1"       title="Deny">{{ a.deny_ct }}</span>
+            <span class="badge bg-warning text-dark" title="Waitlist">{{ a.wait_ct }}</span>
+          </td>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <div class="vote-bar">
+                <div class="vote-bar-accept" style="width:{% widthratio a.accept_ct a.total_votes 100 %}%;"></div>
+                <div class="vote-bar-deny"   style="width:{% widthratio a.deny_ct   a.total_votes 100 %}%;"></div>
+                <div class="vote-bar-wait"   style="width:{% widthratio a.wait_ct   a.total_votes 100 %}%;"></div>
+              </div>
+              <span style="font-size:0.72rem; color:#6c757d;">{{ a.deny_pct }}%</span>
+            </div>
+          </td>
+          <td class="text-center">
+            {% if a.avg_score %}<span class="badge bg-primary">{{ a.avg_score|floatformat:1 }}</span>
+            {% else %}<span class="text-muted small">—</span>{% endif %}
+          </td>
+          <td class="text-center">
+            {% if a.status == 'ACCEPTED' %}
+              <span class="status-accepted"><i class="bi bi-check-circle-fill me-1"></i>Accepted</span>
+            {% elif a.status == 'REJECTED' %}
+              <span class="status-rejected"><i class="bi bi-x-circle-fill me-1"></i>Rejected</span>
+            {% elif a.status == 'WAITLISTED' %}
+              <span class="status-waitlisted"><i class="bi bi-pause-circle-fill me-1"></i>Waitlisted</span>
+            {% else %}
+              <span class="badge {% if a.status == 'NEW' %}bg-secondary{% elif a.status == 'REVIEW' %}bg-primary{% elif a.status == 'INTERVIEW' %}bg-info text-dark{% elif a.status == 'DECIDED' %}bg-dark{% endif %}">
+                {{ a.get_status_display }}
+              </span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <!-- ── NO VOTES YET ───────────────────────────────────────────── -->
+  {% if no_votes %}
+  <div class="decision-section-header section-novotes">
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-hourglass-split"></i>
+      <span>No Votes Yet</span>
+      <span class="badge bg-secondary">{{ no_votes|length }}</span>
+    </div>
+  </div>
+  <div class="decision-table">
+    <table class="table align-middle mb-0" style="font-size:0.87rem;">
+      <tbody>
+        {% for a in no_votes %}
+        <tr class="text-muted">
+          <td style="width:1%;"><input type="checkbox" class="form-check-input" disabled></td>
+          <td>
+            <a href="{% url 'applicant_detail' a.pk %}" class="text-decoration-none text-muted fw-semibold">
+              {{ a.last_name }}, {{ a.first_name }}
+            </a>
+          </td>
+          <td class="small">{{ a.round.DisplayName|default:"—" }}</td>
+          <td colspan="4" class="small text-muted">No votes cast yet — cannot make a decision.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if not clear_accepts and not split_candidates and not clear_denies and not no_votes %}
+  <div class="text-center text-muted py-5 border rounded">
+    <i class="bi bi-inbox fs-1 d-block mb-2 opacity-25"></i>
+    <p class="mb-0">No candidates found in this dataset.</p>
+  </div>
+  {% endif %}
+
+  <!-- ── STICKY ACTION BAR ──────────────────────────────────────── -->
+  <div class="sticky-action-bar" id="action-bar">
+    <div class="d-flex justify-content-between align-items-center">
+      <div class="text-muted small">
+        <strong id="selected-count">0</strong> candidate(s) selected
+      </div>
+      <div class="d-flex gap-2 flex-wrap">
+        <button type="button" class="btn btn-success"
+                onclick="openConfirmModal('set_accepted', 'Accept')">
+          <i class="bi bi-check-lg me-1"></i>Accept Selected
+        </button>
+        <button type="button" class="btn btn-danger"
+                onclick="openConfirmModal('set_rejected', 'Reject')">
+          <i class="bi bi-x-lg me-1"></i>Reject Selected
+        </button>
+        <button type="button" class="btn btn-outline-warning"
+                onclick="openConfirmModal('set_waitlisted', 'Waitlist')">
+          <i class="bi bi-pause me-1"></i>Waitlist Selected
+        </button>
+        <button type="button" class="btn btn-outline-secondary" onclick="clearAll()">
+          Clear
+        </button>
+      </div>
+    </div>
+  </div>
+
+</form>
+
+<!-- ── Decision History ───────────────────────────────────────────── -->
+{% if decision_log %}
+<div class="card mt-4 mb-4">
+  <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-clock-history me-2"></i>Decision History</span>
+    <span class="badge bg-secondary">{{ decision_log|length }}</span>
+  </div>
+  <div class="card-body py-2">
+    {% for entry in decision_log %}
+    <div class="activity-log-item d-flex justify-content-between align-items-start">
+      <div>
+        {% if entry.details == 'accepted' %}
+          <i class="bi bi-check-circle-fill text-success me-2"></i>
+        {% elif entry.details == 'rejected' %}
+          <i class="bi bi-x-circle-fill text-danger me-2"></i>
+        {% elif entry.details == 'waitlisted' %}
+          <i class="bi bi-pause-circle-fill text-warning me-2"></i>
+        {% endif %}
+        <strong>{{ entry.actor.username }}</strong>
+        marked
+        <a href="{% url 'applicant_detail' entry.target_applicant.pk %}" class="text-decoration-none">
+          {{ entry.target_applicant.first_name }} {{ entry.target_applicant.last_name }}
+        </a>
+        as <strong>{{ entry.details }}</strong>
+      </div>
+      <small class="text-muted text-nowrap ms-3">{{ entry.created_at|timesince }} ago</small>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Confirmation Modal ─────────────────────────────────────────── -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="confirmModalTitle">Confirm Decision</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p id="confirmModalDesc" class="mb-3"></p>
+        <div class="border rounded p-2" style="max-height:300px; overflow-y:auto;">
+          <ul class="list-unstyled mb-0 small" id="confirmModalList"></ul>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn" id="confirmModalBtn" onclick="submitDecision()">Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let pendingAction = null;
+  let confirmModal  = null;
+
+  document.addEventListener('DOMContentLoaded', function () {
+
+    // Init modal after DOM + Bootstrap are ready
+    confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+
+    // ── Individual checkbox listeners ──────────────────────────────
+    document.querySelectorAll('.candidate-cb').forEach(cb => {
+      cb.addEventListener('change', updateActionBar);
+    });
+
+  });
+
+  // ── Group selection ──────────────────────────────────────────────
+  function selectGroup(group) {
+    document.querySelectorAll(`.cb-${group}`).forEach(cb => cb.checked = true);
+    const hdr = document.querySelector(`[data-group="${group}"]`);
+    if (hdr) hdr.checked = true;
+    updateActionBar();
+  }
+
+  function toggleGroup(group, checked) {
+    document.querySelectorAll(`.cb-${group}`).forEach(cb => cb.checked = checked);
+    updateActionBar();
+  }
+
+  function clearAll() {
+    document.querySelectorAll('.candidate-cb').forEach(cb => cb.checked = false);
+    document.querySelectorAll('.group-check').forEach(cb => cb.checked = false);
+    updateActionBar();
+  }
+
+  function updateActionBar() {
+    const checked = document.querySelectorAll('.candidate-cb:checked').length;
+    document.getElementById('selected-count').textContent = checked;
+    document.getElementById('action-bar').classList.toggle('visible', checked > 0);
+  }
+
+  // ── Confirmation modal ───────────────────────────────────────────
+  function openConfirmModal(action, label) {
+    const checked = document.querySelectorAll('.candidate-cb:checked');
+    if (checked.length === 0) return;
+
+    pendingAction = action;
+
+    const colorMap = {
+      'set_accepted':   'btn-success',
+      'set_rejected':   'btn-danger',
+      'set_waitlisted': 'btn-warning',
+    };
+
+    document.getElementById('confirmModalTitle').textContent =
+      `${label} ${checked.length} Candidate${checked.length > 1 ? 's' : ''}?`;
+
+    document.getElementById('confirmModalDesc').textContent =
+      `You are about to mark the following ${checked.length} candidate${checked.length > 1 ? 's' : ''} as ${label.toLowerCase()}. This can be changed later by selecting them again.`;
+
+    const list = document.getElementById('confirmModalList');
+    list.innerHTML = '';
+    checked.forEach(cb => {
+      const li = document.createElement('li');
+      li.className   = 'py-1 border-bottom';
+      li.textContent = cb.getAttribute('data-name');
+      list.appendChild(li);
+    });
+
+    const btn = document.getElementById('confirmModalBtn');
+    btn.className   = `btn ${colorMap[action] || 'btn-primary'}`;
+    btn.textContent = `Confirm ${label}`;
+
+    confirmModal.show();
+  }
+
+  function submitDecision() {
+    if (!pendingAction) return;
+    const form  = document.getElementById('decisions-form');
+    const input = document.createElement('input');
+    input.type  = 'hidden';
+    input.name  = 'action';
+    input.value = pendingAction;
+    form.appendChild(input);
+    confirmModal.hide();
+    form.submit();
+  }
+</script>
+
+{% endblock %}

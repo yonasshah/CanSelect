@@ -52,7 +52,7 @@ class ApplicantForm(BootstrapFormMixin, forms.ModelForm):
 class DataSetForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = DataSet
-        fields = ["DisplayName", "Description", "AdminNotes", "PublicView", "ProgramId", "Active", "IsLive"]
+        fields = ["DisplayName", "Description", "AdminNotes", "PublicView", "ProgramId", "Active", "IsLive", "target_class_size"]
 
 class BatchForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:

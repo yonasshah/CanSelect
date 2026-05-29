@@ -164,6 +164,9 @@
                 {% elif applicant.status == 'REVIEW' %}bg-primary
                 {% elif applicant.status == 'INTERVIEW' %}bg-info text-dark
                 {% elif applicant.status == 'DECIDED' %}bg-success
+                {% elif applicant.status == 'ACCEPTED' %}bg-success
+                {% elif applicant.status == 'REJECTED' %}bg-danger
+                {% elif applicant.status == 'WAITLISTED' %}bg-warning text-dark
                 {% endif %}">
                 {{ applicant.get_status_display }}
               </span>

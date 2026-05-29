@@ -42,4 +42,9 @@ urlpatterns = [
     path("notifications/<int:pk>/read/", views.mark_notification_read, name="mark_notification_read"),
     path("notifications/send/", views.send_notification, name="send_notification"),
     path("candidate-info-upload/", views.candidate_info_upload, name="candidate_info_upload"),
+    path("datasets/<int:pk>/decisions/",        views.dataset_decisions,        name="dataset_decisions"),
+    path("datasets/<int:pk>/decisions/action/", views.dataset_decisions_action, name="dataset_decisions_action"),
+    path("datasets/<int:pk>/decisions/",        views.dataset_decisions,        name="dataset_decisions"),
+    path("datasets/<int:pk>/decisions/action/", views.dataset_decisions_action, name="dataset_decisions_action"),
+    path("datasets/<int:pk>/decisions/export/", views.export_decisions_csv,     name="export_decisions_csv"),
     ]

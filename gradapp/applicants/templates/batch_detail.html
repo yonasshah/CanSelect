@@ -174,6 +174,9 @@
                   {% elif a.status == 'REVIEW' %}bg-primary
                   {% elif a.status == 'INTERVIEW' %}bg-info text-dark
                   {% elif a.status == 'DECIDED' %}bg-success
+                  {% elif a.status == 'ACCEPTED' %}bg-success
+                  {% elif a.status == 'REJECTED' %}bg-danger
+                  {% elif a.status == 'WAITLISTED' %}bg-warning text-dark
                   {% endif %}">
                   {{ a.get_status_display }}
                 </span>
@@ -229,6 +232,9 @@
                 {% elif a.status == 'REVIEW' %}bg-primary
                 {% elif a.status == 'INTERVIEW' %}bg-info text-dark
                 {% elif a.status == 'DECIDED' %}bg-success
+                {% elif a.status == 'ACCEPTED' %}bg-success
+                {% elif a.status == 'REJECTED' %}bg-danger
+                {% elif a.status == 'WAITLISTED' %}bg-warning text-dark
                 {% endif %}">
                 {{ a.get_status_display }}
               </span>

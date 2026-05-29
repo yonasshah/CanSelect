@@ -107,6 +107,9 @@
             <option value="REVIEW" {% if status_filter == 'REVIEW' %}selected{% endif %}>Under Review</option>
             <option value="INTERVIEW" {% if status_filter == 'INTERVIEW' %}selected{% endif %}>Interview</option>
             <option value="DECIDED" {% if status_filter == 'DECIDED' %}selected{% endif %}>Decision Made</option>
+            <option value="ACCEPTED"   {% if status_filter == 'ACCEPTED'   %}selected{% endif %}>Accepted</option>
+            <option value="REJECTED"   {% if status_filter == 'REJECTED'   %}selected{% endif %}>Rejected</option>
+            <option value="WAITLISTED" {% if status_filter == 'WAITLISTED' %}selected{% endif %}>Waitlisted</option>
           </select>
         </div>
         <div class="col-md-3">
@@ -118,7 +121,11 @@
           <button type="submit" class="btn btn-outline-secondary btn-sm">Filter</button>
         </div>
         <div class="col-auto">
-          <a href="{% url 'applicant_list' %}" class="btn btn-outline-danger btn-sm">Clear</a>
+          {% if is_queue_page %}
+            <a href="{% url 'applicant_queue' %}" class="btn btn-outline-danger btn-sm">Clear</a>
+          {% else %}
+            <a href="{% url 'applicant_list' %}" class="btn btn-outline-danger btn-sm">Clear</a>
+          {% endif %}
         </div>
         {% if user.profile.role == 'ADMIN' %}
         <div class="col-auto d-flex align-items-center pt-3">
@@ -203,7 +210,7 @@
             <td class="text-muted small">{{ a.dataset.DisplayName|default:"—" }}</td>
             <td class="text-muted small">{{ a.round.DisplayName|default:"—" }}</td>
             <td>
-              <span class="badge {% if a.status == 'NEW' %}bg-secondary{% elif a.status == 'REVIEW' %}bg-primary{% elif a.status == 'INTERVIEW' %}bg-info text-dark{% elif a.status == 'DECIDED' %}bg-success{% endif %}">
+              <span class="badge {% if a.status == 'NEW' %}bg-secondary{% elif a.status == 'REVIEW' %}bg-primary{% elif a.status == 'INTERVIEW' %}bg-info text-dark{% elif a.status == 'DECIDED' %}bg-success{% elif a.status == 'ACCEPTED' %}bg-success{% elif a.status == 'REJECTED' %}bg-danger{% elif a.status == 'WAITLISTED' %}bg-warning text-dark{% endif %}">
                 {{ a.get_status_display }}
               </span>
             </td>

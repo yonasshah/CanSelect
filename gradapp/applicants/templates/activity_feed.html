@@ -15,6 +15,9 @@
                             <i class="bi bi-person-check-fill me-2 text-primary"></i>
                         {% elif activity.action_type == 'comment_added' %}
                             <i class="bi bi-chat-dots-fill me-2 text-info"></i>
+                        {% elif activity.action_type == 'decision_made' %}
+                            <i class="bi bi-check2-square me-2 text-success"></i>
+                        
                         {% endif %}
 
                         <strong>{{ activity.actor.username }}</strong>
