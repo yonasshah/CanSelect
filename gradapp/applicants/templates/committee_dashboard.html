@@ -6,39 +6,185 @@
     <h2 class="mb-0">Welcome, {{ request.user.username }}</h2>
     <p class="text-muted mb-0">Here's an overview of your assigned review work.</p>
   </div>
-  <a href="{% url 'applicant_queue' %}" class="btn btn-primary">
-    <i class="bi bi-inbox-fill me-2"></i>Go to My Queue
-  </a>
+
 </div>
 
-<!-- Stats Row -->
-<div class="row g-3 mb-4">
-  <div class="col-md-4">
-    <div class="card text-center h-100">
-      <div class="card-body">
-        <i class="bi bi-collection-fill fs-2 text-primary mb-2"></i>
-        <div class="fs-2 fw-bold">{{ assigned_batches|length }}</div>
-        <div class="text-muted">Assigned Batches</div>
+<!-- ── Resume / Next Action ── -->
+{% if progress.resume %}
+<div class="card mb-4 border-primary shadow-sm">
+  <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div class="d-flex align-items-center gap-3">
+      <div class="d-flex align-items-center justify-content-center rounded-circle bg-primary bg-opacity-10 text-primary"
+           style="width:48px; height:48px; flex-shrink:0;">
+        <i class="bi bi-play-fill fs-4"></i>
       </div>
+      <div>
+        <div class="fw-semibold">
+          {% if progress.resume.started %}Pick up where you left off{% else %}Start reviewing{% endif %}
+        </div>
+        <div class="text-muted small">
+          <span class="fw-semibold">{{ progress.resume.unvoted }}</span>
+          candidate{{ progress.resume.unvoted|pluralize }}
+          {% if progress.resume.started %}left{% else %}to review{% endif %} in
+          <span class="fw-semibold">{{ progress.resume.batch.DisplayName }}</span>
+          <span class="text-muted">· {{ progress.resume.dataset.DisplayName }}</span>
+          {% if progress.resume.deadline %}
+            <span class="ms-1">
+              <i class="bi bi-clock me-1"></i>due {{ progress.resume.deadline|date:"M d, Y" }}
+            </span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <a href="{% url 'applicant_queue' %}?batch={{ progress.resume.batch.pk }}"
+       class="btn btn-primary">
+      <i class="bi bi-arrow-right-circle me-1"></i>{% if progress.resume.started %}Resume reviewing{% else %}Start reviewing{% endif %}
+    </a>
+  </div>
+</div>
+{% else %}
+{% if progress.global.total == 0 %}
+<div class="card mb-4 border-secondary shadow-sm">
+  <div class="card-body d-flex align-items-center gap-3">
+    <div class="d-flex align-items-center justify-content-center rounded-circle bg-secondary bg-opacity-10 text-secondary"
+         style="width:48px; height:48px; flex-shrink:0;">
+      <i class="bi bi-inbox fs-4"></i>
+    </div>
+    <div>
+      <div class="fw-semibold">No candidates assigned yet</div>
+      <div class="text-muted small">You'll see review work here once an administrator assigns you to a batch.</div>
     </div>
   </div>
-  <div class="col-md-4">
-    <div class="card text-center h-100">
-      <div class="card-body">
-        <i class="bi bi-hourglass-split fs-2 text-warning mb-2"></i>
-        <div class="fs-2 fw-bold">{{ pending_count }}</div>
-        <div class="text-muted">Candidates Pending</div>
-      </div>
+</div>
+{% else %}
+<div class="card mb-4 border-success shadow-sm">
+  <div class="card-body d-flex align-items-center gap-3">
+    <div class="d-flex align-items-center justify-content-center rounded-circle bg-success bg-opacity-10 text-success"
+         style="width:48px; height:48px; flex-shrink:0;">
+      <i class="bi bi-check-lg fs-4"></i>
+    </div>
+    <div>
+      <div class="fw-semibold">You're all caught up</div>
+      <div class="text-muted small">You've voted on every candidate assigned to you. Nice work.</div>
     </div>
   </div>
-  <div class="col-md-4">
-    <div class="card text-center h-100">
-      <div class="card-body">
-        <i class="bi bi-check2-circle fs-2 text-success mb-2"></i>
-        <div class="fs-2 fw-bold">{{ total_votes }}</div>
-        <div class="text-muted">Votes Cast</div>
+</div>
+{% endif %}
+{% endif %}
+<!-- ── Deadline urgency strip ── -->
+{% if progress.deadlines %}
+<div class="card mb-4">
+  <div class="card-header fw-semibold py-2">
+    <i class="bi bi-alarm me-2"></i>Upcoming Deadlines
+  </div>
+  <div class="card-body py-2">
+    <div class="d-flex flex-column gap-2">
+      {% for d in progress.deadlines %}
+      <a href="{% url 'applicant_queue' %}?batch={{ d.batch.pk }}"
+         class="d-flex justify-content-between align-items-center text-decoration-none p-2 rounded
+                {% if d.urgency == 'critical' %}bg-danger bg-opacity-10
+                {% elif d.urgency == 'soon' %}bg-warning bg-opacity-10
+                {% endif %}"
+         style="border:1px solid {% if d.urgency == 'critical' %}rgba(220,53,69,0.25){% elif d.urgency == 'soon' %}rgba(255,193,7,0.3){% else %}rgba(0,0,0,0.08){% endif %};">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi
+             {% if d.urgency == 'critical' %}bi-exclamation-triangle-fill text-danger
+             {% elif d.urgency == 'soon' %}bi-clock-fill text-warning
+             {% else %}bi-clock text-muted{% endif %}"></i>
+          <span class="fw-semibold text-body">{{ d.batch.DisplayName }}</span>
+          <span class="text-muted small">· {{ d.dataset.DisplayName }}</span>
+          <span class="text-muted small">· {{ d.unvoted }} left to vote</span>
+        </div>
+        <div class="text-end">
+          <span class="small
+                {% if d.urgency == 'critical' %}text-danger fw-semibold
+                {% elif d.urgency == 'soon' %}text-warning fw-semibold
+                {% else %}text-muted{% endif %}">
+            {% if d.days_left == 0 %}Due today
+            {% elif d.days_left == 1 %}Due tomorrow
+            {% else %}{{ d.days_left }} days left{% endif %}
+          </span>
+          <div class="text-muted" style="font-size:0.7rem;">{{ d.deadline|date:"M d, Y" }}</div>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+<!-- ── Review Progress (cross-dataset) ── -->
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span class="fw-semibold"><i class="bi bi-speedometer2 me-2"></i>Your Review Progress</span>
+    <span class="badge bg-primary fs-6">
+      {{ progress.global.voted }} / {{ progress.global.total }} voted
+    </span>
+  </div>
+  <div class="card-body">
+
+    <!-- Global roll-up -->
+    <div class="mb-2 d-flex justify-content-between align-items-center" style="font-size:0.85rem;">
+      <span class="text-muted">Overall ({{ progress.datasets|length }} program{{ progress.datasets|length|pluralize }})</span>
+      <span>
+        <span class="fw-semibold">{{ progress.global.remaining }}</span> remaining
+        {% if progress.global.open_remaining != progress.global.remaining %}
+          <span class="text-muted">·</span>
+          <span class="fw-semibold text-warning">{{ progress.global.open_remaining }}</span> still open
+        {% endif %}
+      </span>
+    </div>
+    <div class="progress mb-1" style="height:10px;">
+      <div class="progress-bar bg-success" role="progressbar"
+           style="width:{{ progress.global.pct }}%"
+           aria-valuenow="{{ progress.global.pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+    </div>
+    <div class="d-flex justify-content-between mb-4" style="font-size:0.75rem;">
+      <span class="text-muted">{{ progress.global.pct }}% of all assigned</span>
+      {% if progress.global.next_deadline %}
+        <span class="text-muted"><i class="bi bi-clock me-1"></i>Next deadline {{ progress.global.next_deadline|date:"M d, Y" }}</span>
+      {% endif %}
+    </div>
+
+    <!-- Per-dataset breakdown -->
+    {% if progress.datasets|length > 1 %}
+      <div class="text-muted small fw-semibold mb-2">By program</div>
+    {% endif %}
+
+    {% for row in progress.datasets %}
+    <div class="{% if not forloop.last %}mb-3 pb-3 border-bottom{% endif %}">
+      <div class="d-flex justify-content-between align-items-center mb-1">
+        <span class="fw-semibold">{{ row.dataset.DisplayName }}</span>
+        <span class="text-muted small">{{ row.voted }} / {{ row.total }}</span>
+      </div>
+      <div class="progress mb-1" style="height:8px;">
+        <div class="progress-bar {% if row.pct == 100 %}bg-success{% elif row.pct > 0 %}bg-primary{% else %}bg-secondary{% endif %}"
+             style="width:{{ row.pct }}%"></div>
+      </div>
+      <div class="d-flex flex-wrap gap-3" style="font-size:0.75rem;">
+        <span class="text-muted">
+          <i class="bi bi-hourglass-split me-1"></i>{{ row.remaining }} remaining
+        </span>
+        {% if row.open_remaining != row.remaining %}
+          <span class="text-warning">
+            <i class="bi bi-unlock me-1"></i>{{ row.open_remaining }} still open
+          </span>
+        {% endif %}
+        {% if row.flagged_by_me %}
+          <span class="text-danger">
+            <i class="bi bi-flag-fill me-1"></i>{{ row.flagged_by_me }} flagged by you
+          </span>
+        {% endif %}
+        {% if row.next_deadline %}
+          <span class="text-muted">
+            <i class="bi bi-clock me-1"></i>Next: {{ row.next_deadline|date:"M d, Y" }}
+          </span>
+        {% endif %}
       </div>
     </div>
+    {% empty %}
+    <p class="text-muted mb-0 text-center py-3">You have not been assigned to any batches yet.</p>
+    {% endfor %}
+
   </div>
 </div>
 
@@ -109,6 +255,8 @@
               <i class="bi bi-person-check-fill me-2 text-primary"></i>
             {% elif activity.action_type == 'comment_added' %}
               <i class="bi bi-chat-dots-fill me-2 text-info"></i>
+            {% elif activity.action_type == 'flag_added' %}
+              <i class="bi bi-flag-fill me-2 text-danger"></i>
             {% endif %}
             {{ activity.details }}
             <a href="{% url 'applicant_detail' activity.target_applicant.pk %}">

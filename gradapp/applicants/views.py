@@ -13,6 +13,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login
 from django.contrib import messages
 import pandas as pd
+from django.utils import timezone
 from decimal import Decimal, InvalidOperation
 import pypdf
 import re
@@ -808,20 +809,26 @@ def dataset_decisions_action(request, pk):
 @admin_required
 def export_decisions_csv(request, pk):
     dataset = get_object_or_404(DataSet, pk=pk)
- 
+
+    ACCEPTED_STATUSES = {'ACCEPTED', 'ACCEPTED_MAILED', 'ACCEPTED_NOT_MAILED'}
+
     applicants = (
         Applicant.objects.filter(dataset=dataset)
         .select_related('round')
+        .prefetch_related('flagged_by')
         .annotate(
             accept_ct=Count('votes', filter=Q(votes__value=1),  distinct=True),
             deny_ct=Count('votes',   filter=Q(votes__value=-1), distinct=True),
             wait_ct=Count('votes',   filter=Q(votes__value=0),  distinct=True),
             avg_score=Avg('scores__overall_score'),
         )
-        .filter(status__in=['ACCEPTED', 'REJECTED', 'WAITLISTED'])
+        .filter(status__in=[
+            'ACCEPTED', 'ACCEPTED_MAILED', 'ACCEPTED_NOT_MAILED',
+            'REJECTED', 'WAITLISTED', 'DECLINED',
+        ])
         .order_by('status', 'last_name', 'first_name')
     )
- 
+
     response = HttpResponse(
         content_type='text/csv',
         headers={'Content-Disposition': f'attachment; filename="{dataset.DisplayName} - Decisions.csv"'},
@@ -829,22 +836,34 @@ def export_decisions_csv(request, pk):
     writer = csv.writer(response)
     writer.writerow([
         'Last Name', 'First Name', 'Email', 'External ID',
-        'Batch', 'Decision',
-        'Accept Votes', 'Deny Votes', 'Waitlist Votes',
-        'Avg Score',
+        'Dataset', 'Batch', 'Committee Decision',
+        'Yes', 'No', 'Waitlist', 'Flag',
+        'Avg Score', 'Total AI', 'Total NC', 'Z-Score',
+        'First Gen', 'Re-Applicant', 'PB to DMD', 'Former Post Bacc', '3+4',
     ])
     for a in applicants:
+        decision = 'Yes' if a.status in ACCEPTED_STATUSES else a.get_status_display()
         writer.writerow([
             a.last_name,
             a.first_name,
             a.email or '',
             a.external_id or '',
+            dataset.DisplayName,
             a.round.DisplayName if a.round else '',
-            a.get_status_display(),
+            decision,
             a.accept_ct,
             a.deny_ct,
             a.wait_ct,
+            'Discuss' if a.flagged_by.exists() else '',
             f"{a.avg_score:.1f}" if a.avg_score else '',
+            a.total_ai if a.total_ai is not None else '',
+            a.total_nc if a.total_nc is not None else '',
+            a.z_score if a.z_score is not None else '',
+            'Yes' if a.first_gen else 'No',
+            'Yes' if a.re_applicant else 'No',
+            'Yes' if a.pb_to_dmd else 'No',
+            'Yes' if a.former_post_bacc else 'No',
+            'Yes' if a.three_plus_four else 'No',
         ])
     return response
 
@@ -2041,10 +2060,175 @@ def _cleanup_batch_numbering(dataset):
             batch.DisplayName = base_name
             batch.save()
     
+
+def _reviewer_progress_breakdown(user):
+    """
+    Build a committee member's review-progress data, grouped by dataset.
+    Cross-dataset aware: a reviewer may hold batches across several datasets.
+
+    Counting rules:
+      - "voted" = a Yes/No vote (value in [1, -1]); Waitlist (0) does NOT count.
+      - Two denominators are exposed per group:
+          * total      — every assigned candidate
+          * open_total — candidates in batches whose deadline hasn't passed
+                         (a batch with no VoteExpire is always considered open)
+
+    Returns: {
+        'global': {... same shape as a dataset row, minus dataset ...},
+        'datasets': [ {dataset, total, voted, remaining, open_total,
+                       open_remaining, flagged_by_me, next_deadline,
+                       pct, open_pct}, ... ],
+    }
+    """
+    now = timezone.now()
+    batches = (
+        user.assigned_batches
+        .select_related('DataSet')
+        .order_by('DataSet__DisplayName', 'DisplayName')
+    )
+
+    voted_applicant_ids = set(
+        Vote.objects.filter(
+            voter=user,
+            value__in=[1, -1],
+            applicant__round__in=batches,
+        ).values_list('applicant_id', flat=True)
+    )
+
+    flagged_applicant_ids = set(
+        Flag.objects.filter(
+            user=user,
+            applicant__round__in=batches,
+        ).values_list('applicant_id', flat=True)
+    )
+
+    from collections import OrderedDict
+    by_dataset = OrderedDict()
+    for b in batches:
+        ds = b.DataSet
+        by_dataset.setdefault(ds.pk, {'dataset': ds, 'batches': []})['batches'].append(b)
+
+    def blank_row():
+        return {
+            'total': 0, 'voted': 0, 'remaining': 0,
+            'open_total': 0, 'open_remaining': 0,
+            'flagged_by_me': 0, 'next_deadline': None,
+        }
+
+    rows = []
+    glob = blank_row()
+
+    # Track per-batch unvoted counts to pick a resume target.
+    # Each entry: {'batch', 'unvoted', 'deadline'}
+    batch_unvoted = []
+
+    for entry in by_dataset.values():
+        ds = entry['dataset']
+        row = blank_row()
+        row['dataset'] = ds
+
+        for b in entry['batches']:
+            is_open = (b.VoteExpire is None) or (b.VoteExpire >= now)
+            if is_open and b.VoteExpire is not None:
+                if row['next_deadline'] is None or b.VoteExpire < row['next_deadline']:
+                    row['next_deadline'] = b.VoteExpire
+                if glob['next_deadline'] is None or b.VoteExpire < glob['next_deadline']:
+                    glob['next_deadline'] = b.VoteExpire
+
+            applicant_ids = list(
+                Applicant.objects.filter(round=b).values_list('pk', flat=True)
+            )
+            b_unvoted = 0
+            for aid in applicant_ids:
+                row['total'] += 1
+                glob['total'] += 1
+                voted = aid in voted_applicant_ids
+                if voted:
+                    row['voted'] += 1
+                    glob['voted'] += 1
+                else:
+                    b_unvoted += 1
+                if aid in flagged_applicant_ids:
+                    row['flagged_by_me'] += 1
+                    glob['flagged_by_me'] += 1
+                if is_open:
+                    row['open_total'] += 1
+                    glob['open_total'] += 1
+                    if not voted:
+                        row['open_remaining'] += 1
+                        glob['open_remaining'] += 1
+
+            if b_unvoted > 0:
+                batch_unvoted.append({
+                    'batch': b,
+                    'unvoted': b_unvoted,
+                    'deadline': b.VoteExpire,
+                })
+
+        row['remaining'] = row['total'] - row['voted']
+        row['pct'] = round(row['voted'] / row['total'] * 100) if row['total'] else 0
+        row['open_pct'] = (
+            round((row['open_total'] - row['open_remaining']) / row['open_total'] * 100)
+            if row['open_total'] else 0
+        )
+        rows.append(row)
+
+    glob['remaining'] = glob['total'] - glob['voted']
+    glob['pct'] = round(glob['voted'] / glob['total'] * 100) if glob['total'] else 0
+    glob['open_pct'] = (
+        round((glob['open_total'] - glob['open_remaining']) / glob['open_total'] * 100)
+        if glob['open_total'] else 0
+    )
+
+    # ── Resume target: batch with unvoted candidates and soonest deadline. ──
+    # Dated deadlines sort before undated (None) ones.
+    resume = None
+    if batch_unvoted:
+        def sort_key(item):
+            d = item['deadline']
+            return (d is None, d or now)
+        batch_unvoted.sort(key=sort_key)
+        target = batch_unvoted[0]
+        target_batch = target['batch']
+
+        target_total = Applicant.objects.filter(round=target_batch).count()
+        target_voted = target_total - target['unvoted']
+
+        resume = {
+            'batch': target_batch,
+            'dataset': target_batch.DataSet,
+            'unvoted': target['unvoted'],
+            'deadline': target['deadline'],
+            'started': target_voted > 0,   # have they voted on anyone in this batch?
+        }
+
+    deadlines = []
+    for item in batch_unvoted:
+        d = item['deadline']
+        if d is None or d < now:
+            continue  # undated or already-passed deadlines don't belong in "upcoming"
+        days_left = (d.date() - now.date()).days
+        deadlines.append({
+            'batch': item['batch'],
+            'dataset': item['batch'].DataSet,
+            'deadline': d,
+            'unvoted': item['unvoted'],
+            'days_left': days_left,
+            # urgency tier drives color in the template
+            'urgency': 'overdue' if days_left < 0
+                       else 'critical' if days_left <= 3
+                       else 'soon' if days_left <= 7
+                       else 'normal',
+        })
+    deadlines.sort(key=lambda x: x['deadline'])
+
+    return {'global': glob, 'datasets': rows, 'resume': resume, 'deadlines': deadlines}
     
 @login_required
 def committee_dashboard(request):
     user = request.user
+    
+    progress = _reviewer_progress_breakdown(user)
 
     # Get batches assigned to this reviewer
     assigned_batches = Batch.objects.filter(
@@ -2082,6 +2266,7 @@ def committee_dashboard(request):
     total_scores = Score.objects.filter(voter=user).count()
 
     return render(request, "committee_dashboard.html", {
+        'progress': progress,
         'assigned_batches': assigned_batches,
         'pending_count': pending_count,
         'recent_activity': recent_activity,
