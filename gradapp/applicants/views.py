@@ -373,9 +373,11 @@ def add_files(request, pk):
 @login_required
 @admin_required
 def dataset_list(request):
-    search_query = request.GET.get('q', '')
-    status_filter = request.GET.get('status', 'all')
-    candidate_search = request.GET.get('candidate', '').strip()
+    search_query       = request.GET.get('q', '').strip()
+    dataset_status     = request.GET.get('dataset_status', '')   # replaces status + show_archived
+    application_system = request.GET.get('application_system', '')
+    program_type       = request.GET.get('program_type', '')
+    candidate_search   = request.GET.get('candidate', '').strip()
 
     datasets = DataSet.objects.annotate(
         applicant_count=Count('applicants', distinct=True),
@@ -384,19 +386,31 @@ def dataset_list(request):
 
     if search_query:
         datasets = datasets.filter(DisplayName__icontains=search_query)
-    if status_filter == 'live':
-        datasets = datasets.filter(IsLive=True)
-    elif status_filter == 'offline':
-        datasets = datasets.filter(IsLive=False)
+    if application_system:
+        datasets = datasets.filter(application_system=application_system)
+    if program_type:
+        datasets = datasets.filter(program_type=program_type)
 
-    active_datasets   = datasets.filter(Active=True)
-    archived_datasets = datasets.filter(Active=False)
+    # ── Unified status filter ────────────────────────────────────────
+    if dataset_status == 'live':
+        filtered_qs      = datasets.filter(Active=True, IsLive=True)
+        archived_datasets = DataSet.objects.none()
+    elif dataset_status == 'offline':
+        filtered_qs      = datasets.filter(Active=True, IsLive=False)
+        archived_datasets = DataSet.objects.none()
+    elif dataset_status == 'archived':
+        filtered_qs      = datasets.filter(Active=False)
+        archived_datasets = DataSet.objects.none()
+    elif dataset_status == 'all':
+        filtered_qs      = datasets
+        archived_datasets = DataSet.objects.none()
+    else:                                           # default: active only
+        filtered_qs      = datasets.filter(Active=True)
+        archived_datasets = datasets.filter(Active=False)
 
-    # Pagination only on active datasets
-    paginator = Paginator(active_datasets, 25)
+    paginator = Paginator(filtered_qs, 25)
     page_obj  = paginator.get_page(request.GET.get('page'))
 
-    # ── Candidate search across all datasets ─────────────────────────────
     candidate_results = None
     if candidate_search:
         candidate_results = list(
@@ -408,35 +422,30 @@ def dataset_list(request):
             )
             .order_by('last_name', 'first_name')[:50]
         )
-
-        # Count how many distinct datasets each name appears in
-        # Group by normalized name to catch the same person across datasets
         from collections import Counter
         name_counts = Counter()
         for a in candidate_results:
             key = f"{a.last_name.lower().strip()},{a.first_name.lower().strip()}"
             name_counts[key] += 1
-
-        # Also count by external_id if present
         id_counts = Counter()
         for a in candidate_results:
             if a.external_id:
                 id_counts[a.external_id] += 1
-
-        # Attach appearance_count to each result
         for a in candidate_results:
             key = f"{a.last_name.lower().strip()},{a.first_name.lower().strip()}"
-            by_name = name_counts.get(key, 1)
-            by_id = id_counts.get(a.external_id, 1) if a.external_id else 1
-            a.appearance_count = max(by_name, by_id)
+            a.appearance_count = max(name_counts.get(key, 1), id_counts.get(a.external_id, 1) if a.external_id else 1)
 
     return render(request, "dataset_list.html", {
-        'page_obj': page_obj,
-        'archived_datasets': archived_datasets,
-        'search_query': search_query,
-        'status_filter': status_filter,
-        'candidate_search': candidate_search,
-        'candidate_results': candidate_results,
+        'page_obj':                   page_obj,
+        'archived_datasets':          archived_datasets,
+        'search_query':               search_query,
+        'dataset_status':             dataset_status,
+        'application_system':         application_system,
+        'program_type':               program_type,
+        'application_system_choices': DataSet.ApplicationSystem.choices,
+        'program_type_choices':       DataSet.ProgramType.choices,
+        'candidate_search':           candidate_search,
+        'candidate_results':          candidate_results,
         'crumbs': [{'label': 'Datasets', 'url': ''}],
     })
     
@@ -481,6 +490,27 @@ def dataset_create(request):
 def dataset_detail(request, pk):
     dataset = get_object_or_404(DataSet, pk=pk)
 
+    # ── Filters ──────────────────────────────────────────────────────
+    search_query        = request.GET.get('q', '').strip()
+    status_filter       = request.GET.get('status', '')
+    batch_filter        = request.GET.get('batch_id', '')
+    flagged_only        = request.GET.get('flagged_only', '')
+    filter_first_gen    = request.GET.get('first_gen', '')
+    filter_re_applicant = request.GET.get('re_applicant', '')
+    filter_pb_to_dmd    = request.GET.get('pb_to_dmd', '')
+    filter_former_pb    = request.GET.get('former_post_bacc', '')
+    filter_3p4          = request.GET.get('three_plus_four', '')
+
+    has_filters = any([
+        search_query, status_filter, batch_filter, flagged_only,
+        filter_first_gen, filter_re_applicant, filter_pb_to_dmd,
+        filter_former_pb, filter_3p4,
+    ])
+    has_advanced = any([
+        filter_first_gen, filter_re_applicant, filter_pb_to_dmd,
+        filter_former_pb, filter_3p4,
+    ])
+
     batches = dataset.batches.annotate(
         applicant_count=Count('applicant', distinct=True),
         reviewed_count=Count(
@@ -490,20 +520,59 @@ def dataset_detail(request, pk):
         ),
     ).order_by('DisplayName')
 
-    # Prefetch candidates for each batch with their avg scores
-    for batch in batches:
-        batch.candidates = (
-            Applicant.objects.filter(round=batch)
-            .annotate(avg_score=Avg('scores__overall_score'))
-            .order_by('last_name', 'first_name')
-        )
+    if batch_filter:
+        batches = batches.filter(pk=batch_filter)
 
-    applicant_count = Applicant.objects.filter(dataset=dataset).count()
+    # Build a filtered candidate queryset per batch
+    def build_candidate_qs(batch):
+        qs = Applicant.objects.filter(round=batch).annotate(
+            avg_score=Avg('scores__overall_score')
+        )
+        if search_query:
+            qs = qs.filter(
+                Q(first_name__icontains=search_query) |
+                Q(last_name__icontains=search_query) |
+                Q(external_id__icontains=search_query)
+            )
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+        if flagged_only:
+            qs = qs.filter(flagged_by__isnull=False).distinct()
+        if filter_first_gen:
+            qs = qs.filter(first_gen=True)
+        if filter_re_applicant:
+            qs = qs.filter(re_applicant=True)
+        if filter_pb_to_dmd:
+            qs = qs.filter(pb_to_dmd=True)
+        if filter_former_pb:
+            qs = qs.filter(former_post_bacc=True)
+        if filter_3p4:
+            qs = qs.filter(three_plus_four=True)
+        return qs.order_by('last_name', 'first_name')
+
+    for batch in batches:
+        batch.candidates = build_candidate_qs(batch)
+
+    # For no-results message
+    total_candidates = sum(b.candidates.count() for b in batches)
+    applicant_count  = Applicant.objects.filter(dataset=dataset).count()
 
     return render(request, "dataset_detail.html", {
-        "dataset": dataset,
-        "batches": batches,
-        "applicant_count": applicant_count,
+        "dataset":              dataset,
+        "batches":              batches,
+        "applicant_count":      applicant_count,
+        "total_candidates":     total_candidates,
+        "has_filters":          has_filters,
+        "has_advanced":         has_advanced,
+        "search_query":         search_query,
+        "status_filter":        status_filter,
+        "batch_filter":         batch_filter,
+        "flagged_only":         flagged_only,
+        "filter_first_gen":     filter_first_gen,
+        "filter_re_applicant":  filter_re_applicant,
+        "filter_pb_to_dmd":     filter_pb_to_dmd,
+        "filter_former_pb":     filter_former_pb,
+        "filter_3p4":           filter_3p4,
         'crumbs': [
             {'label': 'Datasets', 'url': '/datasets/'},
             {'label': dataset.DisplayName, 'url': ''},
@@ -776,9 +845,16 @@ def export_decisions_csv(request, pk):
 @login_required
 @admin_required
 def batch_list(request):
-    search_query = request.GET.get('q', '')
-    status_filter = request.GET.get('status', 'all')
-    group_filter = request.GET.get('group', '')
+    search_query       = request.GET.get('q', '')
+    status_filter      = request.GET.get('status', 'all')
+    group_filter       = request.GET.get('group', '')
+    dataset_id         = request.GET.get('dataset_id', '')
+    application_system = request.GET.get('application_system', '')
+    program_type       = request.GET.get('program_type', '')
+    deadline_before    = request.GET.get('deadline_before', '')
+    deadline_after     = request.GET.get('deadline_after', '')
+    progress_filter    = request.GET.get('progress', '')
+    show_archived      = request.GET.get('show_archived', '')
 
     batches_list = Batch.objects.select_related("DataSet").annotate(
         applicant_count=Count('applicant', distinct=True),
@@ -791,39 +867,76 @@ def batch_list(request):
         batches_list = batches_list.filter(Active=True)
     elif status_filter == 'inactive':
         batches_list = batches_list.filter(Active=False)
-
     if group_filter == 'none':
         batches_list = batches_list.filter(review_group='')
     elif group_filter:
         batches_list = batches_list.filter(review_group=group_filter)
-        
-    show_archived = request.GET.get('show_archived')
+    if dataset_id:
+        batches_list = batches_list.filter(DataSet_id=dataset_id)
+    if application_system:
+        batches_list = batches_list.filter(DataSet__application_system=application_system)
+    if program_type:
+        batches_list = batches_list.filter(DataSet__program_type=program_type)
+    if deadline_before:
+        try:
+            from django.utils.dateparse import parse_date
+            d = parse_date(deadline_before)
+            if d:
+                batches_list = batches_list.filter(VoteExpire__date__lte=d)
+        except Exception:
+            pass
+    if deadline_after:
+        try:
+            from django.utils.dateparse import parse_date
+            d = parse_date(deadline_after)
+            if d:
+                batches_list = batches_list.filter(VoteExpire__date__gte=d)
+        except Exception:
+            pass
     if not show_archived:
         batches_list = batches_list.filter(DataSet__Active=True)
-        
-        
-    paginator = Paginator(batches_list, 25)
-    page_obj = paginator.get_page(request.GET.get("page"))
 
-    # Run loop on page_obj AFTER pagination
-    for batch in page_obj:
+    # ── Compute progress for each batch, then apply progress filter ──
+    # (done in Python; batch counts are small)
+    all_batches = list(batches_list)
+    for batch in all_batches:
         potential = batch.applicant_count * batch.reviewer_count
         actual = Vote.objects.filter(
             applicant__round=batch,
             voter__in=batch.assigned_reviewers.all()
         ).count()
+        batch.actual_votes  = actual
+        batch.voted_count   = actual
         batch.potential_votes = potential
-        batch.actual_votes = actual
-        batch.progress_pct = int((actual / potential * 100) if potential > 0 else 0)
-        
-        
+        batch.progress_pct  = int((actual / potential * 100) if potential > 0 else 0)
+
+    if progress_filter == 'complete':
+        all_batches = [b for b in all_batches if b.applicant_count > 0 and b.progress_pct == 100]
+    elif progress_filter == 'in_progress':
+        all_batches = [b for b in all_batches if 0 < b.progress_pct < 100]
+    elif progress_filter == 'not_started':
+        all_batches = [b for b in all_batches if b.progress_pct == 0]
+
+    paginator   = Paginator(all_batches, 25)
+    page_obj    = paginator.get_page(request.GET.get("page"))
+
+    all_datasets = DataSet.objects.filter(Active=True).order_by('DisplayName')
 
     return render(request, "batch_list.html", {
-        'page_obj': page_obj,
-        'search_query': search_query,
-        'status_filter': status_filter,
-        'group_filter': group_filter,
-        'show_archived': show_archived,
+        'page_obj':                   page_obj,
+        'search_query':               search_query,
+        'status_filter':              status_filter,
+        'group_filter':               group_filter,
+        'dataset_id':                 dataset_id,
+        'application_system':         application_system,
+        'program_type':               program_type,
+        'deadline_before':            deadline_before,
+        'deadline_after':             deadline_after,
+        'progress_filter':            progress_filter,
+        'show_archived':              show_archived,
+        'all_datasets':               all_datasets,
+        'application_system_choices': DataSet.ApplicationSystem.choices,
+        'program_type_choices':       DataSet.ProgramType.choices,
         'crumbs': [{'label': 'Batches', 'url': ''}],
     })
 
@@ -851,9 +964,27 @@ def batch_create(request):
 @admin_required
 @login_required
 def batch_detail(request, pk):
-    batch = get_object_or_404(Batch, pk=pk)
+    batch        = get_object_or_404(Batch, pk=pk)
     search_query = request.GET.get('q', '')
- 
+    status_filter       = request.GET.get('status', '')
+    voted_filter        = request.GET.get('voted', '')
+    flagged_only        = request.GET.get('flagged_only', '')
+    filter_first_gen    = request.GET.get('first_gen', '')
+    filter_re_applicant = request.GET.get('re_applicant', '')
+    filter_pb_to_dmd    = request.GET.get('pb_to_dmd', '')
+    filter_former_pb    = request.GET.get('former_post_bacc', '')
+    filter_3p4          = request.GET.get('three_plus_four', '')
+
+    has_advanced = any([
+        filter_first_gen, filter_re_applicant, filter_pb_to_dmd,
+        filter_former_pb, filter_3p4,
+    ])
+    has_filters = any([
+        search_query, status_filter, voted_filter, flagged_only,
+        filter_first_gen, filter_re_applicant, filter_pb_to_dmd,
+        filter_former_pb, filter_3p4,
+    ])
+
     assigned_reviewer_ids = batch.assigned_reviewers.values_list('pk', flat=True)
 
     applicants = Applicant.objects.filter(round=batch).annotate(
@@ -863,62 +994,84 @@ def batch_detail(request, pk):
             filter=Q(votes__voter_id__in=assigned_reviewer_ids)
         )
     ).order_by('last_name')
- 
+
     if search_query:
         applicants = applicants.filter(
             Q(first_name__icontains=search_query) |
             Q(last_name__icontains=search_query) |
             Q(external_id__icontains=search_query)
         )
- 
+    if status_filter:
+        applicants = applicants.filter(status=status_filter)
+    if voted_filter == 'voted':
+        applicants = applicants.filter(vote_count__gt=0)
+    elif voted_filter == 'not_voted':
+        applicants = applicants.filter(vote_count=0)
+    if flagged_only:
+        applicants = applicants.filter(flagged_by__isnull=False).distinct()
+    if filter_first_gen:
+        applicants = applicants.filter(first_gen=True)
+    if filter_re_applicant:
+        applicants = applicants.filter(re_applicant=True)
+    if filter_pb_to_dmd:
+        applicants = applicants.filter(pb_to_dmd=True)
+    if filter_former_pb:
+        applicants = applicants.filter(former_post_bacc=True)
+    if filter_3p4:
+        applicants = applicants.filter(three_plus_four=True)
+
     assigned_reviewers = batch.assigned_reviewers.all()
-    reviewer_count = assigned_reviewers.count()
-    actual_votes = Vote.objects.filter(
+    reviewer_count  = assigned_reviewers.count()
+    actual_votes    = Vote.objects.filter(
         applicant__round=batch,
         voter__in=assigned_reviewers
     ).count()
-    total = applicants.count()
-    potential_votes = total * reviewer_count
-    progress_pct = round((actual_votes / potential_votes) * 100) if potential_votes > 0 else 0
-    pending = potential_votes - actual_votes
- 
-    # ── Per-reviewer progress ────────────────────────────────────────────
+    total           = applicants.count()
+    potential_votes = Applicant.objects.filter(round=batch).count() * reviewer_count
+    progress_pct    = round((actual_votes / potential_votes) * 100) if potential_votes > 0 else 0
+    pending         = potential_votes - actual_votes
+
     reviewer_progress = []
+    total_unfiltered  = Applicant.objects.filter(round=batch).count()
     for reviewer in assigned_reviewers.select_related('profile'):
-        votes_cast = Vote.objects.filter(
-            applicant__round=batch,
-            voter=reviewer,
-        ).count()
-        pct = round((votes_cast / total) * 100) if total > 0 else 0
+        votes_cast = Vote.objects.filter(applicant__round=batch, voter=reviewer).count()
+        pct = round((votes_cast / total_unfiltered) * 100) if total_unfiltered > 0 else 0
         reviewer_progress.append({
-            'user': reviewer,
-            'votes_cast': votes_cast,
-            'total': total,
-            'pct': pct,
+            'user': reviewer, 'votes_cast': votes_cast,
+            'total': total_unfiltered, 'pct': pct,
         })
     reviewer_progress.sort(key=lambda r: r['pct'], reverse=True)
- 
-    # ── Group applicants by source_folder for display ────────────────────
+
     from collections import OrderedDict
     grouped_applicants = OrderedDict()
     for a in applicants:
-        folder = a.source_folder or ''
-        grouped_applicants.setdefault(folder, []).append(a)
- 
-    has_multiple_groups = len(grouped_applicants) > 1 or (len(grouped_applicants) == 1 and '' not in grouped_applicants)
- 
+        grouped_applicants.setdefault(a.source_folder or '', []).append(a)
+    has_multiple_groups = len(grouped_applicants) > 1 or (
+        len(grouped_applicants) == 1 and '' not in grouped_applicants
+    )
+
     context = {
-        'batch': batch,
-        'applicants': applicants,
-        'grouped_applicants': grouped_applicants,
+        'batch':               batch,
+        'applicants':          applicants,
+        'grouped_applicants':  grouped_applicants,
         'has_multiple_groups': has_multiple_groups,
-        'total': total,
-        'reviewer_count': reviewer_count,
-        'actual_votes': actual_votes,
-        'pending': pending,
-        'progress_pct': progress_pct,
-        'search_query': search_query,
-        'reviewer_progress': reviewer_progress,
+        'total':               total,
+        'reviewer_count':      reviewer_count,
+        'actual_votes':        actual_votes,
+        'pending':             pending,
+        'progress_pct':        progress_pct,
+        'search_query':        search_query,
+        'status_filter':       status_filter,
+        'voted_filter':        voted_filter,
+        'flagged_only':        flagged_only,
+        'filter_first_gen':    filter_first_gen,
+        'filter_re_applicant': filter_re_applicant,
+        'filter_pb_to_dmd':    filter_pb_to_dmd,
+        'filter_former_pb':    filter_former_pb,
+        'filter_3p4':          filter_3p4,
+        'has_advanced':        has_advanced,
+        'has_filters':         has_filters,
+        'reviewer_progress':   reviewer_progress,
         'crumbs': [
             {'label': 'Batches', 'url': '/batches/'},
             {'label': batch.DisplayName},

@@ -36,40 +36,102 @@
 </div>
 
 <!-- Filters -->
+<!-- Filters -->
 <div class="card mb-4">
   <div class="card-body py-2">
     <form method="get">
       <div class="row g-2 align-items-center">
-        <div class="col-md-5">
-          <input type="text" name="q" class="form-control form-control-sm" placeholder="Search batches..." value="{{ search_query }}">
+
+        <!-- Row 1: Basic filters -->
+        <div class="col-md-3">
+          <input type="text" name="q" class="form-control form-control-sm"
+                 placeholder="Search batches..." value="{{ search_query }}">
+        </div>
+        <div class="col-md-2">
+          <select name="dataset_id" class="form-select form-select-sm">
+            <option value="">All Datasets</option>
+            {% for ds in all_datasets %}
+              <option value="{{ ds.pk }}" {% if dataset_id == ds.pk|stringformat:"s" %}selected{% endif %}>
+                {{ ds.DisplayName }}
+              </option>
+            {% endfor %}
+          </select>
         </div>
         <div class="col-md-2">
           <select name="status" class="form-select form-select-sm">
-            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Statuses</option>
-            <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active Only</option>
+            <option value="all"      {% if status_filter == 'all'      %}selected{% endif %}>All Statuses</option>
+            <option value="active"   {% if status_filter == 'active'   %}selected{% endif %}>Active Only</option>
             <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive Only</option>
           </select>
         </div>
         <div class="col-md-2">
           <select name="group" class="form-select form-select-sm">
-            <option value="" {% if not group_filter %}selected{% endif %}>All Groups</option>
-            <option value="A" {% if group_filter == 'A' %}selected{% endif %}>Group A</option>
-            <option value="B" {% if group_filter == 'B' %}selected{% endif %}>Group B</option>
-            <option value="C" {% if group_filter == 'C' %}selected{% endif %}>Group C</option>
-            <option value="none" {% if group_filter == 'none' %}selected{% endif %}>Unassigned</option>
+            <option value=""     {% if not group_filter         %}selected{% endif %}>All Groups</option>
+            <option value="A"    {% if group_filter == 'A'      %}selected{% endif %}>Group A</option>
+            <option value="B"    {% if group_filter == 'B'      %}selected{% endif %}>Group B</option>
+            <option value="C"    {% if group_filter == 'C'      %}selected{% endif %}>Group C</option>
+            <option value="none" {% if group_filter == 'none'   %}selected{% endif %}>Unassigned</option>
           </select>
         </div>
-        <div class="col-md-2 d-flex gap-1">
-          <button type="submit" class="btn btn-outline-secondary btn-sm flex-fill">Filter</button>
-          <a href="{% url 'batch_list' %}" class="btn btn-outline-danger btn-sm flex-fill">Clear</a>
+        <div class="col-auto d-flex gap-1">
+          <button type="submit" class="btn btn-outline-secondary btn-sm">Filter</button>
+          <a href="{% url 'batch_list' %}" class="btn btn-outline-danger btn-sm">Clear</a>
         </div>
-        <div class="col-md-auto d-flex align-items-center">
+        <div class="col-auto d-flex align-items-center">
           <div class="form-check mb-0">
             <input class="form-check-input" type="checkbox" name="show_archived" id="show_archived"
                    {% if show_archived %}checked{% endif %} onchange="this.form.submit()">
             <label class="form-check-label small" for="show_archived">Include archived</label>
           </div>
         </div>
+
+        <!-- Row 2: Advanced filters -->
+         
+        <div class="col-12">
+          <div class="border rounded p-3 bg-light mt-1">
+            <div class="row g-2 align-items-end">
+              <div class="col-md-2">
+                <label class="form-label small text-muted mb-1">Program Type</label>
+                <select name="program_type" class="form-select form-select-sm">
+                  <option value="">All Programs</option>
+                  {% for val, label in program_type_choices %}
+                    <option value="{{ val }}" {% if program_type == val %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label small text-muted mb-1">Application System</label>
+                <select name="application_system" class="form-select form-select-sm">
+                  <option value="">All Systems</option>
+                  {% for val, label in application_system_choices %}
+                    <option value="{{ val }}" {% if application_system == val %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            
+              <div class="col-md-2">
+                <label class="form-label small text-muted mb-1">Review Progress</label>
+                <select name="progress" class="form-select form-select-sm">
+                  <option value=""            {% if not progress_filter              %}selected{% endif %}>Any Progress</option>
+                  <option value="complete"    {% if progress_filter == 'complete'    %}selected{% endif %}>Complete</option>
+                  <option value="in_progress" {% if progress_filter == 'in_progress' %}selected{% endif %}>In Progress</option>
+                  <option value="not_started" {% if progress_filter == 'not_started' %}selected{% endif %}>Not Started</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label small text-muted mb-1">Deadline After</label>
+                <input type="date" name="deadline_after" class="form-control form-control-sm"
+                       value="{{ deadline_after }}">
+              </div>
+              <div class="col-md-2">
+                <label class="form-label small text-muted mb-1">Deadline Before</label>
+                <input type="date" name="deadline_before" class="form-control form-control-sm"
+                       value="{{ deadline_before }}">
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </form>
   </div>

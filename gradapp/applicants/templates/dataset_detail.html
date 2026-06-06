@@ -71,14 +71,98 @@
 </div>
 {% endif %}
 
+<!-- ── Filter panel ── -->
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <form method="get">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-3">
+          <input type="text" name="q" class="form-control form-control-sm"
+                 placeholder="Search candidates..." value="{{ search_query }}">
+        </div>
+        <div class="col-md-2">
+          <select name="status" class="form-select form-select-sm">
+            <option value="">All Statuses</option>
+            <option value="INTERVIEW"           {% if status_filter == 'INTERVIEW'           %}selected{% endif %}>Interview</option>
+            <option value="INTERVIEW_COMPLETE"  {% if status_filter == 'INTERVIEW_COMPLETE'  %}selected{% endif %}>Interview Complete</option>
+            <option value="ACCEPTED"            {% if status_filter == 'ACCEPTED'            %}selected{% endif %}>Accepted</option>
+            <option value="ACCEPTED_MAILED"     {% if status_filter == 'ACCEPTED_MAILED'     %}selected{% endif %}>Accepted – Mailed</option>
+            <option value="ACCEPTED_NOT_MAILED" {% if status_filter == 'ACCEPTED_NOT_MAILED' %}selected{% endif %}>Accepted – Not Mailed</option>
+            <option value="WAITLISTED"          {% if status_filter == 'WAITLISTED'          %}selected{% endif %}>Waitlisted</option>
+            <option value="REJECTED"            {% if status_filter == 'REJECTED'            %}selected{% endif %}>Rejected</option>
+            <option value="DECLINED"            {% if status_filter == 'DECLINED'            %}selected{% endif %}>Candidate Declined</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <select name="batch_id" class="form-select form-select-sm">
+            <option value="">All Batches</option>
+            {% for b in batches %}
+              <option value="{{ b.pk }}" {% if batch_filter == b.pk|stringformat:"s" %}selected{% endif %}>
+                {{ b.DisplayName }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-auto d-flex align-items-center">
+          <div class="form-check mb-0">
+            <input class="form-check-input" type="checkbox" name="flagged_only" id="dd_flagged"
+                   {% if flagged_only %}checked{% endif %} onchange="this.form.submit()">
+            <label class="form-check-label small" for="dd_flagged">Flagged only</label>
+          </div>
+        </div>
+        <div class="col-auto d-flex gap-1">
+          <button type="submit" class="btn btn-outline-secondary btn-sm">Filter</button>
+          <a href="{% url 'dataset_detail' dataset.pk %}" class="btn btn-outline-danger btn-sm">Clear</a>
+          <button type="button" class="btn btn-outline-secondary btn-sm"
+                  data-bs-toggle="collapse" data-bs-target="#dd-advanced">
+            <i class="bi bi-sliders me-1"></i>Advanced
+            {% if has_advanced %}<span class="badge bg-primary ms-1">ON</span>{% endif %}
+          </button>
+        </div>
+      </div>
+
+      <!-- Advanced -->
+      <div class="collapse {% if has_advanced %}show{% endif %} mt-2" id="dd-advanced">
+        <div class="border rounded p-2 bg-light">
+          <div class="d-flex flex-wrap gap-3">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="first_gen" id="dd_fg"
+                     {% if filter_first_gen %}checked{% endif %}>
+              <label class="form-check-label small" for="dd_fg">First Generation</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="re_applicant" id="dd_ra"
+                     {% if filter_re_applicant %}checked{% endif %}>
+              <label class="form-check-label small" for="dd_ra">Re-Applicant</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="pb_to_dmd" id="dd_pb"
+                     {% if filter_pb_to_dmd %}checked{% endif %}>
+              <label class="form-check-label small" for="dd_pb">PB to DMD</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="former_post_bacc" id="dd_fpb"
+                     {% if filter_former_pb %}checked{% endif %}>
+              <label class="form-check-label small" for="dd_fpb">Former Post Bacc</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="three_plus_four" id="dd_3p4"
+                     {% if filter_3p4 %}checked{% endif %}>
+              <label class="form-check-label small" for="dd_3p4">3+4</label>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm ms-2">Apply</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- Section header with view toggle -->
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h4 class="mb-0">Batches</h4>
   <div class="d-flex gap-2 align-items-center">
-    <!-- Search (only visible in list view) -->
     <div id="list-view-controls" style="display:none;" class="d-flex gap-2 align-items-center">
-      <input type="text" class="form-control form-control-sm" id="dataset-search"
-             placeholder="Search candidates..." style="width:200px;">
       <button class="btn btn-outline-secondary btn-sm" id="expand-all-btn" title="Expand all">
         <i class="bi bi-chevron-expand"></i>
       </button>
@@ -87,13 +171,13 @@
       </button>
     </div>
     <div class="btn-group" role="group">
-  <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-list" onclick="setView('list')" title="List view with candidates">
-    <i class="bi bi-list-ul"></i>
-  </button>
-  <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-card" onclick="setView('card')" title="Card view">
-    <i class="bi bi-grid-3x3-gap"></i>
-  </button>
-</div>
+      <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-list" onclick="setView('list')" title="List view with candidates">
+        <i class="bi bi-list-ul"></i>
+      </button>
+      <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-card" onclick="setView('card')" title="Card view">
+        <i class="bi bi-grid-3x3-gap"></i>
+      </button>
+    </div>
     {% if user.profile.role == 'ADMIN' %}
       <a href="{% url 'batch_create' %}" class="btn btn-sm btn-primary">
         <i class="bi bi-plus-lg me-1"></i>New Batch
@@ -103,7 +187,7 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
-<!--  CARD VIEW (original)                                                 -->
+<!--  CARD VIEW                                                            -->
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
 
 <div id="card-view">
@@ -124,7 +208,6 @@
               <span class="badge bg-secondary">Inactive</span>
             {% endif %}
           </div>
-
           <div class="mb-2">
             <div class="d-flex justify-content-between mb-1" style="font-size:0.8rem;">
               <span class="text-muted">Review Progress</span>
@@ -139,7 +222,6 @@
               {% endif %}
             </div>
           </div>
-
           {% if batch.VoteExpire %}
             <small class="text-muted"><i class="bi bi-clock me-1"></i>Deadline: {{ batch.VoteExpire|date:"M d, Y" }}</small>
           {% endif %}
@@ -189,24 +271,33 @@
 </style>
 
 <div id="list-view" style="display:none;">
-
-  <div id="no-search-results" class="text-center text-muted py-4 border rounded mb-3" style="display:none;">
-    <i class="bi bi-search fs-3 d-block mb-2 opacity-25"></i>
-    No candidates matching your search.
+  {% if has_filters and total_candidates > 0 %}
+  <div class="alert alert-info py-2 mb-3 small">
+    <i class="bi bi-info-circle me-1"></i>
+    {{ total_candidates }} candidate{{ total_candidates|pluralize }} match your filters across {{ batches|length }} batch{{ batches|length|pluralize }}. Click a batch header to expand it.
   </div>
-
+  {% endif %}
   {% for batch in batches %}
+  {% if batch.candidates or not has_filters %}
   <div class="card mb-2 batch-card">
     <div class="card-header batch-toggle d-flex justify-content-between align-items-center py-2 px-3"
          data-target="#candidates-{{ batch.pk }}">
       <div class="d-flex align-items-center gap-2">
         <i class="bi bi-chevron-down chevron" style="font-size:0.8rem;"></i>
         <i class="bi bi-collection text-primary"></i>
-        <a href="{% url 'batch_detail' batch.pk %}" class="fw-semibold text-decoration-none text-dark"
-           onclick="event.stopPropagation();">
-          {{ batch.DisplayName }}
-        </a>
-        <span class="badge bg-light text-dark border">{{ batch.applicant_count }} candidate{{ batch.applicant_count|pluralize }}</span>
+        <span class="fw-semibold">{{ batch.DisplayName }}</span>
+          <a href="{% url 'batch_detail' batch.pk %}" class="btn btn-outline-secondary btn-sm py-0 px-1 ms-1"
+            onclick="event.stopPropagation();" title="Open batch">
+            <i class="bi bi-box-arrow-up-right" style="font-size:0.7rem;"></i>
+          </a>
+        {% with filtered_count=batch.candidates|length %}
+        <span class="badge bg-light text-dark border">
+          {{ filtered_count }} candidate{{ filtered_count|pluralize }}
+          {% if has_filters and filtered_count != batch.applicant_count %}
+            <span class="text-muted" style="font-weight:400;"> of {{ batch.applicant_count }}</span>
+          {% endif %}
+        </span>
+        {% endwith %}
       </div>
       <div class="d-flex align-items-center gap-2" onclick="event.stopPropagation();">
         <div class="d-flex align-items-center gap-1" style="width:100px;">
@@ -292,32 +383,43 @@
       {% endif %}
     </div>
   </div>
-  {% empty %}
+  {% endif %}
+  {% endfor %}
+
+  {% if not batches %}
   <div class="text-center text-muted py-4 border rounded">
     <i class="bi bi-collection fs-2"></i>
     <p class="mt-2 mb-0">No batches yet for this dataset.</p>
   </div>
-  {% endfor %}
+  {% endif %}
+
+  {% if has_filters and total_candidates == 0 %}
+  <div class="text-center text-muted py-5 border rounded">
+    <i class="bi bi-search fs-1 d-block mb-2 opacity-25"></i>
+    <p class="mb-0">No candidates match your filters.</p>
+    <a href="{% url 'dataset_detail' dataset.pk %}" class="btn btn-sm btn-outline-secondary mt-2">Clear Filters</a>
+  </div>
+  {% endif %}
+
 </div>
 
 <script>
-  // ── View toggle ────────────────────────────────────────────────────────
   function setView(view) {
-    const cardView = document.getElementById('card-view');
-    const listView = document.getElementById('list-view');
+    const cardView     = document.getElementById('card-view');
+    const listView     = document.getElementById('list-view');
     const listControls = document.getElementById('list-view-controls');
-    const btnCard = document.getElementById('btn-card');
-    const btnList = document.getElementById('btn-list');
+    const btnCard      = document.getElementById('btn-card');
+    const btnList      = document.getElementById('btn-list');
 
     if (view === 'card') {
-      cardView.style.display = 'block';
-      listView.style.display = 'none';
+      cardView.style.display     = 'block';
+      listView.style.display     = 'none';
       listControls.style.display = 'none';
       btnCard.classList.add('active');
       btnList.classList.remove('active');
     } else {
-      cardView.style.display = 'none';
-      listView.style.display = 'block';
+      cardView.style.display     = 'none';
+      listView.style.display     = 'block';
       listControls.style.display = 'flex';
       btnList.classList.add('active');
       btnCard.classList.remove('active');
@@ -329,7 +431,6 @@
     setView(localStorage.getItem('datasetDetailView') || 'list');
   });
 
-  // ── Toggle individual batch ────────────────────────────────────────────
   document.querySelectorAll('.batch-toggle').forEach(header => {
     header.addEventListener('click', () => {
       const targetId = header.getAttribute('data-target');
@@ -339,7 +440,6 @@
     });
   });
 
-  // ── Expand / Collapse All ─────────────────────────────────────────────
   document.getElementById('expand-all-btn')?.addEventListener('click', () => {
     document.querySelectorAll('.batch-candidates').forEach(el => el.classList.add('show'));
     document.querySelectorAll('.batch-toggle').forEach(el => el.classList.add('open'));
@@ -349,54 +449,6 @@
     document.querySelectorAll('.batch-candidates').forEach(el => el.classList.remove('show'));
     document.querySelectorAll('.batch-toggle').forEach(el => el.classList.remove('open'));
   });
-
-  // ── Search across all candidates ──────────────────────────────────────
-  const searchInput = document.getElementById('dataset-search');
-  if (searchInput) {
-    searchInput.addEventListener('input', () => {
-      const query = searchInput.value.toLowerCase().trim();
-      let anyCardVisible = false;
-
-      document.querySelectorAll('.batch-card').forEach(card => {
-        const rows = card.querySelectorAll('.candidate-row');
-        let anyVisible = false;
-
-        rows.forEach(row => {
-          const name = row.getAttribute('data-name') || '';
-          const matches = !query || name.includes(query);
-          row.style.display = matches ? '' : 'none';
-          if (matches) anyVisible = true;
-        });
-
-        const body = card.querySelector('.batch-candidates');
-        const header = card.querySelector('.batch-toggle');
-
-        if (query) {
-          if (anyVisible) {
-            body.classList.add('show');
-            header.classList.add('open');
-            card.style.display = '';
-            anyCardVisible = true;
-          } else {
-            body.classList.remove('show');
-            header.classList.remove('open');
-            card.style.display = 'none';
-          }
-        } else {
-          card.style.display = '';
-          body.classList.remove('show');
-          header.classList.remove('open');
-          rows.forEach(row => row.style.display = '');
-          anyCardVisible = true;
-        }
-      });
-
-      const noResults = document.getElementById('no-search-results');
-      if (noResults) {
-        noResults.style.display = (query && !anyCardVisible) ? '' : 'none';
-      }
-    });
-  }
 </script>
 
 {% endblock %}

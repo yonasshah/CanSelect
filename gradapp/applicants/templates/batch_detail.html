@@ -122,16 +122,104 @@
 
 <!-- Candidate Table -->
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h4 class="mb-0">Candidates <span class="text-muted fs-6 fw-normal">({{ applicants|length }})</span></h4>
-  <form method="get" class="d-flex gap-2">
-    <input type="text" name="q" class="form-control form-control-sm" style="width:220px;"
-           placeholder="Search by name..." value="{{ search_query|default:'' }}">
-    <button type="submit" class="btn btn-outline-secondary btn-sm">Search</button>
-    {% if search_query %}
-      <a href="{% url 'batch_detail' batch.pk %}" class="btn btn-outline-danger btn-sm">Clear</a>
-    {% endif %}
-  </form>
+  <h4 class="mb-0">
+    Candidates
+    <span class="text-muted fs-6 fw-normal">({{ total }}{% if has_filters %} filtered{% endif %})</span>
+  </h4>
 </div>
+
+<!-- Batch candidate filters -->
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <form method="get">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-3">
+          <input type="text" name="q" class="form-control form-control-sm"
+                 placeholder="Search by name or ID..." value="{{ search_query|default:'' }}">
+        </div>
+        <div class="col-md-2">
+          <select name="status" class="form-select form-select-sm">
+            <option value="">All Statuses</option>
+            <option value="INTERVIEW"           {% if status_filter == 'INTERVIEW'           %}selected{% endif %}>Interview</option>
+            <option value="INTERVIEW_COMPLETE"  {% if status_filter == 'INTERVIEW_COMPLETE'  %}selected{% endif %}>Interview Complete</option>
+            <option value="ACCEPTED"            {% if status_filter == 'ACCEPTED'            %}selected{% endif %}>Accepted</option>
+            <option value="ACCEPTED_MAILED"     {% if status_filter == 'ACCEPTED_MAILED'     %}selected{% endif %}>Accepted – Mailed</option>
+            <option value="ACCEPTED_NOT_MAILED" {% if status_filter == 'ACCEPTED_NOT_MAILED' %}selected{% endif %}>Accepted – Not Mailed</option>
+            <option value="WAITLISTED"          {% if status_filter == 'WAITLISTED'          %}selected{% endif %}>Waitlisted</option>
+            <option value="REJECTED"            {% if status_filter == 'REJECTED'            %}selected{% endif %}>Rejected</option>
+            <option value="DECLINED"            {% if status_filter == 'DECLINED'            %}selected{% endif %}>Candidate Declined</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <select name="voted" class="form-select form-select-sm">
+            <option value=""         {% if not voted_filter              %}selected{% endif %}>All</option>
+            <option value="voted"    {% if voted_filter == 'voted'       %}selected{% endif %}>Voted</option>
+            <option value="not_voted"{% if voted_filter == 'not_voted'   %}selected{% endif %}>Not Yet Voted</option>
+          </select>
+        </div>
+        <div class="col-auto d-flex align-items-center">
+          <div class="form-check mb-0">
+            <input class="form-check-input" type="checkbox" name="flagged_only" id="bd_flagged"
+                   {% if flagged_only %}checked{% endif %} onchange="this.form.submit()">
+            <label class="form-check-label small" for="bd_flagged">Flagged only</label>
+          </div>
+        </div>
+        <div class="col-auto d-flex gap-1">
+          <button type="submit" class="btn btn-outline-secondary btn-sm">Filter</button>
+          <a href="{% url 'batch_detail' batch.pk %}" class="btn btn-outline-danger btn-sm">Clear</a>
+          <button type="button" class="btn btn-outline-secondary btn-sm"
+                  data-bs-toggle="collapse" data-bs-target="#bd-advanced">
+            <i class="bi bi-sliders me-1"></i>Advanced
+            {% if has_advanced %}<span class="badge bg-primary ms-1">ON</span>{% endif %}
+          </button>
+        </div>
+      </div>
+
+      <!-- Advanced -->
+      <div class="collapse {% if has_advanced %}show{% endif %} mt-2" id="bd-advanced">
+        <div class="border rounded p-2 bg-light">
+          <div class="d-flex flex-wrap gap-3">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="first_gen" id="bd_fg"
+                     {% if filter_first_gen %}checked{% endif %}>
+              <label class="form-check-label small" for="bd_fg">First Generation</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="re_applicant" id="bd_ra"
+                     {% if filter_re_applicant %}checked{% endif %}>
+              <label class="form-check-label small" for="bd_ra">Re-Applicant</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="pb_to_dmd" id="bd_pb"
+                     {% if filter_pb_to_dmd %}checked{% endif %}>
+              <label class="form-check-label small" for="bd_pb">PB to DMD</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="former_post_bacc" id="bd_fpb"
+                     {% if filter_former_pb %}checked{% endif %}>
+              <label class="form-check-label small" for="bd_fpb">Former Post Bacc</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="three_plus_four" id="bd_3p4"
+                     {% if filter_3p4 %}checked{% endif %}>
+              <label class="form-check-label small" for="bd_3p4">3+4</label>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm ms-2">Apply</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- No results -->
+{% if has_filters and total == 0 %}
+<div class="text-center text-muted py-5 border rounded mb-3">
+  <i class="bi bi-search fs-1 d-block mb-2 opacity-25"></i>
+  <p class="mb-0">No candidates match your filters.</p>
+  <a href="{% url 'batch_detail' batch.pk %}" class="btn btn-sm btn-outline-secondary mt-2">Clear Filters</a>
+</div>
+{% endif %}
 
 <div class="card">
   <div class="card-body p-0">
