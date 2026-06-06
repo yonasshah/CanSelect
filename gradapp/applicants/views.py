@@ -1084,24 +1084,33 @@ def batch_detail(request, pk):
         applicants = applicants.filter(three_plus_four=True)
 
     assigned_reviewers = batch.assigned_reviewers.all()
-    reviewer_count  = assigned_reviewers.count()
-    actual_votes    = Vote.objects.filter(
-        applicant__round=batch,
-        voter__in=assigned_reviewers
+    reviewer_count = assigned_reviewers.count()
+
+    # All stats and reviewer progress now reflect the filtered candidate set.
+    filtered_pks = set(applicants.values_list('pk', flat=True))
+    filtered_total = len(filtered_pks)
+
+    actual_votes = Vote.objects.filter(
+        applicant__pk__in=filtered_pks,
+        voter__in=assigned_reviewers,
     ).count()
-    total           = applicants.count()
-    potential_votes = Applicant.objects.filter(round=batch).count() * reviewer_count
-    progress_pct    = round((actual_votes / potential_votes) * 100) if potential_votes > 0 else 0
-    pending         = potential_votes - actual_votes
+    potential_votes = filtered_total * reviewer_count
+    progress_pct = round((actual_votes / potential_votes) * 100) if potential_votes > 0 else 0
+    pending = potential_votes - actual_votes
+    total = filtered_total
 
     reviewer_progress = []
-    total_unfiltered  = Applicant.objects.filter(round=batch).count()
     for reviewer in assigned_reviewers.select_related('profile'):
-        votes_cast = Vote.objects.filter(applicant__round=batch, voter=reviewer).count()
-        pct = round((votes_cast / total_unfiltered) * 100) if total_unfiltered > 0 else 0
+        votes_cast = Vote.objects.filter(
+            applicant__pk__in=filtered_pks,
+            voter=reviewer,
+        ).count()
+        pct = round((votes_cast / filtered_total) * 100) if filtered_total > 0 else 0
         reviewer_progress.append({
-            'user': reviewer, 'votes_cast': votes_cast,
-            'total': total_unfiltered, 'pct': pct,
+            'user': reviewer,
+            'votes_cast': votes_cast,
+            'total': filtered_total,
+            'pct': pct,
         })
     reviewer_progress.sort(key=lambda r: r['pct'], reverse=True)
 
@@ -1392,21 +1401,7 @@ def applicant_queue(request):
     batches = request.user.assigned_batches.all()
     selected_batch_id = request.GET.get('batch')
     search_query = request.GET.get('q', '')
-
-    # --- PROGRESS CALCULATION ---
-    # Total applicants assigned to this user across all their batches
-    total_assigned = Applicant.objects.filter(round__in=batches).count()
-    
-    # Total applicants the user has already voted for in those batches
-    voted_count = Vote.objects.filter(
-        voter=request.user,
-        applicant__round__in=batches,
-        value__in=[1, -1],
-    ).count()
-
-    # Calculate percentage (prevent division by zero)
-    progress_pct = int((voted_count / total_assigned * 100)) if total_assigned > 0 else 0
-    # ----------------------------
+    status_filter = request.GET.get('status', '')
 
     user_has_voted_subquery = Vote.objects.filter(
         applicant=OuterRef('pk'),
@@ -1415,14 +1410,14 @@ def applicant_queue(request):
 
     applicants_list = Applicant.objects.filter(
         round__in=batches
-    ).exclude( 
+    ).exclude(
         votes__voter=request.user,
         votes__value__in=[1, -1],
-    ).select_related('dataset', 'round').annotate( 
+    ).select_related('dataset', 'round').annotate(
         avg_score=Avg('scores__overall_score'),
         user_has_voted=Exists(user_has_voted_subquery)
     ).order_by("-created_at")
-    
+
     if selected_batch_id:
         applicants_list = applicants_list.filter(round_id=selected_batch_id)
 
@@ -1432,13 +1427,39 @@ def applicant_queue(request):
             Q(last_name__icontains=search_query) |
             Q(external_id__icontains=search_query)
         )
-        
+
+    if status_filter:
+        applicants_list = applicants_list.filter(status=status_filter)
+
+    # --- PROGRESS CALCULATION ---
+    filtered_unvoted = applicants_list.count()
+
+    batch_filter_qs = batches.filter(pk=selected_batch_id) if selected_batch_id else batches
+    voted_in_scope = Vote.objects.filter(
+        voter=request.user,
+        value__in=[1, -1],
+        applicant__round__in=batch_filter_qs,
+    )
+    if search_query:
+        voted_in_scope = voted_in_scope.filter(
+            Q(applicant__first_name__icontains=search_query) |
+            Q(applicant__last_name__icontains=search_query) |
+            Q(applicant__external_id__icontains=search_query)
+        )
+    if status_filter:
+        voted_in_scope = voted_in_scope.filter(applicant__status=status_filter)
+
+    voted_count = voted_in_scope.count()
+    total_assigned = filtered_unvoted + voted_count
+    progress_pct = int((voted_count / total_assigned * 100)) if total_assigned > 0 else 0
+    # ----------------------------
+
     paginator = Paginator(applicants_list, 25)
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
 
     context = {
-        'page_obj': page_obj, 
+        'page_obj': page_obj,
         'batches': batches,
         'selected_batch_id': selected_batch_id,
         'search_query': search_query,
@@ -1446,6 +1467,7 @@ def applicant_queue(request):
         'voted_count': voted_count,
         'total_assigned': total_assigned,
         'progress_pct': progress_pct,
+        'status_filter': status_filter,
         'program_type':           '',
         'application_system':     '',
         'filter_first_gen':       '',
