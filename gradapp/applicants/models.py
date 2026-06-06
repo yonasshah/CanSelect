@@ -131,7 +131,30 @@ class Vote(models.Model):
         unique_together = ("applicant", "voter")
 
 class DataSet(models.Model):
+    class ApplicationSystem(models.TextChoices):
+        AADSAS = 'AADSAS', 'AADSAS'
+        CAPID  = 'CAPID',  'CAPID'
+        OTHER  = 'OTHER',  'Other'
+
+    class ProgramType(models.TextChoices):
+        DMD_4YR  = 'DMD_4YR',  '4yr DMD'
+        DMD_3P4  = 'DMD_3P4',  '3+4 DMD'
+        POSTBACC = 'POSTBACC', 'Postbacc'
+        OTHER    = 'OTHER',    'Other'
+        
     DisplayName = models.CharField(max_length=255)
+    application_system = models.CharField(
+        max_length=20,
+        choices=ApplicationSystem.choices,
+        default=ApplicationSystem.OTHER,
+        blank=True,
+    )
+    program_type = models.CharField(
+        max_length=20,
+        choices=ProgramType.choices,
+        default=ProgramType.OTHER,
+        blank=True,
+    )
     Description = models.TextField(blank=True, null=True)
     AdminNotes = models.TextField(blank=True, null=True)
     PublicView = models.BooleanField(default=False)

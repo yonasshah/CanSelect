@@ -34,6 +34,16 @@
           <div class="form-text">Optional external identifier.</div>
         </div>
         <div class="col-md-4">
+          <label for="{{ form.program_type.id_for_label }}" class="form-label">Program Type</label>
+          {{ form.program_type }}
+          <div class="form-text">Used for filtering across the portal.</div>
+        </div>
+        <div class="col-md-4">
+          <label for="{{ form.application_system.id_for_label }}" class="form-label">Application System</label>
+          {{ form.application_system }}
+          <div class="form-text">The application system this dataset belongs to.</div>
+        </div>
+        <div class="col-md-4">
           <label for="{{ form.target_class_size.id_for_label }}" class="form-label">Target Class Size</label>
           {{ form.target_class_size }}
           <div class="form-text">Default cap shown on the Final Decisions page.</div>

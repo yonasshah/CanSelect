@@ -86,6 +86,7 @@
 <div class="card mb-4">
   <div class="card-body py-3">
     <form method="get" id="filter-form">
+      <!-- ── Basic filters ── -->
       <div class="row g-2 align-items-end">
         <div class="col-md-3">
           <label class="form-label small text-muted mb-1">Batch</label>
@@ -102,14 +103,14 @@
           <label class="form-label small text-muted mb-1">Status</label>
           <select name="status" class="form-select form-select-sm">
             <option value="">All Statuses</option>
-            <option value="INTERVIEW" {% if status_filter == 'INTERVIEW' %}selected{% endif %}>Interview</option>
-            <option value="INTERVIEW_COMPLETE" {% if status_filter == 'INTERVIEW_COMPLETE' %}selected{% endif %}>Interview Complete</option>
-            <option value="ACCEPTED" {% if status_filter == 'ACCEPTED' %}selected{% endif %}>Accepted</option>
-            <option value="ACCEPTED_MAILED" {% if status_filter == 'ACCEPTED_MAILED' %}selected{% endif %}>Accepted – Mailed</option>
+            <option value="INTERVIEW"           {% if status_filter == 'INTERVIEW'           %}selected{% endif %}>Interview</option>
+            <option value="INTERVIEW_COMPLETE"  {% if status_filter == 'INTERVIEW_COMPLETE'  %}selected{% endif %}>Interview Complete</option>
+            <option value="ACCEPTED"            {% if status_filter == 'ACCEPTED'            %}selected{% endif %}>Accepted</option>
+            <option value="ACCEPTED_MAILED"     {% if status_filter == 'ACCEPTED_MAILED'     %}selected{% endif %}>Accepted – Mailed</option>
             <option value="ACCEPTED_NOT_MAILED" {% if status_filter == 'ACCEPTED_NOT_MAILED' %}selected{% endif %}>Accepted – Not Mailed</option>
-            <option value="WAITLISTED" {% if status_filter == 'WAITLISTED' %}selected{% endif %}>Waitlisted</option>
-            <option value="REJECTED" {% if status_filter == 'REJECTED' %}selected{% endif %}>Rejected</option>
-            <option value="DECLINED" {% if status_filter == 'DECLINED' %}selected{% endif %}>Candidate Declined</option>
+            <option value="WAITLISTED"          {% if status_filter == 'WAITLISTED'          %}selected{% endif %}>Waitlisted</option>
+            <option value="REJECTED"            {% if status_filter == 'REJECTED'            %}selected{% endif %}>Rejected</option>
+            <option value="DECLINED"            {% if status_filter == 'DECLINED'            %}selected{% endif %}>Candidate Declined</option>
           </select>
         </div>
         <div class="col-md-3">
@@ -135,8 +136,82 @@
             <label class="form-check-label small" for="flagged_only">Flagged only</label>
           </div>
         </div>
+        <div class="col-auto d-flex align-items-center pt-3">
+          <button type="button" class="btn btn-outline-secondary btn-sm"
+                  data-bs-toggle="collapse" data-bs-target="#advanced-filters">
+            <i class="bi bi-sliders me-1"></i>Advanced
+            
+          </button>
+        </div>
         {% endif %}
       </div>
+
+      <!-- ── Advanced filters (admin only) ── -->
+      {% if user.profile.role == 'ADMIN' %}
+      <div class="collapse {% if has_advanced %}show{% endif %} mt-3" id="advanced-filters">
+        <div class="border rounded p-3 bg-light">
+          <div class="row g-3 align-items-end">
+
+            <div class="col-md-3">
+              <label class="form-label small text-muted mb-1">Program Type</label>
+              <select name="program_type" class="form-select form-select-sm">
+                <option value="">All Programs</option>
+                {% for val, label in program_type_choices %}
+                  <option value="{{ val }}" {% if program_type == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label small text-muted mb-1">Application System</label>
+              <select name="application_system" class="form-select form-select-sm">
+                <option value="">All Systems</option>
+                {% for val, label in application_system_choices %}
+                  <option value="{{ val }}" {% if application_system == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            
+
+            <div class="col-md-6">
+              <label class="form-label small text-muted mb-1 d-block">Candidate Flags</label>
+              <div class="d-flex flex-wrap gap-3">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="first_gen" id="f_first_gen"
+                         {% if filter_first_gen %}checked{% endif %}>
+                  <label class="form-check-label small" for="f_first_gen">First Generation</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="re_applicant" id="f_re_applicant"
+                         {% if filter_re_applicant %}checked{% endif %}>
+                  <label class="form-check-label small" for="f_re_applicant">Re-Applicant</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="pb_to_dmd" id="f_pb_to_dmd"
+                         {% if filter_pb_to_dmd %}checked{% endif %}>
+                  <label class="form-check-label small" for="f_pb_to_dmd">PB to DMD</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="former_post_bacc" id="f_former_pb"
+                         {% if filter_former_pb %}checked{% endif %}>
+                  <label class="form-check-label small" for="f_former_pb">Former Post Bacc</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="three_plus_four" id="f_3p4"
+                         {% if filter_three_plus_four %}checked{% endif %}>
+                  <label class="form-check-label small" for="f_3p4">3+4</label>
+                </div>
+              </div>
+            </div>
+
+          </div>
+          <div class="mt-2">
+            <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
     </form>
   </div>
 </div>
@@ -156,7 +231,7 @@
             {% endif %}
             <th style="width:44px;"></th>
             <th>
-              <a href="?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&sort=name&dir={% if sort == 'name' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link text-white">
+              <a href="?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}&sort=name&dir={% if sort == 'name' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link text-white">
                 Name <i class="bi bi-arrow-{% if sort == 'name' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'name' %}active{% endif %}"></i>
               </a>
             </th>
@@ -164,17 +239,17 @@
             <th>Dataset</th>
             <th>Batch</th>
             <th>
-              <a href="?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&sort=status&dir={% if sort == 'status' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link text-white">
+              <a href="?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}&sort=status&dir={% if sort == 'status' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link text-white">
                 Status <i class="bi bi-arrow-{% if sort == 'status' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'status' %}active{% endif %}"></i>
               </a>
             </th>
             <th>
-              <a href="?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&sort=date&dir={% if sort == 'date' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link text-white">
+              <a href="?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}&sort=date&dir={% if sort == 'date' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link text-white">
                 Uploaded <i class="bi bi-arrow-{% if sort == 'date' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'date' %}active{% endif %}"></i>
               </a>
             </th>
             <th class="text-center">
-              <a href="?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&sort=score&dir={% if sort == 'score' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link text-white justify-content-center">
+              <a href="?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}&sort=score&dir={% if sort == 'score' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link text-white justify-content-center">
                 Score / Votes <i class="bi bi-arrow-{% if sort == 'score' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'score' %}active{% endif %}"></i>
               </a>
             </th>
@@ -251,13 +326,13 @@
 <nav class="mt-4">
   <ul class="pagination justify-content-center">
     {% if page_obj.has_previous %}
-      <li class="page-item"><a class="page-link" href="?page=1&batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&sort={{ sort }}&dir={{ direction }}">&laquo; First</a></li>
-      <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&sort={{ sort }}&dir={{ direction }}">Previous</a></li>
+      <li class="page-item"><a class="page-link" href="?page=1&batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&sort={{ sort }}&dir={{ direction }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}">&laquo; First</a></li>
+      <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&sort={{ sort }}&dir={{ direction }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}">Previous</a></li>
     {% endif %}
     <li class="page-item active"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
     {% if page_obj.has_next %}
-      <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&sort={{ sort }}&dir={{ direction }}">Next</a></li>
-      <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}&batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&sort={{ sort }}&dir={{ direction }}">Last &raquo;</a></li>
+      <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&sort={{ sort }}&dir={{ direction }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}">Next</a></li>
+      <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}&batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&sort={{ sort }}&dir={{ direction }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}">Last &raquo;</a></li>
     {% endif %}
   </ul>
 </nav>

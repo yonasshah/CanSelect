@@ -39,11 +39,25 @@ def email_login(request):
 def applicant_list(request):
     batches = Batch.objects.all()
     selected_batch_id = request.GET.get('batch')
-    search_query = request.GET.get('q', '')
-    status_filter = request.GET.get('status', '')
-    flagged_only = request.GET.get('flagged_only', '')
-    sort = request.GET.get('sort', 'date')
-    direction = request.GET.get('dir', 'desc')
+    search_query      = request.GET.get('q', '')
+    status_filter     = request.GET.get('status', '')
+    flagged_only      = request.GET.get('flagged_only', '')
+    sort              = request.GET.get('sort', 'date')
+    direction         = request.GET.get('dir', 'desc')
+    program_type      = request.GET.get('program_type', '')
+    application_system  = request.GET.get('application_system', '')
+
+    # ── Candidate-info boolean filters ──────────────────────────────
+    filter_first_gen      = request.GET.get('first_gen', '')
+    filter_re_applicant   = request.GET.get('re_applicant', '')
+    filter_pb_to_dmd      = request.GET.get('pb_to_dmd', '')
+    filter_former_pb      = request.GET.get('former_post_bacc', '')
+    filter_three_plus_four = request.GET.get('three_plus_four', '')
+
+    has_advanced = any([
+        program_type, application_system, filter_first_gen, filter_re_applicant,
+        filter_pb_to_dmd, filter_former_pb, filter_three_plus_four,
+    ])
 
     user_has_voted_subquery = Vote.objects.filter(
         applicant=OuterRef('pk'),
@@ -71,11 +85,28 @@ def applicant_list(request):
     if flagged_only:
         applicants_list = applicants_list.filter(flagged_by__isnull=False).distinct()
 
+    if application_system:
+        applicants_list = applicants_list.filter(dataset__application_system=application_system)
+        
+    if program_type:
+        applicants_list = applicants_list.filter(dataset__program_type=program_type)
+
+    if filter_first_gen:
+        applicants_list = applicants_list.filter(first_gen=True)
+    if filter_re_applicant:
+        applicants_list = applicants_list.filter(re_applicant=True)
+    if filter_pb_to_dmd:
+        applicants_list = applicants_list.filter(pb_to_dmd=True)
+    if filter_former_pb:
+        applicants_list = applicants_list.filter(former_post_bacc=True)
+    if filter_three_plus_four:
+        applicants_list = applicants_list.filter(three_plus_four=True)
+
     sort_map = {
-        'name': 'last_name',
+        'name':   'last_name',
         'status': 'status',
-        'date': 'created_at',
-        'score': 'avg_score',
+        'date':   'created_at',
+        'score':  'avg_score',
     }
     order_field = sort_map.get(sort, 'created_at')
     if direction == 'asc':
@@ -87,16 +118,31 @@ def applicant_list(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
+    # ── Progress bar reflects filtered queryset ──────────────────────
+    # For the queue progress strip: count against filtered set when
+    # filters are active, otherwise all assigned.
+    total_filtered = paginator.count
+
     context = {
-        'page_obj': page_obj,
-        'paginator_count': paginator.count,
-        'batches': batches,
-        'selected_batch_id': selected_batch_id,
-        'search_query': search_query,
-        'status_filter': status_filter,
-        'flagged_only': flagged_only,
-        'sort': sort,
-        'direction': direction,
+        'page_obj':            page_obj,
+        'paginator_count':     total_filtered,
+        'batches':             batches,
+        'selected_batch_id':   selected_batch_id,
+        'search_query':        search_query,
+        'status_filter':       status_filter,
+        'flagged_only':        flagged_only,
+        'sort':                sort,
+        'direction':           direction,
+        'program_type':        program_type,
+        'application_system':    application_system,
+        'filter_first_gen':       filter_first_gen,
+        'filter_re_applicant':    filter_re_applicant,
+        'filter_pb_to_dmd':       filter_pb_to_dmd,
+        'filter_former_pb':       filter_former_pb,
+        'filter_three_plus_four': filter_three_plus_four,
+        'has_advanced':        has_advanced,
+        'program_type_choices': DataSet.ProgramType.choices,
+        'application_system_choices': DataSet.ApplicationSystem.choices,
     }
     return render(request, 'applicant_list.html', context)
 
@@ -1176,6 +1222,16 @@ def applicant_queue(request):
         'voted_count': voted_count,
         'total_assigned': total_assigned,
         'progress_pct': progress_pct,
+        'program_type':           '',
+        'application_system':     '',
+        'filter_first_gen':       '',
+        'filter_re_applicant':    '',
+        'filter_pb_to_dmd':       '',
+        'filter_former_pb':       '',
+        'filter_three_plus_four': '',
+        'has_advanced':           False,
+        'program_type_choices':   DataSet.ProgramType.choices,
+        'application_system_choices': DataSet.ApplicationSystem.choices,
     }
     return render(request, "applicant_list.html", context)
 
