@@ -20,7 +20,7 @@ import re
 from .decorators import admin_required
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
-from .models import Activity, Applicant, ApplicantFile, Notification, NotificationAttachment, Score, Vote, DataSet, Batch, Flag
+from .models import Activity, Applicant, ApplicantFile, Notification, NotificationAttachment, Score, Vote, DataSet, Batch, Flag, Comment
 from .forms import ApplicantForm, ApplicantStatusForm, BatchAssignmentForm, BulkUploadForm, ReviewerGroupForm, SendNotificationForm, UploadManyFilesForm, EmailLoginForm,DataSetForm, BatchForm, CommentForm, ScoreForm
 
 def email_login(request):
@@ -1513,7 +1513,167 @@ def batch_action(request):
             messages.error(request, "No valid action selected.")
 
     return redirect('applicant_list')
+@login_required
+@admin_required
+def global_search(request):
+    query = request.GET.get('q', '').strip()
+    dataset_id = request.GET.get('dataset', '')
+    batch_id = request.GET.get('batch', '')
+    status_filter = request.GET.get('status', '')
+    reviewer_id = request.GET.get('reviewer', '')
+    vote_value = request.GET.get('vote_value', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
 
+    has_filters = any([query, dataset_id, batch_id, status_filter, reviewer_id, vote_value, date_from, date_to])
+
+    candidates = comments = flags = votes = batches = datasets = None
+
+    if has_filters:
+        # ── Candidates ────────────────────────────────────────────────
+        candidates = Applicant.objects.select_related('dataset', 'round').annotate(
+            avg_score=Avg('scores__overall_score'),
+            accept_ct=Count('votes', filter=Q(votes__value=1),  distinct=True),
+            deny_ct=Count('votes',   filter=Q(votes__value=-1), distinct=True),
+            wait_ct=Count('votes',   filter=Q(votes__value=0),  distinct=True),
+        )
+        if query:
+            candidates = candidates.filter(
+                Q(first_name__icontains=query) |
+                Q(last_name__icontains=query) |
+                Q(email__icontains=query) |
+                Q(external_id__icontains=query)
+            )
+        if dataset_id:
+            candidates = candidates.filter(dataset_id=dataset_id)
+        if batch_id:
+            candidates = candidates.filter(round_id=batch_id)
+        if status_filter:
+            candidates = candidates.filter(status=status_filter)
+        candidates = candidates.order_by('last_name', 'first_name')[:50]
+
+        # ── Comments ──────────────────────────────────────────────────
+        comments = Comment.objects.select_related('author', 'applicant', 'applicant__dataset', 'applicant__round')
+        if query:
+            comments = comments.filter(
+                Q(text__icontains=query) |
+                Q(author__username__icontains=query) |
+                Q(author__first_name__icontains=query) |
+                Q(author__last_name__icontains=query)
+            )
+        if dataset_id:
+            comments = comments.filter(applicant__dataset_id=dataset_id)
+        if batch_id:
+            comments = comments.filter(applicant__round_id=batch_id)
+        if reviewer_id:
+            comments = comments.filter(author_id=reviewer_id)
+        if date_from:
+            comments = comments.filter(created_at__date__gte=date_from)
+        if date_to:
+            comments = comments.filter(created_at__date__lte=date_to)
+        comments = comments.order_by('-created_at')[:50]
+
+        # ── Flags ─────────────────────────────────────────────────────
+        flags = Flag.objects.select_related('user', 'applicant', 'applicant__dataset', 'applicant__round')
+        if query:
+            flags = flags.filter(
+                Q(comment__icontains=query) |
+                Q(user__username__icontains=query) |
+                Q(applicant__first_name__icontains=query) |
+                Q(applicant__last_name__icontains=query)
+            )
+        if dataset_id:
+            flags = flags.filter(applicant__dataset_id=dataset_id)
+        if batch_id:
+            flags = flags.filter(applicant__round_id=batch_id)
+        if reviewer_id:
+            flags = flags.filter(user_id=reviewer_id)
+        if date_from:
+            flags = flags.filter(created_at__date__gte=date_from)
+        if date_to:
+            flags = flags.filter(created_at__date__lte=date_to)
+        flags = flags.order_by('-created_at')[:50]
+
+        # ── Votes ─────────────────────────────────────────────────────
+        votes = Vote.objects.select_related('voter', 'applicant', 'applicant__dataset', 'applicant__round')
+        if query:
+            votes = votes.filter(
+                Q(voter__username__icontains=query) |
+                Q(voter__first_name__icontains=query) |
+                Q(voter__last_name__icontains=query) |
+                Q(applicant__first_name__icontains=query) |
+                Q(applicant__last_name__icontains=query) |
+                Q(applicant__external_id__icontains=query)
+            )
+        if dataset_id:
+            votes = votes.filter(applicant__dataset_id=dataset_id)
+        if batch_id:
+            votes = votes.filter(applicant__round_id=batch_id)
+        if reviewer_id:
+            votes = votes.filter(voter_id=reviewer_id)
+        if vote_value != '':
+            votes = votes.filter(value=vote_value)
+        if date_from:
+            votes = votes.filter(created_at__date__gte=date_from)
+        if date_to:
+            votes = votes.filter(created_at__date__lte=date_to)
+        votes = votes.order_by('-created_at')[:50]
+
+        # ── Batches ───────────────────────────────────────────────────
+        batches_qs = Batch.objects.select_related('DataSet').annotate(
+            applicant_count=Count('applicant', distinct=True),
+        )
+        if query:
+            batches_qs = batches_qs.filter(
+                Q(DisplayName__icontains=query) |
+                Q(DataSet__DisplayName__icontains=query)
+            )
+        if dataset_id:
+            batches_qs = batches_qs.filter(DataSet_id=dataset_id)
+        batches_qs = batches_qs.order_by('DataSet__DisplayName', 'DisplayName')[:50]
+
+        # ── Datasets ──────────────────────────────────────────────────
+        datasets = DataSet.objects.annotate(
+            applicant_count=Count('applicants', distinct=True),
+            batch_count=Count('batches', distinct=True),
+        )
+        if query:
+            datasets = datasets.filter(
+                Q(DisplayName__icontains=query) |
+                Q(Description__icontains=query)
+            )
+        datasets = datasets.order_by('DisplayName')[:20]
+
+    else:
+        batches_qs = Batch.objects.none()
+
+    all_datasets = DataSet.objects.filter(Active=True).order_by('DisplayName')
+    all_batches = Batch.objects.select_related('DataSet').order_by('DataSet__DisplayName', 'DisplayName')
+    all_reviewers = User.objects.filter(profile__role='COMMITTEE_MEMBER').order_by('username')
+
+    return render(request, 'global_search.html', {
+        'query': query,
+        'dataset_id': dataset_id,
+        'batch_id': batch_id,
+        'status_filter': status_filter,
+        'reviewer_id': reviewer_id,
+        'vote_value': vote_value,
+        'date_from': date_from,
+        'date_to': date_to,
+        'has_filters': has_filters,
+        'candidates': candidates,
+        'comments': comments,
+        'flags': flags,
+        'votes': votes,
+        'batches': batches_qs,
+        'datasets': datasets,
+        'all_datasets': all_datasets,
+        'all_batches': all_batches,
+        'all_reviewers': all_reviewers,
+        'status_choices': Applicant.Status.choices,
+        'vote_choices': Vote.VOTE_CHOICES,
+    })
+    
 @login_required
 @admin_required
 def batch_assign_reviewers(request, pk):

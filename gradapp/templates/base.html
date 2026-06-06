@@ -417,6 +417,9 @@
         <li><hr class="dropdown-divider"></li>
         <li><a class="dropdown-item {% if request.resolver_match.url_name == 'activity_feed' %}active{% endif %}" href="{% url 'activity_feed' %}">
           <i class="bi bi-clock-history me-2"></i>Activity Feed</a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item {% if request.resolver_match.url_name == 'global_search' %}active{% endif %}" href="{% url 'global_search' %}">
+          <i class="bi bi-search me-2"></i>Global Search</a></li>
       </ul>
     </li>
     <li class="nav-item">
