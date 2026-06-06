@@ -19,7 +19,7 @@ import re
 from .decorators import admin_required
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
-from .models import Activity, Applicant, ApplicantFile, Notification, NotificationAttachment, Score, Vote, DataSet, Batch
+from .models import Activity, Applicant, ApplicantFile, Notification, NotificationAttachment, Score, Vote, DataSet, Batch, Flag
 from .forms import ApplicantForm, ApplicantStatusForm, BatchAssignmentForm, BulkUploadForm, ReviewerGroupForm, SendNotificationForm, UploadManyFilesForm, EmailLoginForm,DataSetForm, BatchForm, CommentForm, ScoreForm
 
 def email_login(request):
@@ -282,6 +282,11 @@ def applicant_detail(request, pk):
         back_url = f'/applicant/?batch={batch_id or ""}&q={search_q}'
     else:
         back_url = '/applicant/'
+        
+    if request.user.profile.role == 'ADMIN':
+        flags = applicant.flags.select_related('user').all()
+    else:
+        flags = applicant.flags.filter(user=request.user).select_related('user')
 
     context = {
         'applicant': applicant,
@@ -303,6 +308,7 @@ def applicant_detail(request, pk):
         'nav_params': nav_params,
         'back_url': back_url,
         'v_options': v_options,
+        'flags': flags,
     }
     return render(request, "applicant_detail.html", context)
 
@@ -1143,7 +1149,7 @@ def dashboard(request):
     recent_activities = []
     if request.user.profile.role == 'ADMIN':
         recent_activities = Activity.objects.filter(
-            action_type__in=[Activity.VOTE_CAST, Activity.COMMENT_ADDED, Activity.DECISION_MADE]
+            action_type__in=[Activity.VOTE_CAST, Activity.COMMENT_ADDED, Activity.DECISION_MADE, Activity.FLAG_ADDED]
         ).select_related('actor', 'target_applicant')[:7]
 
     # --- 4. Run queries for charts *using the filtered applicants_qs* ---
@@ -1289,8 +1295,14 @@ def export_applicants_csv(request):
 @admin_required
 def activity_feed(request):
     activities = Activity.objects.filter(
-        action_type__in=[Activity.VOTE_CAST, Activity.COMMENT_ADDED, Activity.DECISION_MADE]
-    ).select_related('actor', 'target_applicant')[:50]
+        action_type__in=[
+            Activity.VOTE_CAST,
+            Activity.COMMENT_ADDED,
+            Activity.DECISION_MADE,
+            Activity.FLAG_ADDED,
+        ]
+    ).select_related('actor', 'target_applicant').order_by('-created_at')[:50]
+
     context = {
         'activities': activities
     }
@@ -1330,8 +1342,9 @@ def applicant_queue(request):
     
     # Total applicants the user has already voted for in those batches
     voted_count = Vote.objects.filter(
-        voter=request.user, 
-        applicant__round__in=batches
+        voter=request.user,
+        applicant__round__in=batches,
+        value__in=[1, -1],
     ).count()
 
     # Calculate percentage (prevent division by zero)
@@ -1346,7 +1359,8 @@ def applicant_queue(request):
     applicants_list = Applicant.objects.filter(
         round__in=batches
     ).exclude( 
-        votes__voter=request.user
+        votes__voter=request.user,
+        votes__value__in=[1, -1],
     ).select_related('dataset', 'round').annotate( 
         avg_score=Avg('scores__overall_score'),
         user_has_voted=Exists(user_has_voted_subquery)
@@ -1407,6 +1421,15 @@ def batch_action(request):
         elif action == 'set_status_interview_complete':
             count = queryset.update(status=Applicant.Status.INTERVIEW_COMPLETE)
             messages.success(request, f"Updated {count} applicants to 'Interview Complete'.")
+        elif action == 'set_status_accepted':
+            count = queryset.update(status=Applicant.Status.ACCEPTED)
+            messages.success(request, f"Updated {count} applicants to 'Accepted'.")
+        elif action == 'set_status_waitlisted':
+            count = queryset.update(status=Applicant.Status.WAITLISTED)
+            messages.success(request, f"Updated {count} applicants to 'Waitlisted'.")
+        elif action == 'set_status_rejected':
+            count = queryset.update(status=Applicant.Status.REJECTED)
+            messages.success(request, f"Updated {count} applicants to 'Rejected'.")
         else:
             messages.error(request, "No valid action selected.")
 
@@ -1440,13 +1463,15 @@ def batch_assign_reviewers(request, pk):
     }
     return render(request, 'batch_assign_reviewers.html', context)
 
-@login_required
+
 @require_POST
+@login_required
 def toggle_applicant_flag(request, pk):
     applicant = get_object_or_404(Applicant, pk=pk)
-    
-    # Admins can clear every reviewer's flag on this candidate.
+
+    # Admin: clear all flags
     if request.POST.get('clear_all') and request.user.profile.role == 'ADMIN':
+        applicant.flags.all().delete()
         applicant.flagged_by.clear()
         Activity.objects.create(
             actor=request.user,
@@ -1454,27 +1479,37 @@ def toggle_applicant_flag(request, pk):
             details="cleared all flags on",
             target_applicant=applicant,
         )
-        messages.success(request, "All flags cleared for this candidate.")
+        messages.success(request, "All flags cleared.")
         return redirect('applicant_detail', pk=applicant.pk)
 
-    if request.user in applicant.flagged_by.all():
+    existing_flag = Flag.objects.filter(applicant=applicant, user=request.user).first()
+
+    if existing_flag:
+        # Unflag
+        existing_flag.delete()
         applicant.flagged_by.remove(request.user)
         Activity.objects.create(
             actor=request.user,
             action_type=Activity.FLAG_ADDED,
-            details="unflagged",
-            target_applicant=applicant
+            details="removed their flag on",
+            target_applicant=applicant,
         )
-        messages.success(request, "Your flag has been removed.")
+        messages.success(request, "Flag removed.")
     else:
+        # Flag — require comment
+        comment = request.POST.get('flag_comment', '').strip()
+        if len(comment) < 10:
+            messages.error(request, "Please provide a reason (at least 10 characters).")
+            return redirect('applicant_detail', pk=applicant.pk)
+        Flag.objects.create(applicant=applicant, user=request.user, comment=comment)
         applicant.flagged_by.add(request.user)
         Activity.objects.create(
             actor=request.user,
             action_type=Activity.FLAG_ADDED,
-            details="flagged",
-            target_applicant=applicant
+            details=f"flagged: {comment[:80]}",
+            target_applicant=applicant,
         )
-        messages.success(request, f"You flagged {applicant.first_name} for discussion.")
+        messages.success(request, "Candidate flagged for discussion.")
 
     return redirect('applicant_detail', pk=applicant.pk)
 
@@ -2151,6 +2186,15 @@ def batch_bulk_action(request):
         elif action == 'set_status_interview_complete':
             count = Applicant.objects.filter(round_id__in=batch_ids).update(status=Applicant.Status.INTERVIEW_COMPLETE)
             messages.success(request, f"Updated {count} applicants to 'Interview Complete'.")
+        elif action == 'set_status_accepted':
+            count = Applicant.objects.filter(round_id__in=batch_ids).update(status=Applicant.Status.ACCEPTED)
+            messages.success(request, f"Updated {count} applicants to 'Accepted'.")
+        elif action == 'set_status_waitlisted':
+            count = Applicant.objects.filter(round_id__in=batch_ids).update(status=Applicant.Status.WAITLISTED)
+            messages.success(request, f"Updated {count} applicants to 'Waitlisted'.")
+        elif action == 'set_status_rejected':
+            count = Applicant.objects.filter(round_id__in=batch_ids).update(status=Applicant.Status.REJECTED)
+            messages.success(request, f"Updated {count} applicants to 'Rejected'.")
         else:
             messages.error(request, "No valid action selected.")
             

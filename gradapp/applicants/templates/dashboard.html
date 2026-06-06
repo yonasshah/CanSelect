@@ -133,6 +133,8 @@
                             <i class="bi bi-chat-dots-fill me-2 text-info"></i>
                         {% elif activity.action_type == 'decision_made' %}
                             <i class="bi bi-check2-square me-2 text-success"></i>
+                        {% elif activity.action_type == 'flag_added' %}
+                            <i class="bi bi-flag-fill me-2 text-danger"></i>
                         {% endif %}
                         <strong>{{ activity.actor.username }}</strong>
                         {{ activity.details }}

@@ -356,7 +356,7 @@
               </a>
             </td>
             <td>
-              {% include "partials/status_badge.html" with status=a.status display=a.get_status_display size="0.7rem" %}
+              {% include "partials/status_badge.html" with applicant=a size="0.7rem" %}
             </td>
             <td class="text-center">
               {% if a.avg_score %}

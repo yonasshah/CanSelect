@@ -257,7 +257,7 @@
                 </a>
               </td>
               <td>
-                {% include "partials/status_badge.html" with status=a.status display=a.get_status_display %}
+                {% include "partials/status_badge.html" with applicant=a %}
               </td>
               <td class="text-center">
                 {% with votes=a.votes_summary %}
@@ -305,7 +305,7 @@
               </a>
             </td>
             <td>
-              {% include "partials/status_badge.html" with status=a.status display=a.get_status_display %}
+              {% include "partials/status_badge.html" with applicant=a %}
             </td>
             <td class="text-center">
               {% with votes=a.votes_summary %}

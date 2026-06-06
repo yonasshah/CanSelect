@@ -40,6 +40,9 @@
           <option value="">Batch Action...</option>
           <option value="set_status_interview">Set: Interview</option>
           <option value="set_status_interview_complete">Set: Interview Complete</option>
+          <option value="set_status_accepted">Set: Accepted</option>
+          <option value="set_status_waitlisted">Set: Waitlisted</option>
+          <option value="set_status_rejected">Set: Rejected</option>
         </select>
         <button type="submit" class="btn btn-primary btn-sm" form="batch-form">Apply</button>
       </div>
@@ -285,7 +288,7 @@
             <td class="text-muted small">{{ a.dataset.DisplayName|default:"—" }}</td>
             <td class="text-muted small">{{ a.round.DisplayName|default:"—" }}</td>
             <td>
-              {% include "partials/status_badge.html" with status=a.status display=a.get_status_display %}
+              {% include "partials/status_badge.html" with applicant=a %}
             </td>
             <td class="text-muted small">{{ a.created_at|date:"M d, Y" }}</td>
             <td class="text-center">

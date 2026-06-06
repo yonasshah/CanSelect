@@ -1,20 +1,53 @@
 {% comment %}
-  Reusable, self-contained status badge — no page-specific CSS required.
-
-  Usage:
-    {% include "partials/status_badge.html" with status=a.status display=a.get_status_display %}
-
-  Optional params:
-    extra_class="fs-6"    → extra CSS classes on the badge (e.g. sizing)
-    size="0.7rem"         → sets font-size inline
+  Params: applicant (required), extra_class (optional), size (optional)
+  Committee members see Interview / Interview Complete / Decision Made only.
+  Admins see the full 8-status set.
 {% endcomment %}
-<span class="badge {{ extra_class }}
-  {% if status == 'INTERVIEW' %}bg-primary
-  {% elif status == 'INTERVIEW_COMPLETE' %}bg-info text-dark
-  {% elif status == 'ACCEPTED' %}bg-success
-  {% elif status == 'ACCEPTED_MAILED' %}bg-success
-  {% elif status == 'ACCEPTED_NOT_MAILED' %}bg-success
-  {% elif status == 'WAITLISTED' %}bg-warning text-dark
-  {% elif status == 'REJECTED' %}bg-danger
-  {% elif status == 'DECLINED' %}bg-dark
-  {% else %}bg-secondary{% endif %}"{% if size %} style="font-size:{{ size }};"{% endif %}>{{ display }}</span>
+{% with s=applicant.status %}
+
+{% if request.user.profile.role != 'ADMIN' %}
+  {# ── Committee member view ── #}
+  {% if s == 'INTERVIEW' %}
+    <span class="badge bg-primary {{ extra_class|default:'' }}"
+          {% if size %}style="font-size:{{ size }}"{% endif %}>Interview</span>
+  {% elif s == 'INTERVIEW_COMPLETE' %}
+    <span class="badge bg-info text-dark {{ extra_class|default:'' }}"
+          {% if size %}style="font-size:{{ size }}"{% endif %}>Interview Complete</span>
+  {% else %}
+    <span class="badge bg-secondary {{ extra_class|default:'' }}"
+          {% if size %}style="font-size:{{ size }}"{% endif %}>Decision Made</span>
+  {% endif %}
+
+{% else %}
+  {# ── Admin view — full status set ── #}
+  {% if s == 'INTERVIEW' %}
+    <span class="badge bg-primary {{ extra_class|default:'' }}"
+          {% if size %}style="font-size:{{ size }}"{% endif %}>Interview</span>
+  {% elif s == 'INTERVIEW_COMPLETE' %}
+    <span class="badge bg-info text-dark {{ extra_class|default:'' }}"
+          {% if size %}style="font-size:{{ size }}"{% endif %}>Interview Complete</span>
+  {% elif s == 'ACCEPTED' %}
+    <span class="badge bg-success {{ extra_class|default:'' }}"
+          {% if size %}style="font-size:{{ size }}"{% endif %}>Accepted</span>
+  {% elif s == 'ACCEPTED_MAILED' %}
+    <span class="badge bg-success {{ extra_class|default:'' }}"
+          {% if size %}style="font-size:{{ size }}"{% endif %}>Accepted – Mailed</span>
+  {% elif s == 'ACCEPTED_NOT_MAILED' %}
+    <span class="badge bg-warning text-dark {{ extra_class|default:'' }}"
+          {% if size %}style="font-size:{{ size }}"{% endif %}>Accepted – Not Mailed</span>
+  {% elif s == 'WAITLISTED' %}
+    <span class="badge bg-warning text-dark {{ extra_class|default:'' }}"
+          {% if size %}style="font-size:{{ size }}"{% endif %}>Waitlisted</span>
+  {% elif s == 'REJECTED' %}
+    <span class="badge bg-danger {{ extra_class|default:'' }}"
+          {% if size %}style="font-size:{{ size }}"{% endif %}>Rejected</span>
+  {% elif s == 'DECLINED' %}
+    <span class="badge bg-dark {{ extra_class|default:'' }}"
+          {% if size %}style="font-size:{{ size }}"{% endif %}>Candidate Declined</span>
+  {% else %}
+    <span class="badge bg-secondary {{ extra_class|default:'' }}"
+          {% if size %}style="font-size:{{ size }}"{% endif %}>{{ applicant.get_status_display }}</span>
+  {% endif %}
+{% endif %}
+
+{% endwith %}

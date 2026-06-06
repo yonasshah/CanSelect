@@ -115,7 +115,19 @@ class ApplicantFile(models.Model):
         except:
             # If there's any error, safely assume it's not a video
             return False
+class Flag(models.Model):
+    applicant = models.ForeignKey(Applicant, on_delete=models.CASCADE, related_name='flags')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='flags')
+    comment = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        unique_together = ('applicant', 'user')  # one flag per user per applicant
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} flagged {self.applicant} — {self.comment[:40]}"
+    
 class Vote(models.Model):
     VOTE_CHOICES = (
         (1, "Accept"),

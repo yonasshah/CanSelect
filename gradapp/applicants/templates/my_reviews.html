@@ -72,9 +72,9 @@
           <td class="text-center">
             {% if review.vote %}
               {% if review.vote.value == 1 %}
-                <span class="badge bg-success">Accept</span>
+                <span class="badge bg-success">Yes</span>
               {% elif review.vote.value == -1 %}
-                <span class="badge bg-danger">Deny</span>
+                <span class="badge bg-danger">No</span>
               {% elif review.vote.value == 0 %}
                 <span class="badge bg-warning text-dark">Waitlist</span>
               {% endif %}
