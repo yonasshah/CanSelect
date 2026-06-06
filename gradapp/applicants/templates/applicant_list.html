@@ -274,8 +274,13 @@
               {% endif %}
             </td>
             <td>
+              {% if is_queue_page %}
+              <a href="{% url 'applicant_detail' a.pk %}?queue=1&batch={{ a.round.pk }}"
+                class="candidate-name">
+              {% else %}
               <a href="{% url 'applicant_detail' a.pk %}?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}"
-                 class="candidate-name">
+                class="candidate-name">
+              {% endif %}
                 {{ a.last_name }}, {{ a.first_name }}
               </a>
               {% if request.user in a.flagged_by.all or user.profile.role == 'ADMIN' and a.flagged_by.exists %}

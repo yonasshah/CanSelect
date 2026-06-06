@@ -186,7 +186,6 @@ def applicant_detail(request, pk):
 
     all_files = applicant.files.all()
     
-    # Categorize files into organized sections
     video_files = []
     application_docs = []
     evaluation_docs = []
@@ -213,6 +212,7 @@ def applicant_detail(request, pk):
     from_reviews = request.GET.get('from') == 'reviews'
     from_batch   = request.GET.get('from') == 'batch'
     batch_pk     = request.GET.get('batch_pk')
+    queue_complete = request.GET.get('queue_complete') == '1'
 
     if from_reviews:
         assigned_batches = request.user.assigned_batches.all()
@@ -230,7 +230,9 @@ def applicant_detail(request, pk):
         nav_qs = Applicant.objects.filter(
             round__in=user_batches
         ).exclude(
-            votes__voter=request.user
+            Q(votes__voter=request.user) &
+            Q(votes__value__in=[1, -1]) &
+            ~Q(pk=pk)
         ).order_by('-created_at')
 
     else:
@@ -257,14 +259,17 @@ def applicant_detail(request, pk):
         if idx < len(nav_ids) - 1:
             next_applicant = Applicant.objects.get(pk=nav_ids[idx + 1])
 
-    # Build nav params to carry forward
+    # ── Nav params ────────────────────────────────────────────────────────────
     nav_params_parts = []
     if from_reviews:
         nav_params_parts.append('from=reviews')
     elif from_batch and batch_pk:
         nav_params_parts.append(f'from=batch&batch_pk={batch_pk}')
     elif from_queue:
-        nav_params_parts.append('queue=1')
+        if batch_id:
+            nav_params_parts.append(f'queue=1&batch={batch_id}')
+        else:
+            nav_params_parts.append('queue=1')
     else:
         if batch_id:
             nav_params_parts.append(f'batch={batch_id}')
@@ -272,7 +277,7 @@ def applicant_detail(request, pk):
             nav_params_parts.append(f'q={search_q}')
     nav_params = '&'.join(nav_params_parts)
 
-    # Back URL
+    # ── Back URL ──────────────────────────────────────────────────────────────
     if from_reviews:
         back_url = '/committee/reviews/'
     elif from_batch and batch_pk:
@@ -283,7 +288,26 @@ def applicant_detail(request, pk):
         back_url = f'/applicant/?batch={batch_id or ""}&q={search_q}'
     else:
         back_url = '/applicant/'
-        
+
+    # ── Batch completion card ─────────────────────────────────────────────────
+    batch_completion = None
+    if queue_complete and batch_id:
+        try:
+            completed_batch = Batch.objects.get(pk=batch_id)
+            user_votes = Vote.objects.filter(
+                voter=request.user,
+                applicant__round=completed_batch,
+            )
+            batch_completion = {
+                'batch': completed_batch,
+                'accept': user_votes.filter(value=1).count(),
+                'deny': user_votes.filter(value=-1).count(),
+                'waitlist': user_votes.filter(value=0).count(),
+                'total': user_votes.count(),
+            }
+        except Batch.DoesNotExist:
+            pass
+
     if request.user.profile.role == 'ADMIN':
         flags = applicant.flags.select_related('user').all()
     else:
@@ -310,6 +334,7 @@ def applicant_detail(request, pk):
         'back_url': back_url,
         'v_options': v_options,
         'flags': flags,
+        'batch_completion': batch_completion,
     }
     return render(request, "applicant_detail.html", context)
 
@@ -355,16 +380,29 @@ def vote(request, pk, value):
         
         next_id = request.POST.get('next_id')
         nav_params = request.POST.get('nav_params', '')
+        print(f"DEBUG vote: next_id={next_id!r}, nav_params={nav_params!r}")
         
         if next_id and next_id != 'None':
-            # Create a clickable banner to advance
             link = f'<a href="/applicant/{next_id}/?{nav_params}" class="alert-link ms-2">Go to Next Candidate &raquo;</a>'
             messages.success(request, mark_safe(f"Vote recorded for {applicant.first_name}. {link}"))
         else:
-            back_url = request.POST.get('back_url', '/applicant/')
-            link = f'<a href="{back_url}" class="alert-link ms-2">Return to List</a>'
-            messages.success(request, mark_safe(f"Vote recorded. End of queue. {link}"))
-            
+            is_queue = 'queue=1' in nav_params
+            batch_id_from_nav = None
+            if is_queue:
+                import urllib.parse
+                params = dict(urllib.parse.parse_qsl(nav_params))
+                batch_id_from_nav = params.get('batch')
+
+            if is_queue and batch_id_from_nav:
+                return redirect(f'/applicant/{pk}/?queue=1&batch={batch_id_from_nav}&queue_complete=1')
+            else:
+                back_url = request.POST.get('back_url', '/applicant/')
+                link = f'<a href="{back_url}" class="alert-link ms-2">Return to List</a>'
+                messages.success(request, mark_safe(f"Vote recorded. End of queue. {link}"))
+
+        # Always redirect back with nav_params preserved
+        return redirect(f'/applicant/{pk}/?{nav_params}')
+    
     return redirect('applicant_detail', pk=pk)
 
 @login_required
