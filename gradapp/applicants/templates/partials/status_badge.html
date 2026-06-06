@@ -1,20 +1,20 @@
 {% comment %}
-  Reusable status badge.
-  Usage: {% include "partials/status_badge.html" with status=a.status display=a.get_status_display %}
+  Reusable, self-contained status badge — no page-specific CSS required.
+
+  Usage:
+    {% include "partials/status_badge.html" with status=a.status display=a.get_status_display %}
+
+  Optional params:
+    extra_class="fs-6"    → extra CSS classes on the badge (e.g. sizing)
+    size="0.7rem"         → sets font-size inline
 {% endcomment %}
-{% if status == 'ACCEPTED' %}
-  <span class="status-accepted"><i class="bi bi-check-circle-fill me-1"></i>Accepted</span>
-{% elif status == 'REJECTED' %}
-  <span class="status-rejected"><i class="bi bi-x-circle-fill me-1"></i>Rejected</span>
-{% elif status == 'WAITLISTED' %}
-  <span class="status-waitlisted"><i class="bi bi-pause-circle-fill me-1"></i>Waitlisted</span>
-{% else %}
-  <span class="badge
-    {% if status == 'NEW' %}bg-secondary
-    {% elif status == 'REVIEW' %}bg-primary
-    {% elif status == 'INTERVIEW' %}bg-info text-dark
-    {% elif status == 'DECIDED' %}bg-dark
-    {% endif %}">
-    {{ display }}
-  </span>
-{% endif %}
+<span class="badge {{ extra_class }}
+  {% if status == 'INTERVIEW' %}bg-primary
+  {% elif status == 'INTERVIEW_COMPLETE' %}bg-info text-dark
+  {% elif status == 'ACCEPTED' %}bg-success
+  {% elif status == 'ACCEPTED_MAILED' %}bg-success
+  {% elif status == 'ACCEPTED_NOT_MAILED' %}bg-success
+  {% elif status == 'WAITLISTED' %}bg-warning text-dark
+  {% elif status == 'REJECTED' %}bg-danger
+  {% elif status == 'DECLINED' %}bg-dark
+  {% else %}bg-secondary{% endif %}"{% if size %} style="font-size:{{ size }};"{% endif %}>{{ display }}</span>

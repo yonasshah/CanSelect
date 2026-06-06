@@ -142,10 +142,6 @@
             <div class="text-muted small mb-1">Gender</div>
             <div>{{ applicant.gender|default:"—" }}</div>
           </div>
-          <div class="col-md-4">
-            <div class="text-muted small mb-1">Ethnicity</div>
-            <div>{{ applicant.ethnicity|default:"—" }}</div>
-          </div>
           {% if applicant.description %}
           <div class="col-12">
             <div class="text-muted small mb-1">Description</div>
@@ -159,17 +155,7 @@
           <div class="col-md-6">
             <div class="text-muted small mb-1">Status</div>
             <div>
-              <span class="badge fs-6
-                {% if applicant.status == 'NEW' %}bg-secondary
-                {% elif applicant.status == 'REVIEW' %}bg-primary
-                {% elif applicant.status == 'INTERVIEW' %}bg-info text-dark
-                {% elif applicant.status == 'DECIDED' %}bg-success
-                {% elif applicant.status == 'ACCEPTED' %}bg-success
-                {% elif applicant.status == 'REJECTED' %}bg-danger
-                {% elif applicant.status == 'WAITLISTED' %}bg-warning text-dark
-                {% endif %}">
-                {{ applicant.get_status_display }}
-              </span>
+              {% include "partials/status_badge.html" with status=applicant.status display=applicant.get_status_display extra_class="fs-6" %}
             </div>
           </div>
         </div>
@@ -686,6 +672,16 @@
               </button>
             {% endif %}
           </form>
+          {% if user.profile.role == 'ADMIN' and applicant.flagged_by.exists %}
+          <form action="{% url 'toggle_applicant_flag' applicant.pk %}" method="post" class="mt-2">
+            {% csrf_token %}
+            <input type="hidden" name="clear_all" value="1">
+            <button type="submit" class="btn btn-outline-secondary btn-sm w-100"
+                    onclick="return confirm('Remove all reviewer flags from this candidate?');">
+              <i class="bi bi-flag me-1"></i>Clear all flags ({{ applicant.flagged_by.count }})
+            </button>
+          </form>
+          {% endif %}
         </div>
       </div>
 

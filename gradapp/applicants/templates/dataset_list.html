@@ -138,14 +138,7 @@
                   {% endif %}
                 </td>
                 <td>
-                  <span class="badge
-                    {% if a.status == 'NEW' %}bg-secondary
-                    {% elif a.status == 'REVIEW' %}bg-primary
-                    {% elif a.status == 'INTERVIEW' %}bg-info text-dark
-                    {% elif a.status == 'DECIDED' %}bg-success
-                    {% endif %}" style="font-size:0.7rem;">
-                    {{ a.get_status_display }}
-                  </span>
+                  {% include "partials/status_badge.html" with status=a.status display=a.get_status_display size="0.7rem" %}
                 </td>
                 <td class="text-center">
                   {% if a.appearance_count > 1 %}

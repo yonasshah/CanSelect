@@ -103,7 +103,7 @@ def applicant_list(request):
 @login_required
 def applicant_detail(request, pk):
     applicant = get_object_or_404(Applicant, pk=pk)
-    user_score, _ = Score.objects.get_or_create(applicant=applicant, voter=request.user)
+    user_score = Score.objects.filter(applicant=applicant, voter=request.user).first()
     score_form = ScoreForm(instance=user_score)
     status_form = ApplicantStatusForm(instance=applicant)
 
@@ -527,7 +527,8 @@ def dataset_decisions(request, pk):
         )
     )
 
-    FINAL_STATUSES = {'ACCEPTED', 'REJECTED', 'WAITLISTED'}
+    FINAL_STATUSES = {'ACCEPTED', 'ACCEPTED_MAILED', 'ACCEPTED_NOT_MAILED', 'REJECTED', 'WAITLISTED', 'DECLINED'}
+    ACCEPTED_STATUSES = {'ACCEPTED', 'ACCEPTED_MAILED', 'ACCEPTED_NOT_MAILED'}
 
     clear_accepts    = []
     clear_denies     = []
@@ -584,10 +585,10 @@ def dataset_decisions(request, pk):
 
     all_candidates   = clear_accepts + clear_denies + split_candidates + no_votes
     total            = len(all_candidates)
-    accepted_count   = sum(1 for a in all_candidates if a.status == 'ACCEPTED')
+    accepted_count   = sum(1 for a in all_candidates if a.status in ACCEPTED_STATUSES)
     rejected_count   = sum(1 for a in all_candidates if a.status == 'REJECTED')
     waitlisted_count = sum(1 for a in all_candidates if a.status == 'WAITLISTED')
-    decided_count    = accepted_count + rejected_count + waitlisted_count
+    decided_count    = sum(1 for a in all_candidates if a.status in FINAL_STATUSES)
     undecided_count  = total - decided_count
     spots_remaining  = (cap - accepted_count) if cap else None
 
@@ -1058,7 +1059,7 @@ def export_applicants_csv(request):
     )
     writer = csv.writer(response)
     writer.writerow([
-        'First Name', 'Last Name', 'Email', 'External ID', 'Age', 'Gender', 'Ethnicity',
+        'First Name', 'Last Name', 'Email', 'External ID', 'Age', 'Gender',
         'Status', 'Dataset', 'Round',
         'Total AI', 'Total NC', 'Z-Score', 'First Gen', 'Re-Applicant',
         'PB to DMD', 'Former Post Bacc', '3+4',
@@ -1071,7 +1072,6 @@ def export_applicants_csv(request):
             applicant.external_id or '',
             applicant.age,
             applicant.gender,
-            applicant.ethnicity,
             applicant.get_status_display(),
             applicant.dataset.DisplayName if applicant.dataset else '',
             applicant.round.DisplayName if applicant.round else '',
@@ -1192,16 +1192,12 @@ def batch_action(request):
 
         queryset = Applicant.objects.filter(pk__in=applicant_ids)
         
-        if action == 'set_status_review':
-            count = queryset.update(status=Applicant.Status.UNDER_REVIEW)
-            messages.success(request, f"Updated {count} applicants to 'Under Review'.")
-        elif action == 'set_status_interview':
+        if action == 'set_status_interview':
             count = queryset.update(status=Applicant.Status.INTERVIEW)
             messages.success(request, f"Updated {count} applicants to 'Interview'.")
-        elif action == 'set_status_decided':
-            count = queryset.update(status=Applicant.Status.DECIDED)
-            messages.success(request, f"Updated {count} applicants to 'Decision Made'.")
-        
+        elif action == 'set_status_interview_complete':
+            count = queryset.update(status=Applicant.Status.INTERVIEW_COMPLETE)
+            messages.success(request, f"Updated {count} applicants to 'Interview Complete'.")
         else:
             messages.error(request, "No valid action selected.")
 
@@ -1239,6 +1235,18 @@ def batch_assign_reviewers(request, pk):
 @require_POST
 def toggle_applicant_flag(request, pk):
     applicant = get_object_or_404(Applicant, pk=pk)
+    
+    # Admins can clear every reviewer's flag on this candidate.
+    if request.POST.get('clear_all') and request.user.profile.role == 'ADMIN':
+        applicant.flagged_by.clear()
+        Activity.objects.create(
+            actor=request.user,
+            action_type=Activity.FLAG_ADDED,
+            details="cleared all flags on",
+            target_applicant=applicant,
+        )
+        messages.success(request, "All flags cleared for this candidate.")
+        return redirect('applicant_detail', pk=applicant.pk)
 
     if request.user in applicant.flagged_by.all():
         applicant.flagged_by.remove(request.user)
@@ -1841,27 +1849,29 @@ def committee_dashboard(request):
 @login_required
 def my_reviews(request):
     user = request.user
+    sort = request.GET.get('sort', 'name')
+    direction = request.GET.get('dir', 'asc')
 
-    # Get all votes cast by this user on candidates in their assigned batches
     assigned_batches = Batch.objects.filter(assigned_reviewers=user)
-    
+
     votes = Vote.objects.filter(
         voter=user,
-        applicant__round__in=assigned_batches
+        applicant__round__in=assigned_batches,
     ).select_related('applicant', 'applicant__round', 'applicant__dataset').order_by('-created_at')
 
     scores = Score.objects.filter(
         voter=user,
-        applicant__round__in=assigned_batches
-    ).select_related('applicant', 'applicant__round').order_by('-updated_at')
+        applicant__round__in=assigned_batches,
+    ).select_related('applicant', 'applicant__round')
 
-    # Combine into a single dict keyed by applicant for easy display
-    applicant_pks = set(
-        list(votes.values_list('applicant__pk', flat=True)) +
-        list(scores.values_list('applicant__pk', flat=True))
+    # Membership is driven by VOTES only — a candidate appears here only
+    # once this reviewer has actually voted on them (fixes the blank-Score leak).
+    applicant_pks = set(votes.values_list('applicant__pk', flat=True))
+    applicants = (
+        Applicant.objects.filter(pk__in=applicant_pks)
+        .select_related('round', 'dataset')
+        .prefetch_related('flagged_by')
     )
-
-    applicants = Applicant.objects.filter(pk__in=applicant_pks).select_related('round', 'dataset')
 
     reviews = []
     for applicant in applicants:
@@ -1871,15 +1881,29 @@ def my_reviews(request):
             'applicant': applicant,
             'vote': vote,
             'score': score,
+            'is_flagged': user in applicant.flagged_by.all(),
         })
 
-    # Sort by applicant last name
-    reviews.sort(key=lambda x: x['applicant'].last_name)
+    def sort_key(r):
+        a = r['applicant']
+        if sort == 'batch':
+            return (a.round.DisplayName if a.round else '').lower()
+        if sort == 'vote':
+            return r['vote'].value if r['vote'] else -99
+        if sort == 'overall':
+            return (r['score'].overall_score or 0) if r['score'] else 0
+        if sort == 'flag':
+            return 1 if r['is_flagged'] else 0
+        return (a.last_name.lower(), a.first_name.lower())  # default: name
+
+    reviews.sort(key=sort_key, reverse=(direction == 'desc'))
 
     return render(request, "my_reviews.html", {
         'reviews': reviews,
         'total_votes': votes.count(),
         'total_scores': scores.count(),
+        'sort': sort,
+        'direction': direction,
     })
 
 
@@ -1912,18 +1936,15 @@ def batch_bulk_action(request):
 
         # A batch action updates the status of all APPLICANTS in those batches
         from .models import Applicant
-        if action == 'set_status_review':
-            count = Applicant.objects.filter(round_id__in=batch_ids).update(status=Applicant.Status.UNDER_REVIEW)
-            messages.success(request, f"Updated {count} applicants to 'Under Review'.")
-        elif action == 'set_status_interview':
+        if action == 'set_status_interview':
             count = Applicant.objects.filter(round_id__in=batch_ids).update(status=Applicant.Status.INTERVIEW)
             messages.success(request, f"Updated {count} applicants to 'Interview'.")
-        elif action == 'set_status_decided':
-            count = Applicant.objects.filter(round_id__in=batch_ids).update(status=Applicant.Status.DECIDED)
-            messages.success(request, f"Updated {count} applicants to 'Decision Made'.")
+        elif action == 'set_status_interview_complete':
+            count = Applicant.objects.filter(round_id__in=batch_ids).update(status=Applicant.Status.INTERVIEW_COMPLETE)
+            messages.success(request, f"Updated {count} applicants to 'Interview Complete'.")
         else:
             messages.error(request, "No valid action selected.")
-
+            
     return redirect('batch_list')
 
 @login_required

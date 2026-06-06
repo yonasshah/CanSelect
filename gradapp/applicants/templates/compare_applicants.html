@@ -170,14 +170,7 @@
           {% endif %}
         </div>
         <div class="mt-2">
-          <span class="badge fs-6
-            {% if applicant.status == 'NEW' %}bg-secondary
-            {% elif applicant.status == 'REVIEW' %}bg-primary
-            {% elif applicant.status == 'INTERVIEW' %}bg-info text-dark
-            {% elif applicant.status == 'DECIDED' %}bg-success
-            {% endif %}">
-            {{ applicant.get_status_display }}
-          </span>
+          {% include "partials/status_badge.html" with status=applicant.status display=applicant.get_status_display extra_class="fs-6" %}
         </div>
       </div>
 
@@ -205,10 +198,6 @@
       <div class="compare-field">
         <span class="field-label">Gender</span>
         <span class="field-value">{{ applicant.gender|default:"—" }}</span>
-      </div>
-      <div class="compare-field">
-        <span class="field-label">Ethnicity</span>
-        <span class="field-value">{{ applicant.ethnicity|default:"—" }}</span>
       </div>
       <div class="compare-field">
         <span class="field-label">Dataset</span>

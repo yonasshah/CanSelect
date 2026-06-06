@@ -1,6 +1,20 @@
 {% extends "base.html" %}
 {% block content %}
 
+<style>
+  .sort-link {
+    color: inherit;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+  }
+  .sort-link:hover { opacity: 0.8; }
+  .sort-icon { font-size: 0.7rem; opacity: 0.5; }
+  .sort-icon.active { opacity: 1; color: #90caf9; }
+</style>
+
 <div class="d-flex justify-content-between align-items-center mb-4">
   <div>
     <h2 class="mb-0">My Reviews</h2>
@@ -17,13 +31,33 @@
     <table class="table table-hover align-middle mb-0">
       <thead class="table-dark">
         <tr>
-          <th>Candidate</th>
-          <th>Batch</th>
-          <th class="text-center">Your Vote</th>
-          <th class="text-center">Research</th>
-          <th class="text-center">Statement</th>
-          <th class="text-center">Overall</th>
-          <th class="text-center">Flagged</th>
+          <th>
+            <a href="?sort=name&dir={% if sort == 'name' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link text-white">
+              Candidate <i class="bi bi-arrow-{% if sort == 'name' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'name' %}active{% endif %}"></i>
+            </a>
+          </th>
+          <th>
+            <a href="?sort=batch&dir={% if sort == 'batch' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link text-white">
+              Batch <i class="bi bi-arrow-{% if sort == 'batch' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'batch' %}active{% endif %}"></i>
+            </a>
+          </th>
+          <th class="text-center">
+            <a href="?sort=vote&dir={% if sort == 'vote' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link text-white justify-content-center">
+              Your Vote <i class="bi bi-arrow-{% if sort == 'vote' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'vote' %}active{% endif %}"></i>
+            </a>
+          </th>
+          <th class="text-center text-white-50">Research</th>
+          <th class="text-center text-white-50">Statement</th>
+          <th class="text-center">
+            <a href="?sort=overall&dir={% if sort == 'overall' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link text-white justify-content-center">
+              Overall <i class="bi bi-arrow-{% if sort == 'overall' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'overall' %}active{% endif %}"></i>
+            </a>
+          </th>
+          <th class="text-center">
+            <a href="?sort=flag&dir={% if sort == 'flag' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link text-white justify-content-center">
+              Flagged <i class="bi bi-arrow-{% if sort == 'flag' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'flag' %}active{% endif %}"></i>
+            </a>
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -79,7 +113,7 @@
         </tr>
         {% empty %}
         <tr>
-          <td colspan="6" class="text-center text-muted py-4">You haven't reviewed any candidates yet.</td>
+          <td colspan="7" class="text-center text-muted py-4">You haven't reviewed any candidates yet.</td>
         </tr>
         {% endfor %}
       </tbody>

@@ -36,20 +36,20 @@ class Profile(models.Model):
 
 class Applicant(models.Model):   
     class Status(models.TextChoices):
-        NEW = 'NEW', 'New'
-        UNDER_REVIEW = 'REVIEW', 'Under Review'
         INTERVIEW = 'INTERVIEW', 'Interview'
-        DECIDED = 'DECIDED', 'Decision Made'
+        INTERVIEW_COMPLETE = 'INTERVIEW_COMPLETE', 'Interview Complete'
         ACCEPTED = 'ACCEPTED', 'Accepted'
-        REJECTED = 'REJECTED', 'Rejected'
+        ACCEPTED_MAILED = 'ACCEPTED_MAILED', 'Accepted – Mailed'
+        ACCEPTED_NOT_MAILED = 'ACCEPTED_NOT_MAILED', 'Accepted – Not Mailed'
         WAITLISTED = 'WAITLISTED', 'Waitlisted'
+        REJECTED = 'REJECTED', 'Rejected'
+        DECLINED = 'DECLINED', 'Candidate Declined'
         
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     email = models.EmailField(blank=True, null=True)
     age = models.PositiveIntegerField()
     gender = models.CharField(max_length=50)
-    ethnicity = models.CharField(max_length=100, blank=True)
     round = models.ForeignKey("Batch", on_delete=models.SET_NULL, null=True, blank=True)
     dataset = models.ForeignKey("DataSet", on_delete=models.SET_NULL, null=True, blank=True, related_name="applicants")
     description = models.TextField(blank=True, max_length=100000)
@@ -74,7 +74,7 @@ class Applicant(models.Model):
     status = models.CharField(
         max_length=50,
         choices=Status.choices,
-        default=Status.NEW,
+        default=Status.INTERVIEW,
         db_index=True  
     )
     

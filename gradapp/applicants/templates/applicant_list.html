@@ -38,9 +38,8 @@
       <div id="batch-action-container" style="display:none;" class="d-flex gap-1">
         <select name="action" class="form-select form-select-sm" form="batch-form">
           <option value="">Batch Action...</option>
-          <option value="set_status_review">Set: Under Review</option>
           <option value="set_status_interview">Set: Interview</option>
-          <option value="set_status_decided">Set: Decision Made</option>
+          <option value="set_status_interview_complete">Set: Interview Complete</option>
         </select>
         <button type="submit" class="btn btn-primary btn-sm" form="batch-form">Apply</button>
       </div>
@@ -103,13 +102,14 @@
           <label class="form-label small text-muted mb-1">Status</label>
           <select name="status" class="form-select form-select-sm">
             <option value="">All Statuses</option>
-            <option value="NEW" {% if status_filter == 'NEW' %}selected{% endif %}>New</option>
-            <option value="REVIEW" {% if status_filter == 'REVIEW' %}selected{% endif %}>Under Review</option>
             <option value="INTERVIEW" {% if status_filter == 'INTERVIEW' %}selected{% endif %}>Interview</option>
-            <option value="DECIDED" {% if status_filter == 'DECIDED' %}selected{% endif %}>Decision Made</option>
-            <option value="ACCEPTED"   {% if status_filter == 'ACCEPTED'   %}selected{% endif %}>Accepted</option>
-            <option value="REJECTED"   {% if status_filter == 'REJECTED'   %}selected{% endif %}>Rejected</option>
+            <option value="INTERVIEW_COMPLETE" {% if status_filter == 'INTERVIEW_COMPLETE' %}selected{% endif %}>Interview Complete</option>
+            <option value="ACCEPTED" {% if status_filter == 'ACCEPTED' %}selected{% endif %}>Accepted</option>
+            <option value="ACCEPTED_MAILED" {% if status_filter == 'ACCEPTED_MAILED' %}selected{% endif %}>Accepted – Mailed</option>
+            <option value="ACCEPTED_NOT_MAILED" {% if status_filter == 'ACCEPTED_NOT_MAILED' %}selected{% endif %}>Accepted – Not Mailed</option>
             <option value="WAITLISTED" {% if status_filter == 'WAITLISTED' %}selected{% endif %}>Waitlisted</option>
+            <option value="REJECTED" {% if status_filter == 'REJECTED' %}selected{% endif %}>Rejected</option>
+            <option value="DECLINED" {% if status_filter == 'DECLINED' %}selected{% endif %}>Candidate Declined</option>
           </select>
         </div>
         <div class="col-md-3">
@@ -160,9 +160,9 @@
                 Name <i class="bi bi-arrow-{% if sort == 'name' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'name' %}active{% endif %}"></i>
               </a>
             </th>
-            <th class="text-white-50">Email</th>
-            <th class="text-white-50">Dataset</th>
-            <th class="text-white-50">Batch</th>
+            <th>Email</th>
+            <th>Dataset</th>
+            <th>Batch</th>
             <th>
               <a href="?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&sort=status&dir={% if sort == 'status' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link text-white">
                 Status <i class="bi bi-arrow-{% if sort == 'status' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'status' %}active{% endif %}"></i>
@@ -170,7 +170,7 @@
             </th>
             <th>
               <a href="?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&sort=date&dir={% if sort == 'date' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link text-white">
-                Submitted <i class="bi bi-arrow-{% if sort == 'date' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'date' %}active{% endif %}"></i>
+                Uploaded <i class="bi bi-arrow-{% if sort == 'date' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'date' %}active{% endif %}"></i>
               </a>
             </th>
             <th class="text-center">
@@ -210,9 +210,7 @@
             <td class="text-muted small">{{ a.dataset.DisplayName|default:"—" }}</td>
             <td class="text-muted small">{{ a.round.DisplayName|default:"—" }}</td>
             <td>
-              <span class="badge {% if a.status == 'NEW' %}bg-secondary{% elif a.status == 'REVIEW' %}bg-primary{% elif a.status == 'INTERVIEW' %}bg-info text-dark{% elif a.status == 'DECIDED' %}bg-success{% elif a.status == 'ACCEPTED' %}bg-success{% elif a.status == 'REJECTED' %}bg-danger{% elif a.status == 'WAITLISTED' %}bg-warning text-dark{% endif %}">
-                {{ a.get_status_display }}
-              </span>
+              {% include "partials/status_badge.html" with status=a.status display=a.get_status_display %}
             </td>
             <td class="text-muted small">{{ a.created_at|date:"M d, Y" }}</td>
             <td class="text-center">

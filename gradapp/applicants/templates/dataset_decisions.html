@@ -341,14 +341,16 @@
             {% else %}<span class="text-muted small">—</span>{% endif %}
           </td>
           <td class="text-center">
-            {% if a.status == 'ACCEPTED' %}
-              <span class="status-accepted"><i class="bi bi-check-circle-fill me-1"></i>Accepted</span>
+            {% if a.status == 'ACCEPTED' or a.status == 'ACCEPTED_MAILED' or a.status == 'ACCEPTED_NOT_MAILED' %}
+              <span class="status-accepted"><i class="bi bi-check-circle-fill me-1"></i>{{ a.get_status_display }}</span>
             {% elif a.status == 'REJECTED' %}
               <span class="status-rejected"><i class="bi bi-x-circle-fill me-1"></i>Rejected</span>
             {% elif a.status == 'WAITLISTED' %}
               <span class="status-waitlisted"><i class="bi bi-pause-circle-fill me-1"></i>Waitlisted</span>
+            {% elif a.status == 'DECLINED' %}
+              <span class="badge bg-dark"><i class="bi bi-person-x me-1"></i>Declined</span>
             {% else %}
-              <span class="badge {% if a.status == 'NEW' %}bg-secondary{% elif a.status == 'REVIEW' %}bg-primary{% elif a.status == 'INTERVIEW' %}bg-info text-dark{% elif a.status == 'DECIDED' %}bg-dark{% endif %}">
+              <span class="badge {% if a.status == 'INTERVIEW' %}bg-primary{% elif a.status == 'INTERVIEW_COMPLETE' %}bg-info text-dark{% else %}bg-secondary{% endif %}">
                 {{ a.get_status_display }}
               </span>
             {% endif %}
@@ -439,14 +441,16 @@
             {% else %}<span class="text-muted small">—</span>{% endif %}
           </td>
           <td class="text-center">
-            {% if a.status == 'ACCEPTED' %}
-              <span class="status-accepted"><i class="bi bi-check-circle-fill me-1"></i>Accepted</span>
+            {% if a.status == 'ACCEPTED' or a.status == 'ACCEPTED_MAILED' or a.status == 'ACCEPTED_NOT_MAILED' %}
+              <span class="status-accepted"><i class="bi bi-check-circle-fill me-1"></i>{{ a.get_status_display }}</span>
             {% elif a.status == 'REJECTED' %}
               <span class="status-rejected"><i class="bi bi-x-circle-fill me-1"></i>Rejected</span>
             {% elif a.status == 'WAITLISTED' %}
               <span class="status-waitlisted"><i class="bi bi-pause-circle-fill me-1"></i>Waitlisted</span>
+            {% elif a.status == 'DECLINED' %}
+              <span class="badge bg-dark"><i class="bi bi-person-x me-1"></i>Declined</span>
             {% else %}
-              <span class="badge {% if a.status == 'NEW' %}bg-secondary{% elif a.status == 'REVIEW' %}bg-primary{% elif a.status == 'INTERVIEW' %}bg-info text-dark{% elif a.status == 'DECIDED' %}bg-dark{% endif %}">
+              <span class="badge {% if a.status == 'INTERVIEW' %}bg-primary{% elif a.status == 'INTERVIEW_COMPLETE' %}bg-info text-dark{% else %}bg-secondary{% endif %}">
                 {{ a.get_status_display }}
               </span>
             {% endif %}
@@ -528,14 +532,16 @@
             {% else %}<span class="text-muted small">—</span>{% endif %}
           </td>
           <td class="text-center">
-            {% if a.status == 'ACCEPTED' %}
-              <span class="status-accepted"><i class="bi bi-check-circle-fill me-1"></i>Accepted</span>
+            {% if a.status == 'ACCEPTED' or a.status == 'ACCEPTED_MAILED' or a.status == 'ACCEPTED_NOT_MAILED' %}
+              <span class="status-accepted"><i class="bi bi-check-circle-fill me-1"></i>{{ a.get_status_display }}</span>
             {% elif a.status == 'REJECTED' %}
               <span class="status-rejected"><i class="bi bi-x-circle-fill me-1"></i>Rejected</span>
             {% elif a.status == 'WAITLISTED' %}
               <span class="status-waitlisted"><i class="bi bi-pause-circle-fill me-1"></i>Waitlisted</span>
+            {% elif a.status == 'DECLINED' %}
+              <span class="badge bg-dark"><i class="bi bi-person-x me-1"></i>Declined</span>
             {% else %}
-              <span class="badge {% if a.status == 'NEW' %}bg-secondary{% elif a.status == 'REVIEW' %}bg-primary{% elif a.status == 'INTERVIEW' %}bg-info text-dark{% elif a.status == 'DECIDED' %}bg-dark{% endif %}">
+              <span class="badge {% if a.status == 'INTERVIEW' %}bg-primary{% elif a.status == 'INTERVIEW_COMPLETE' %}bg-info text-dark{% else %}bg-secondary{% endif %}">
                 {{ a.get_status_display }}
               </span>
             {% endif %}
