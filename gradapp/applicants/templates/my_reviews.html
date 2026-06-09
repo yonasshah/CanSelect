@@ -13,6 +13,15 @@
   .sort-link:hover { opacity: 0.8; }
   .sort-icon { font-size: 0.7rem; opacity: 0.5; }
   .sort-icon.active { opacity: 1; color: #90caf9; }
+  .stat-card {
+    text-align: center;
+    padding: 0.6rem 0.9rem;
+    border-radius: 8px;
+    min-width: 72px;
+  }
+  .stat-card .stat-num { font-size: 1.3rem; font-weight: 700; line-height: 1; }
+  .stat-card .stat-lbl { font-size: 0.68rem; color: #6c757d; margin-top: 3px; }
+  [data-bs-theme="dark"] .stat-card.bg-white { background-color: #2b3035 !important; }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -21,41 +30,184 @@
     <p class="text-muted mb-0">Your votes and scores for assigned candidates.</p>
   </div>
   <div class="d-flex gap-2">
-    <span class="badge bg-primary fs-6">{{ total_votes }} Votes</span>
-    <span class="badge bg-success fs-6">{{ total_scores }} Scores</span>
+    <a href="?sort={{ sort }}&dir={{ direction }}&batch={{ filter_batch }}&vote={{ filter_vote }}{% if filter_flagged %}&flagged_only=1{% endif %}&score_min={{ filter_score_min }}&score_max={{ filter_score_max }}&export=csv"
+       class="btn btn-outline-success btn-sm">
+      <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV
+    </a>
   </div>
 </div>
 
+<!-- ── Stats strip ─────────────────────────────────────────────────── -->
+<div class="card mb-4 border-0 bg-light">
+  <div class="card-body py-3">
+    <div class="d-flex gap-2 flex-wrap justify-content-between align-items-center">
+      <div class="d-flex gap-2 flex-wrap">
+        <div class="stat-card bg-white shadow-sm">
+          <div class="stat-num">{{ reviewed_count }}</div>
+          <div class="stat-lbl">{% if has_filters %}Filtered{% else %}Reviewed{% endif %}</div>
+        </div>
+        <div class="stat-card" style="background:rgba(25,135,84,0.1);">
+          <div class="stat-num text-success">{{ yes_count }}</div>
+          <div class="stat-lbl">Yes</div>
+        </div>
+        <div class="stat-card" style="background:rgba(220,53,69,0.1);">
+          <div class="stat-num text-danger">{{ no_count }}</div>
+          <div class="stat-lbl">No</div>
+        </div>
+        <div class="stat-card" style="background:rgba(255,193,7,0.15);">
+          <div class="stat-num" style="color:#997404;">{{ waitlist_count }}</div>
+          <div class="stat-lbl">Waitlist</div>
+        </div>
+        {% if flagged_count %}
+        <div class="stat-card" style="background:rgba(220,53,69,0.08);">
+          <div class="stat-num text-danger">
+            <i class="bi bi-flag-fill" style="font-size:0.95rem;"></i> {{ flagged_count }}
+          </div>
+          <div class="stat-lbl">Flagged</div>
+        </div>
+        {% endif %}
+        {% if avg_overall %}
+        <div class="stat-card" style="background:rgba(13,110,253,0.08);">
+          <div class="stat-num text-primary">{{ avg_overall }}/5</div>
+          <div class="stat-lbl">Avg Score</div>
+        </div>
+        {% endif %}
+      </div>
+
+      {% if reviewed_count > 0 %}
+      <div style="min-width:150px; flex-shrink:0;">
+        <div class="d-flex justify-content-between mb-1" style="font-size:0.68rem; color:#6c757d;">
+          <span>Vote breakdown</span>
+          <span>{{ reviewed_count }} total</span>
+        </div>
+        <div class="progress" style="height:8px; border-radius:4px;">
+          {% widthratio yes_count reviewed_count 100 as yes_pct %}
+          {% widthratio no_count reviewed_count 100 as no_pct %}
+          {% widthratio waitlist_count reviewed_count 100 as wl_pct %}
+          <div class="progress-bar bg-success" style="width:{{ yes_pct }}%" title="Yes: {{ yes_count }}"></div>
+          <div class="progress-bar bg-danger"  style="width:{{ no_pct }}%"  title="No: {{ no_count }}"></div>
+          <div class="progress-bar bg-warning" style="width:{{ wl_pct }}%"  title="Waitlist: {{ waitlist_count }}"></div>
+        </div>
+        <div class="d-flex gap-3 mt-1" style="font-size:0.65rem; color:#6c757d;">
+          <span><span style="color:#198754;">■</span> Yes</span>
+          <span><span style="color:#dc3545;">■</span> No</span>
+          <span><span style="color:#ffc107;">■</span> Waitlist</span>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- ── Filter panel ─────────────────────────────────────────────────── -->
+<div class="card mb-4">
+  <div class="card-body py-2">
+    <form method="get">
+      <input type="hidden" name="sort" value="{{ sort }}">
+      <input type="hidden" name="dir"  value="{{ direction }}">
+      <div class="row g-2 align-items-end flex-wrap">
+
+        <div class="col-md-3">
+          <label class="form-label small text-muted mb-1">Batch</label>
+          <select name="batch" class="form-select form-select-sm">
+            <option value="">All Batches</option>
+            {% for b in assigned_batches %}
+              <option value="{{ b.pk }}" {% if b.pk|stringformat:"s" == filter_batch %}selected{% endif %}>
+                {{ b.DisplayName }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-2">
+          <label class="form-label small text-muted mb-1">Vote</label>
+          <select name="vote" class="form-select form-select-sm">
+            <option value=""     {% if not filter_vote      %}selected{% endif %}>All Votes</option>
+            <option value="1"    {% if filter_vote == '1'   %}selected{% endif %}>Yes</option>
+            <option value="-1"   {% if filter_vote == '-1'  %}selected{% endif %}>No</option>
+            <option value="0"    {% if filter_vote == '0'   %}selected{% endif %}>Waitlist</option>
+            <option value="none" {% if filter_vote == 'none'%}selected{% endif %}>No Vote Yet</option>
+          </select>
+        </div>
+
+        <div class="col-md-2">
+          <label class="form-label small text-muted mb-1">Overall Score</label>
+          <div class="d-flex gap-1">
+            <select name="score_min" class="form-select form-select-sm" title="Min overall score">
+              <option value="">Min</option>
+              <option value="1" {% if filter_score_min == '1' %}selected{% endif %}>1+</option>
+              <option value="2" {% if filter_score_min == '2' %}selected{% endif %}>2+</option>
+              <option value="3" {% if filter_score_min == '3' %}selected{% endif %}>3+</option>
+              <option value="4" {% if filter_score_min == '4' %}selected{% endif %}>4+</option>
+              <option value="5" {% if filter_score_min == '5' %}selected{% endif %}>5</option>
+            </select>
+            <select name="score_max" class="form-select form-select-sm" title="Max overall score">
+              <option value="">Max</option>
+              <option value="1" {% if filter_score_max == '1' %}selected{% endif %}>≤1</option>
+              <option value="2" {% if filter_score_max == '2' %}selected{% endif %}>≤2</option>
+              <option value="3" {% if filter_score_max == '3' %}selected{% endif %}>≤3</option>
+              <option value="4" {% if filter_score_max == '4' %}selected{% endif %}>≤4</option>
+              <option value="5" {% if filter_score_max == '5' %}selected{% endif %}>≤5</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="col-auto d-flex align-items-end pb-1">
+          <div class="form-check mb-0">
+            <input class="form-check-input" type="checkbox" name="flagged_only" id="mr_flagged"
+                   value="1" {% if filter_flagged %}checked{% endif %} onchange="this.form.submit()">
+            <label class="form-check-label small" for="mr_flagged">
+              <i class="bi bi-flag-fill text-danger me-1"></i>Flagged by me
+            </label>
+          </div>
+        </div>
+
+        <div class="col-auto d-flex gap-1 align-items-end">
+          <button type="submit" class="btn btn-outline-secondary btn-sm">Filter</button>
+          <a href="{% url 'my_reviews' %}" class="btn btn-outline-danger btn-sm">Clear</a>
+        </div>
+
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── Table ───────────────────────────────────────────────────────── -->
 <div class="card">
   <div class="card-body p-0">
     <table class="table table-hover align-middle mb-0">
       <thead class="table-dark">
         <tr>
           <th>
-            <a href="?sort=name&dir={% if sort == 'name' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link text-white">
-              Candidate <i class="bi bi-arrow-{% if sort == 'name' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'name' %}active{% endif %}"></i>
+            <a href="?sort=name&dir={% if sort == 'name' and direction == 'asc' %}desc{% else %}asc{% endif %}&batch={{ filter_batch }}&vote={{ filter_vote }}{% if filter_flagged %}&flagged_only=1{% endif %}&score_min={{ filter_score_min }}&score_max={{ filter_score_max }}" class="sort-link text-white">
+              Candidate
+              <i class="bi bi-arrow-{% if sort == 'name' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'name' %}active{% endif %}"></i>
             </a>
           </th>
           <th>
-            <a href="?sort=batch&dir={% if sort == 'batch' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link text-white">
-              Batch <i class="bi bi-arrow-{% if sort == 'batch' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'batch' %}active{% endif %}"></i>
+            <a href="?sort=batch&dir={% if sort == 'batch' and direction == 'asc' %}desc{% else %}asc{% endif %}&batch={{ filter_batch }}&vote={{ filter_vote }}{% if filter_flagged %}&flagged_only=1{% endif %}&score_min={{ filter_score_min }}&score_max={{ filter_score_max }}" class="sort-link text-white">
+              Batch
+              <i class="bi bi-arrow-{% if sort == 'batch' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'batch' %}active{% endif %}"></i>
             </a>
           </th>
           <th class="text-center">
-            <a href="?sort=vote&dir={% if sort == 'vote' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link text-white justify-content-center">
-              Your Vote <i class="bi bi-arrow-{% if sort == 'vote' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'vote' %}active{% endif %}"></i>
+            <a href="?sort=vote&dir={% if sort == 'vote' and direction == 'asc' %}desc{% else %}asc{% endif %}&batch={{ filter_batch }}&vote={{ filter_vote }}{% if filter_flagged %}&flagged_only=1{% endif %}&score_min={{ filter_score_min }}&score_max={{ filter_score_max }}" class="sort-link text-white justify-content-center">
+              Your Vote
+              <i class="bi bi-arrow-{% if sort == 'vote' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'vote' %}active{% endif %}"></i>
             </a>
           </th>
           <th class="text-center text-white-50">Research</th>
           <th class="text-center text-white-50">Statement</th>
           <th class="text-center">
-            <a href="?sort=overall&dir={% if sort == 'overall' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link text-white justify-content-center">
-              Overall <i class="bi bi-arrow-{% if sort == 'overall' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'overall' %}active{% endif %}"></i>
+            <a href="?sort=overall&dir={% if sort == 'overall' and direction == 'asc' %}desc{% else %}asc{% endif %}&batch={{ filter_batch }}&vote={{ filter_vote }}{% if filter_flagged %}&flagged_only=1{% endif %}&score_min={{ filter_score_min }}&score_max={{ filter_score_max }}" class="sort-link text-white justify-content-center">
+              Overall
+              <i class="bi bi-arrow-{% if sort == 'overall' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'overall' %}active{% endif %}"></i>
             </a>
           </th>
           <th class="text-center">
-            <a href="?sort=flag&dir={% if sort == 'flag' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link text-white justify-content-center">
-              Flagged <i class="bi bi-arrow-{% if sort == 'flag' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'flag' %}active{% endif %}"></i>
+            <a href="?sort=flag&dir={% if sort == 'flag' and direction == 'asc' %}desc{% else %}asc{% endif %}&batch={{ filter_batch }}&vote={{ filter_vote }}{% if filter_flagged %}&flagged_only=1{% endif %}&score_min={{ filter_score_min }}&score_max={{ filter_score_max }}" class="sort-link text-white justify-content-center">
+              Flagged
+              <i class="bi bi-arrow-{% if sort == 'flag' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'flag' %}active{% endif %}"></i>
             </a>
           </th>
         </tr>
@@ -65,8 +217,8 @@
         <tr>
           <td>
             <a href="{% url 'applicant_detail' review.applicant.pk %}?from=reviews" class="text-decoration-none fw-semibold">
-  {{ review.applicant.last_name }}, {{ review.applicant.first_name }}
-</a>
+              {{ review.applicant.last_name }}, {{ review.applicant.first_name }}
+            </a>
           </td>
           <td class="text-muted small">{{ review.applicant.round.DisplayName|default:"—" }}</td>
           <td class="text-center">
@@ -104,16 +256,19 @@
             {% endif %}
           </td>
           <td class="text-center">
-  {% if request.user in review.applicant.flagged_by.all %}
-    <span class="badge bg-danger"><i class="bi bi-flag-fill"></i> Flagged</span>
-  {% else %}
-    <span class="text-muted small">—</span>
-  {% endif %}
-</td>
+            {% if review.is_flagged %}
+              <span class="badge bg-danger"><i class="bi bi-flag-fill"></i> Flagged</span>
+            {% else %}
+              <span class="text-muted small">—</span>
+            {% endif %}
+          </td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="7" class="text-center text-muted py-4">You haven't reviewed any candidates yet.</td>
+          <td colspan="7" class="text-center text-muted py-5">
+            <i class="bi bi-{% if has_filters %}search{% else %}star{% endif %} fs-1 d-block mb-2 opacity-25"></i>
+            {% if has_filters %}No reviews match your filters.{% else %}You haven't reviewed any candidates yet.{% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>

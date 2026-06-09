@@ -312,6 +312,22 @@ def applicant_detail(request, pk):
         flags = applicant.flags.select_related('user').all()
     else:
         flags = applicant.flags.filter(user=request.user).select_related('user')
+        
+    reviewer_vote_progress = None
+    if applicant.round:
+        assigned = applicant.round.assigned_reviewers.all()
+        total_reviewers = assigned.count()
+        if total_reviewers > 0:
+            voted_reviewers = Vote.objects.filter(
+                applicant=applicant,
+                voter__in=assigned,
+            ).values('voter').distinct().count()
+            reviewer_vote_progress = {
+                'voted': voted_reviewers,
+                'total': total_reviewers,
+                'pct':   round(voted_reviewers / total_reviewers * 100),
+            }
+ 
 
     context = {
         'applicant': applicant,
@@ -335,6 +351,7 @@ def applicant_detail(request, pk):
         'v_options': v_options,
         'flags': flags,
         'batch_completion': batch_completion,
+        'reviewer_vote_progress': reviewer_vote_progress,
     }
     return render(request, "applicant_detail.html", context)
 
@@ -1400,40 +1417,44 @@ def update_score(request, pk):
 def applicant_queue(request):
     batches = request.user.assigned_batches.all()
     selected_batch_id = request.GET.get('batch')
-    search_query = request.GET.get('q', '')
+    search_query  = request.GET.get('q', '')
     status_filter = request.GET.get('status', '')
-
+    flagged_only  = request.GET.get('flagged_only', '')
+    show_waitlist = request.GET.get('show_waitlist', '')
+ 
     user_has_voted_subquery = Vote.objects.filter(
         applicant=OuterRef('pk'),
         voter=request.user
     )
-
+ 
+    # Default: exclude yes/no/waitlist. With show_waitlist: only exclude yes/no.
+    exclude_values = [1, -1] if show_waitlist else [1, -1, 0]
+ 
     applicants_list = Applicant.objects.filter(
         round__in=batches
     ).exclude(
         votes__voter=request.user,
-        votes__value__in=[1, -1],
+        votes__value__in=exclude_values,
     ).select_related('dataset', 'round').annotate(
         avg_score=Avg('scores__overall_score'),
         user_has_voted=Exists(user_has_voted_subquery)
     ).order_by("-created_at")
-
+ 
     if selected_batch_id:
         applicants_list = applicants_list.filter(round_id=selected_batch_id)
-
     if search_query:
         applicants_list = applicants_list.filter(
             Q(first_name__icontains=search_query) |
             Q(last_name__icontains=search_query) |
             Q(external_id__icontains=search_query)
         )
-
     if status_filter:
         applicants_list = applicants_list.filter(status=status_filter)
-
-    # --- PROGRESS CALCULATION ---
+    if flagged_only:
+        applicants_list = applicants_list.filter(flagged_by=request.user)
+ 
+    # Progress — always based on yes/no regardless of show_waitlist
     filtered_unvoted = applicants_list.count()
-
     batch_filter_qs = batches.filter(pk=selected_batch_id) if selected_batch_id else batches
     voted_in_scope = Vote.objects.filter(
         voter=request.user,
@@ -1448,35 +1469,46 @@ def applicant_queue(request):
         )
     if status_filter:
         voted_in_scope = voted_in_scope.filter(applicant__status=status_filter)
-
-    voted_count = voted_in_scope.count()
+ 
+    voted_count    = voted_in_scope.count()
     total_assigned = filtered_unvoted + voted_count
-    progress_pct = int((voted_count / total_assigned * 100)) if total_assigned > 0 else 0
-    # ----------------------------
-
-    paginator = Paginator(applicants_list, 25)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
-
+    progress_pct   = int((voted_count / total_assigned * 100)) if total_assigned > 0 else 0
+ 
+    # Per-batch remaining counts for dropdown labels
+    batches_with_counts = []
+    for b in batches:
+        b.remaining_count = Applicant.objects.filter(
+            round=b
+        ).exclude(
+            votes__voter=request.user,
+            votes__value__in=[1, -1],
+        ).count()
+        batches_with_counts.append(b)
+ 
+    paginator   = Paginator(applicants_list, 25)
+    page_obj    = paginator.get_page(request.GET.get("page"))
+ 
     context = {
-        'page_obj': page_obj,
-        'batches': batches,
+        'page_obj':          page_obj,
+        'batches':           batches_with_counts,
         'selected_batch_id': selected_batch_id,
-        'search_query': search_query,
-        'is_queue_page': True,
-        'voted_count': voted_count,
-        'total_assigned': total_assigned,
-        'progress_pct': progress_pct,
-        'status_filter': status_filter,
-        'program_type':           '',
-        'application_system':     '',
-        'filter_first_gen':       '',
-        'filter_re_applicant':    '',
-        'filter_pb_to_dmd':       '',
-        'filter_former_pb':       '',
-        'filter_three_plus_four': '',
-        'has_advanced':           False,
-        'program_type_choices':   DataSet.ProgramType.choices,
+        'search_query':      search_query,
+        'is_queue_page':     True,
+        'voted_count':       voted_count,
+        'total_assigned':    total_assigned,
+        'progress_pct':      progress_pct,
+        'status_filter':     status_filter,
+        'flagged_only':      flagged_only,
+        'show_waitlist':     show_waitlist,
+        'program_type':            '',
+        'application_system':      '',
+        'filter_first_gen':        '',
+        'filter_re_applicant':     '',
+        'filter_pb_to_dmd':        '',
+        'filter_former_pb':        '',
+        'filter_three_plus_four':  '',
+        'has_advanced':            False,
+        'program_type_choices':    DataSet.ProgramType.choices,
         'application_system_choices': DataSet.ApplicationSystem.choices,
     }
     return render(request, "applicant_list.html", context)
@@ -2500,39 +2532,66 @@ def my_reviews(request):
     user = request.user
     sort = request.GET.get('sort', 'name')
     direction = request.GET.get('dir', 'asc')
-
+ 
+    filter_batch     = request.GET.get('batch', '')
+    filter_vote      = request.GET.get('vote', '')   # '1', '-1', '0', 'none'
+    filter_flagged   = request.GET.get('flagged_only', '')
+    has_filters      = any([filter_batch, filter_vote, filter_flagged])
+ 
+    # CSV export branch — triggered by ?export=csv
+    if request.GET.get('export') == 'csv':
+        return _export_my_reviews_csv(request, user)
+ 
     assigned_batches = Batch.objects.filter(assigned_reviewers=user)
-
+ 
     votes = Vote.objects.filter(
         voter=user,
         applicant__round__in=assigned_batches,
-    ).select_related('applicant', 'applicant__round', 'applicant__dataset').order_by('-created_at')
-
+    ).select_related('applicant', 'applicant__round', 'applicant__dataset')
+ 
     scores = Score.objects.filter(
         voter=user,
         applicant__round__in=assigned_batches,
     ).select_related('applicant', 'applicant__round')
-
-    # Membership is driven by VOTES only — a candidate appears here only
-    # once this reviewer has actually voted on them (fixes the blank-Score leak).
+ 
+    # Membership driven by votes only (prevents blank-Score leak)
     applicant_pks = set(votes.values_list('applicant__pk', flat=True))
     applicants = (
         Applicant.objects.filter(pk__in=applicant_pks)
         .select_related('round', 'dataset')
         .prefetch_related('flagged_by')
     )
-
+ 
+    if filter_batch:
+        applicants = applicants.filter(round_id=filter_batch)
+    if filter_flagged:
+        applicants = applicants.filter(flagged_by=user)
+ 
+    vote_lookup  = {v.applicant_id: v for v in votes}
+    score_lookup = {s.applicant_id: s for s in scores}
+ 
     reviews = []
     for applicant in applicants:
-        vote = votes.filter(applicant=applicant).first()
-        score = scores.filter(applicant=applicant).first()
+        vote  = vote_lookup.get(applicant.pk)
+        score = score_lookup.get(applicant.pk)
+ 
+        # Vote value filter
+        if filter_vote == 'none' and vote is not None:
+            continue
+        if filter_vote == '1'  and (vote is None or vote.value != 1):
+            continue
+        if filter_vote == '-1' and (vote is None or vote.value != -1):
+            continue
+        if filter_vote == '0'  and (vote is None or vote.value != 0):
+            continue
+ 
         reviews.append({
             'applicant': applicant,
             'vote': vote,
             'score': score,
             'is_flagged': user in applicant.flagged_by.all(),
         })
-
+ 
     def sort_key(r):
         a = r['applicant']
         if sort == 'batch':
@@ -2543,17 +2602,85 @@ def my_reviews(request):
             return (r['score'].overall_score or 0) if r['score'] else 0
         if sort == 'flag':
             return 1 if r['is_flagged'] else 0
-        return (a.last_name.lower(), a.first_name.lower())  # default: name
-
+        return (a.last_name.lower(), a.first_name.lower())
+ 
     reviews.sort(key=sort_key, reverse=(direction == 'desc'))
-
+ 
+    # Stats strip
+    yes_count      = sum(1 for r in reviews if r['vote'] and r['vote'].value == 1)
+    no_count       = sum(1 for r in reviews if r['vote'] and r['vote'].value == -1)
+    waitlist_count = sum(1 for r in reviews if r['vote'] and r['vote'].value == 0)
+    flagged_count  = sum(1 for r in reviews if r['is_flagged'])
+    scored         = [r for r in reviews if r['score'] and r['score'].overall_score]
+    avg_overall    = (
+        round(sum(r['score'].overall_score for r in scored) / len(scored), 1)
+        if scored else None
+    )
+ 
     return render(request, "my_reviews.html", {
-        'reviews': reviews,
-        'total_votes': votes.count(),
-        'total_scores': scores.count(),
-        'sort': sort,
-        'direction': direction,
+        'reviews':          reviews,
+        'total_votes':      votes.count(),
+        'total_scores':     scores.count(),
+        'sort':             sort,
+        'direction':        direction,
+        'filter_batch':     filter_batch,
+        'filter_vote':      filter_vote,
+        'filter_flagged':   filter_flagged,
+        'has_filters':      has_filters,
+        'assigned_batches': assigned_batches,
+        'yes_count':        yes_count,
+        'no_count':         no_count,
+        'waitlist_count':   waitlist_count,
+        'flagged_count':    flagged_count,
+        'avg_overall':      avg_overall,
+        'reviewed_count':   len(reviews),
     })
+ 
+ 
+def _export_my_reviews_csv(request, user):
+    """Reviewer's own votes + scores exported as CSV. Called from my_reviews()."""
+    filter_batch = request.GET.get('batch', '')
+    assigned_batches = Batch.objects.filter(assigned_reviewers=user)
+    if filter_batch:
+        assigned_batches = assigned_batches.filter(pk=filter_batch)
+ 
+    vote_lookup  = {v.applicant_id: v for v in Vote.objects.filter(voter=user, applicant__round__in=assigned_batches)}
+    score_lookup = {s.applicant_id: s for s in Score.objects.filter(voter=user, applicant__round__in=assigned_batches)}
+ 
+    applicants = (
+        Applicant.objects.filter(pk__in=vote_lookup.keys())
+        .select_related('round', 'dataset')
+        .prefetch_related('flagged_by')
+        .order_by('last_name', 'first_name')
+    )
+ 
+    response = HttpResponse(
+        content_type='text/csv',
+        headers={'Content-Disposition': 'attachment; filename="my_reviews.csv"'},
+    )
+    writer = csv.writer(response)
+    writer.writerow([
+        'Last Name', 'First Name', 'External ID', 'Dataset', 'Batch',
+        'Vote', 'Research Score', 'Statement Score', 'Overall Score', 'Flagged by Me',
+    ])
+    vote_labels = {1: 'Yes', -1: 'No', 0: 'Waitlist'}
+    for a in applicants:
+        v = vote_lookup.get(a.pk)
+        s = score_lookup.get(a.pk)
+        writer.writerow([
+            a.last_name,
+            a.first_name,
+            a.external_id or '',
+            a.dataset.DisplayName if a.dataset else '',
+            a.round.DisplayName if a.round else '',
+            vote_labels.get(v.value, '') if v else '',
+            s.research_score  if s else '',
+            s.statement_score if s else '',
+            s.overall_score   if s else '',
+            'Yes' if user in a.flagged_by.all() else 'No',
+        ])
+    return response
+ 
 
 
 @login_required

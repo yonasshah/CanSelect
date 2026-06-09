@@ -112,6 +112,7 @@
     </a>
   </div>
 </div>
+
 {% if batch_completion %}
 <div class="card border-success mb-4 shadow-sm">
   <div class="card-body">
@@ -157,6 +158,7 @@
   </div>
 </div>
 {% endif %}
+
 <!-- Two Column Layout -->
 <div class="row g-4">
 
@@ -203,8 +205,8 @@
             </div>
           </div>
         </div>
- 
-        <!-- ── Candidate Info (from Excel Upload) ── -->
+
+        <!-- Candidate Info (from Excel Upload) -->
         {% if applicant.candidate_info_imported %}
         <hr class="my-3">
         <div class="d-flex align-items-center gap-2 mb-3">
@@ -570,7 +572,6 @@
     </div>
     {% endif %}
 
-
     <!-- Comments -->
     <div class="card mb-4">
       <div class="card-header fw-semibold">
@@ -627,15 +628,14 @@
           {% endif %}
 
           <div class="d-flex gap-2">
-            {% for val, label, btn_class in v_options %} 
+            {% for val, label, btn_class in v_options %}
             <form action="{% url 'vote' applicant.pk val %}" method="POST" class="flex-fill" onsubmit="return confirm('Confirm {{ label }}?');">
               {% csrf_token %}
               <input type="hidden" name="next_id" value="{{ next_applicant.pk }}">
               <input type="hidden" name="nav_params" value="{{ nav_params }}">
               <input type="hidden" name="back_url" value="{{ back_url }}">
-              
               <button type="submit" class="btn w-100 {{ btn_class }}">
-                <i class="bi 
+                <i class="bi
                   {% if label == 'Accept' %}bi-check-lg
                   {% elif label == 'Deny' %}bi-x-lg
                   {% else %}bi-pause{% endif %} me-1"></i>
@@ -751,7 +751,9 @@
 
     </div>
   </div>
-<!-- Flag-for-discussion modal -->
+</div>
+
+<!-- Flag modal -->
 <div class="modal fade" id="flagModal" tabindex="-1" aria-labelledby="flagModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -810,6 +812,7 @@
   });
 })();
 </script>
+
 <style>
   .video-toggle-btn .bi-chevron-down {
     transition: transform 0.2s ease;
@@ -820,13 +823,11 @@
 </style>
 
 <script>
-  // Handle Video Toggle (Collapse/Expand)
   document.querySelectorAll('.video-toggle-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const targetId = btn.getAttribute('data-video-target');
       const collapseEl = document.querySelector(targetId);
       const isOpen = collapseEl.style.display !== 'none';
-
       if (isOpen) {
         collapseEl.style.display = 'none';
         btn.classList.remove('open');
@@ -839,51 +840,45 @@
     });
   });
 
-  // Handle PDF Previewing
   document.querySelectorAll('.pdf-toggle-btn').forEach(btn => {
     let pdfDoc = null;
     let currentPage = 1;
     let currentScale = 1.0;
     let fitScale = 1.0;
- 
+
     function renderPage(container) {
-      const scrollArea = container.querySelector('.pdf-scroll-area');
       const canvas = container.querySelector('canvas');
       const ctx = canvas.getContext('2d');
- 
       pdfDoc.getPage(currentPage).then(page => {
         const viewport = page.getViewport({ scale: currentScale });
         canvas.height = viewport.height;
         canvas.width = viewport.width;
         page.render({ canvasContext: ctx, viewport: viewport });
- 
         container.querySelector('.pdf-current-page').textContent = currentPage;
         container.querySelector('.pdf-prev').disabled = (currentPage <= 1);
         container.querySelector('.pdf-next').disabled = (currentPage >= pdfDoc.numPages);
- 
         const pct = Math.round((currentScale / fitScale) * 100);
         container.querySelector('.pdf-zoom-label').textContent = pct + '%';
       });
     }
- 
+
     function calcFitScale(container) {
       const scrollArea = container.querySelector('.pdf-scroll-area');
       return pdfDoc.getPage(currentPage).then(page => {
         const unscaled = page.getViewport({ scale: 1 });
         const availableWidth = scrollArea.clientWidth - 32;
         fitScale = availableWidth / unscaled.width;
-        // Cap at 1.5x so small PDFs don't get blown up too large
         currentScale = Math.min(fitScale, 1.5);
         fitScale = currentScale;
       });
     }
- 
+
     btn.addEventListener('click', () => {
       const targetId = btn.getAttribute('data-pdf-target');
       const container = document.querySelector(targetId);
       const label = btn.querySelector('.pdf-toggle-label');
       const isOpen = container.style.display !== 'none';
- 
+
       if (isOpen) {
         container.style.display = 'none';
         label.textContent = 'Preview';
@@ -895,12 +890,10 @@
         container.style.display = 'block';
         label.textContent = 'Hide';
         btn.classList.add('active');
- 
         if (!pdfDoc) {
           pdfjsLib.getDocument(btn.getAttribute('data-pdf-url')).promise.then(doc => {
             pdfDoc = doc;
             container.querySelector('.pdf-total-pages').textContent = doc.numPages;
-            // Small delay to ensure container has rendered and has width
             setTimeout(() => {
               calcFitScale(container).then(() => renderPage(container));
             }, 50);
@@ -910,19 +903,15 @@
           });
         }
       }
- 
-      // Page navigation
+
       container.querySelector('.pdf-prev').onclick = () => {
         if (currentPage > 1) { currentPage--; renderPage(container); }
       };
       container.querySelector('.pdf-next').onclick = () => {
         if (pdfDoc && currentPage < pdfDoc.numPages) { currentPage++; renderPage(container); }
       };
- 
-      // Zoom controls
       container.querySelector('.pdf-zoom-in').onclick = () => {
-        currentScale *= 1.25;
-        renderPage(container);
+        currentScale *= 1.25; renderPage(container);
       };
       container.querySelector('.pdf-zoom-out').onclick = () => {
         currentScale *= 0.8;
@@ -935,31 +924,23 @@
     });
   });
 
-  // Handle Video Playback Speed
   document.querySelectorAll('.speed-control').forEach(btn => {
     btn.addEventListener('click', function() {
       const videoId = this.getAttribute('data-video-id');
       const speed = parseFloat(this.getAttribute('data-speed'));
       const video = document.getElementById(videoId);
-      
-      if (video) {
-        // Apply the speed to the video element
-        video.playbackRate = speed;
-        
-        // Update UI: Reset all buttons in this specific group to outline style
-        const container = this.closest('.d-flex') || this.parentElement;
-        container.querySelectorAll('.speed-control').forEach(sBtn => {
-          sBtn.classList.remove('btn-secondary', 'active');
-          sBtn.classList.add('btn-outline-secondary');
-        });
-
-        // Set the clicked button to active (solid) style
-        this.classList.add('btn-secondary', 'active');
-        this.classList.remove('btn-outline-secondary');
-      }
+      if (video) video.playbackRate = speed;
+      const container = this.closest('.d-flex') || this.parentElement;
+      container.querySelectorAll('.speed-control').forEach(sBtn => {
+        sBtn.classList.remove('btn-secondary', 'active');
+        sBtn.classList.add('btn-outline-secondary');
+      });
+      this.classList.add('btn-secondary', 'active');
+      this.classList.remove('btn-outline-secondary');
     });
   });
 </script>
+
 {% if user.profile.role != 'ADMIN' and not current_user_vote %}
 <div id="vote-intercept" style="
   display: none;
@@ -1021,15 +1002,12 @@
     pendingHref = null;
   }
 
-  // Intercept all same-tab link clicks on the page
   document.addEventListener('click', function (e) {
     const anchor = e.target.closest('a');
     if (!anchor) return;
-    if (anchor.target === '_blank') return;       // new tab — let it through
-    if (anchor.id === 'vote-intercept-skip') return; // handled separately
-    if (!anchor.href || anchor.href.startsWith('#')) return; // no-op links
-
-    // Vote forms are <button type="submit">, not <a>, so they're already exempt
+    if (anchor.target === '_blank') return;
+    if (anchor.id === 'vote-intercept-skip') return;
+    if (!anchor.href || anchor.href.startsWith('#')) return;
     e.preventDefault();
     showPanel(anchor.href);
   });
@@ -1043,4 +1021,5 @@
 })();
 </script>
 {% endif %}
+
 {% endblock %}
