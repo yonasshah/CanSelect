@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+{% block title %}Help & FAQ{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width: 860px;">
+
+  {# ── Header ─────────────────────────────────────────────────────────── #}
+  <div class="mb-5">
+    <h1 class="fw-bold mb-1">Help &amp; FAQ</h1>
+    <p class="text-muted mb-0">Everything you need to know about reviewing candidates.</p>
+  </div>
+
+  {# ── Quick-jump nav ──────────────────────────────────────────────────── #}
+  <div class="card mb-5 border-0 bg-body-secondary">
+    <div class="card-body py-3 px-4">
+      <p class="text-muted small fw-semibold text-uppercase mb-2" style="letter-spacing:.05em;">Jump to section</p>
+      <div class="d-flex flex-wrap gap-2">
+        <a href="#queue"      class="btn btn-sm btn-outline-secondary">Your Queue</a>
+        <a href="#voting"     class="btn btn-sm btn-outline-secondary">Voting</a>
+        <a href="#flagging"   class="btn btn-sm btn-outline-secondary">Flagging</a>
+        <a href="#candidate"  class="btn btn-sm btn-outline-secondary">Candidate Info</a>
+        <a href="#scores"     class="btn btn-sm btn-outline-secondary">Scores</a>
+        <a href="#myreviews"  class="btn btn-sm btn-outline-secondary">My Reviews</a>
+        <a href="#statuses"   class="btn btn-sm btn-outline-secondary">Statuses</a>
+        <a href="#deadlines"  class="btn btn-sm btn-outline-secondary">Deadlines</a>
+        <a href="#finishing"  class="btn btn-sm btn-outline-secondary">Finishing Up</a>
+        <a href="#contact"    class="btn btn-sm btn-outline-secondary">Contact</a>
+      </div>
+    </div>
+  </div>
+
+  {# ── Section: Your Queue ─────────────────────────────────────────────── #}
+  <section id="queue" class="mb-5">
+    <h2 class="h5 fw-bold border-bottom pb-2 mb-4">
+      <i class="bi bi-list-task me-2 text-primary"></i>Your Queue
+    </h2>
+
+    <div class="mb-4">
+      <h3 class="h6 fw-semibold mb-2">What is My Queue?</h3>
+      <p class="text-muted">My Queue is your personal list of candidates waiting for a vote. It only shows candidates assigned to your reviewer group who you have not yet voted Yes or No on. Candidates you have waitlisted remain in the queue until you cast a final vote.</p>
+    </div>
+
+    <div class="mb-4">
+      <h3 class="h6 fw-semibold mb-2">How do I navigate between candidates?</h3>
+      <p class="text-muted">Use the <strong>Previous</strong> and <strong>Next</strong> buttons at the top and bottom of the candidate profile. These stay scoped to your current batch — switching batches in the filter resets navigation to the first candidate in that batch.</p>
+    </div>
+
+    <div class="mb-4">
+      <h3 class="h6 fw-semibold mb-2">Why is a candidate missing from my queue?</h3>
+      <p class="text-muted">A candidate disappears from your queue once you cast a Yes or No vote on them. If you believe a candidate is missing in error, check <a href="{% url 'my_reviews' %}">My Reviews</a> — they may already have a recorded vote.</p>
+    </div>
+
+    <div class="mb-4">
+      <h3 class="h6 fw-semibold mb-2">What does "Show waitlisted" do?</h3>
+      <p class="text-muted">By default, candidates you have waitlisted are kept in your queue so you can revisit them. Turning off <strong>Show waitlisted</strong> hides them temporarily if you want to focus on candidates you have not touched yet.</p>
+    </div>
+  </section>
+
+  {# ── Section: Voting ─────────────────────────────────────────────────── #}
+  <section id="voting" class="mb-5">
+    <h2 class="h5 fw-bold border-bottom pb-2 mb-4">
+      <i class="bi bi-check2-circle me-2 text-success"></i>Voting
+    </h2>
+
+    <div class="mb-4">
+      <h3 class="h6 fw-semibold mb-2">What do Yes, No, and Waitlist mean?</h3>
+      <div class="table-responsive">
+        <table class="table table-sm table-bordered text-muted small">
+          <thead class="table-light">
+            <tr>
+              <th>Vote</th>
+              <th>What it means</th>
+              <th>Effect on queue</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="badge bg-success">Yes</span></td>
+              <td>You recommend this candidate for admission</td>
+              <td>Removed from your queue</td>
+            </tr>
+            <tr>
+              <td><span class="badge bg-danger">No</span></td>
+              <td>You do not recommend this candidate</td>
+              <td>Removed from your queue</td>
+            </tr>
+            <tr>
+              <td><span class="badge bg-warning text-dark">Waitlist</span></td>
+              <td>You are undecided — want to revisit</td>
+              <td>Stays in your queue</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="mb-4">
+      <h3 class="h6 fw-semibold mb-2">Can I change my vote?</h3>
+      <p class="text-muted">Yes. Find the candidate in <a href="{% url 'my_reviews' %}">My Reviews</a>, open their profile, and cast a new vote. Your most recent vote is the one that counts.</p>
+    </div>
+
+    <div class="mb-4">
+      <h3 class="h6 fw-semibold mb-2">What if I navigate away without voting?</h3>
+      <p class="text-muted">A prompt will appear if you try to leave a candidate profile without voting. You can choose to leave anyway — no vote will be recorded — or stay and cast your vote first.</p>
+    </div>
+  </section>
+
+  {# ── Section: Flagging ───────────────────────────────────────────────── #}
+  <section id="flagging" class="mb-5">
+    <h2 class="h5 fw-bold border-bottom pb-2 mb-4">
+      <i class="bi bi-flag me-2 text-warning"></i>Flagging
+    </h2>
+
+    <div class="mb-4">
+      <h3 class="h6 fw-semibold mb-2">What does flagging a candidate do?</h3>
+      <p class="text-muted">Flagging marks a candidate for committee discussion. Use it when something in the application warrants a conversation before a final decision is made — not as a substitute for voting. A comment is required when you flag.</p>
+    </div>
+
+    <div class="mb-4">
+      <h3 class="h6 fw-semibold mb-2">Can other reviewers see my flag?</h3>
+      <p class="text-muted">Admins can see all flags and comments. Other committee members can see that a candidate has been flagged but cannot read your specific comment — only you and admins can see what you wrote.</p>
+    </div>
+
+    <div class="mb-4">
+      <h3 class="h6 fw-semibold mb-2">Can I remove a flag I placed?</h3>
+      <p class="text-muted">Yes. Open the candidate profile and click the flag button again to remove your flag.</p>
+    </div>
+  </section>
+
+  {# ── Section: Candidate Info Card ────────────────────────────────────── #}
+  <section id="candidate" class="mb-5">
+    <h2 class="h5 fw-bold border-bottom pb-2 mb-4">
+      <i class="bi bi-person-lines-fill me-2 text-info"></i>Reading the Candidate Info Card
+    </h2>
+
+    <div class="mb-4">
+      <h3 class="h6 fw-semibold mb-2">GPA fields</h3>
+      <p class="text-muted mb-2">Three GPA values are shown, each covering a different subset of coursework:</p>
+      <ul class="text-muted small">
+        <li><strong>Overall GPA</strong> — all undergraduate coursework combined</li>
+        <li><strong>Science GPA</strong> — natural science and math courses only</li>
+        <li><strong>BCP GPA</strong> — Biology, Chemistry, and Physics courses only; the most heavily weighted by dental schools</li>
+      </ul>
+      <p class="text-muted small">GPAs are color-coded: <span class="text-success fw-semibold">green ≥ 3.5</span> · <span class="text-warning fw-semibold">yellow ≥ 3.0</span> · <span class="text-danger fw-semibold">red &lt; 3.0</span>.</p>
+    </div>
+
+    <div class="mb-4">
+      <h3 class="h6 fw-semibold mb-2">DAT scores</h3>
+      <p class="text-muted mb-2">DAT scores are on a scale of 200–600. The national average Academic Average is approximately 400. Competitive applicants typically score 430–460, and top-tier scores are 470 and above.</p>
+      <ul class="text-muted small">
+        <li><strong>Academic Average</strong> — average of all DAT sections; the headline number</li>
+        <li><strong>Total Science</strong> — combined score across Biology, General Chemistry, and Organic Chemistry</li>
+        <li><strong>PAT</strong> — Perceptual Ability Test; measures spatial reasoning and hand-eye coordination relevant to dentistry</li>
+        <li><strong>Quantitative Reasoning</strong> — math and problem-solving</li>
+        <li><strong>Reading Comprehension</strong> — reading speed and retention</li>
+        <li><strong>Biology, General Chem, Organic Chem</strong> — individual science section scores</li>
+      </ul>
+    </div>
+
+    <div class="mb-4">
+      <h3 class="h6 fw-semibold mb-2">Experience hours</h3>
+      <p class="text-muted"><strong>Dental experience</strong> hours reflect hands-on clinical work (e.g. dental assisting). <strong>Shadowing</strong> hours reflect observation of a licensed dentist. Both are self-reported by the applicant on their AADSAS application.</p>
+    </div>
+
+    <div class="mb-4">
+      <h3 class="h6 fw-semibold mb-2">AADSAS data (Total AI, NC, Z-Score)</h3>
+      <p class="text-muted"><strong>Total AI</strong> (Academic Index) and <strong>Total NC</strong> (Non-Cognitive score) are composite metrics calculated by AADSAS. <strong>Z-Score</strong> is a standardized score relative to the applicant pool for that cycle. Higher is better for all three.</p>
+    </div>
+  </section>
+
+  {# ── Section: Scores ─────────────────────────────────────────────────── #}
+  <section id="scores" class="mb-5">
+    <h2 class="h5 fw-bold border-bottom pb-2 mb-4">
+      <i class="bi bi-star me-2 text-warning"></i>Scores
+    </h2>
+
+    <div class="mb-4">
+      <h3 class="h6 fw-semibold mb-2">What is the reviewer score?</h3>
+      <p class="text-muted">The reviewer score is an optional numeric rating you can assign to a candidate alongside your vote. It captures your overall impression and is used in the stats strip on My Reviews and in admin analytics. Check with the admissions director for the scoring rubric your group uses.</p>
+    </div>
+
+    <div class="mb-4">
+      <h3 class="h6 fw-semibold mb-2">Is a score required?</h3>
+      <p class="text-muted">No. You can vote without entering a score. If you do enter one, it is factored into your average score shown on My Reviews.</p>
+    </div>
+  </section>
+
+  {# ── Section: My Reviews ─────────────────────────────────────────────── #}
+  <section id="myreviews" class="mb-5">
+    <h2 class="h5 fw-bold border-bottom pb-2 mb-4">
+      <i class="bi bi-card-checklist me-2 text-primary"></i>My Reviews
+    </h2>
+
+    <div class="mb-4">
+      <h3 class="h6 fw-semibold mb-2">What does the stats strip show?</h3>
+      <p class="text-muted mb-2">The strip at the top of My Reviews summarises your voting activity across the current filter:</p>
+      <ul class="text-muted small">
+        <li><strong>Yes / No / Waitlist</strong> — count of each vote type you have cast</li>
+        <li><strong>Flagged</strong> — candidates you have flagged for discussion</li>
+        <li><strong>Avg Score</strong> — your average reviewer score across voted candidates (blank if no scores entered)</li>
+        <li><strong>Vote bar</strong> — a visual breakdown of Yes / No / Waitlist proportions</li>
+      </ul>
+    </div>
+
+    <div class="mb-4">
+      <h3 class="h6 fw-semibold mb-2">Can I export My Reviews?</h3>
+      <p class="text-muted">Yes. Use the <strong>Export CSV</strong> button at the top of My Reviews to download a spreadsheet of your votes, scores, and candidate details matching the current filter.</p>
+    </div>
+  </section>
+
+  {# ── Section: Statuses ───────────────────────────────────────────────── #}
+  <section id="statuses" class="mb-5">
+    <h2 class="h5 fw-bold border-bottom pb-2 mb-4">
+      <i class="bi bi-tag me-2 text-secondary"></i>Candidate Statuses
+    </h2>
+
+    <p class="text-muted mb-3">Statuses are set by admins and reflect where a candidate is in the admissions process. As a reviewer you will see these but cannot change them.</p>
+
+    <div class="table-responsive">
+      <table class="table table-sm table-bordered text-muted small">
+        <thead class="table-light">
+          <tr><th>Status</th><th>Meaning</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="badge bg-primary">Interview</span></td><td>Candidate is active and under review</td></tr>
+          <tr><td><span class="badge bg-info text-dark">Interview Complete</span></td><td>Interview process finished; awaiting final decision</td></tr>
+          <tr><td><span class="badge bg-success">Accepted</span></td><td>Candidate has been accepted</td></tr>
+          <tr><td><span class="badge bg-success">Accepted – Mailed</span></td><td>Acceptance letter has been sent</td></tr>
+          <tr><td><span class="badge bg-secondary">Accepted – Not Mailed</span></td><td>Accepted but letter not yet sent</td></tr>
+          <tr><td><span class="badge bg-warning text-dark">Waitlisted</span></td><td>On the waitlist for a spot</td></tr>
+          <tr><td><span class="badge bg-danger">Rejected</span></td><td>Not admitted this cycle</td></tr>
+          <tr><td><span class="badge bg-dark">Candidate Declined</span></td><td>Candidate withdrew or declined their offer</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {# ── Section: Deadlines ──────────────────────────────────────────────── #}
+  <section id="deadlines" class="mb-5">
+    <h2 class="h5 fw-bold border-bottom pb-2 mb-4">
+      <i class="bi bi-calendar-event me-2 text-danger"></i>Deadlines
+    </h2>
+
+    <div class="mb-4">
+      <h3 class="h6 fw-semibold mb-2">What do the deadline colors mean?</h3>
+      <p class="text-muted mb-2">The deadline urgency strip on your dashboard uses color to signal how much time is left:</p>
+      <ul class="text-muted small">
+        <li><span class="text-danger fw-semibold">Red — Critical</span>: deadline is 3 days away or less. Review immediately.</li>
+        <li><span class="text-warning fw-semibold">Yellow — Soon</span>: deadline is within 7 days. Plan to finish this week.</li>
+        <li><span class="text-success fw-semibold">Green — On track</span>: more than 7 days remaining.</li>
+      </ul>
+    </div>
+
+    <div class="mb-4">
+      <h3 class="h6 fw-semibold mb-2">What happens if I miss a deadline?</h3>
+      <p class="text-muted">Batches remain open after their deadline — your votes still count. However, final decisions may proceed without your input if you have not voted by the time the committee convenes. Contact the admissions director if you need an extension.</p>
+    </div>
+  </section>
+
+  {# ── Section: Finishing Up ───────────────────────────────────────────── #}
+  <section id="finishing" class="mb-5">
+    <h2 class="h5 fw-bold border-bottom pb-2 mb-4">
+      <i class="bi bi-check-circle me-2 text-success"></i>Finishing Up
+    </h2>
+
+    <div class="mb-4">
+      <h3 class="h6 fw-semibold mb-2">What happens when I finish all my candidates?</h3>
+      <p class="text-muted">When you vote on the last candidate in a batch, a completion card appears showing your vote breakdown for that batch — how many Yes, No, and Waitlist votes you cast. From there you can return to your dashboard or continue to any remaining batches.</p>
+    </div>
+
+    <div class="mb-4">
+      <h3 class="h6 fw-semibold mb-2">What if new candidates are added after I finish?</h3>
+      <p class="text-muted">Your dashboard will show a prompt when new batches are uploaded that include candidates assigned to your group. Your queue will reflect the new candidates automatically.</p>
+    </div>
+
+    <div class="mb-4">
+      <h3 class="h6 fw-semibold mb-2">Do I need to do anything after voting?</h3>
+      <p class="text-muted">No action is needed beyond casting your votes. The admissions team reviews all committee votes when making final decisions. You will not be notified of the outcome unless someone from the admissions team reaches out directly.</p>
+    </div>
+  </section>
+
+  {# ── Section: Contact ────────────────────────────────────────────────── #}
+  <section id="contact" class="mb-5">
+    <h2 class="h5 fw-bold border-bottom pb-2 mb-4">
+      <i class="bi bi-envelope me-2 text-secondary"></i>Something looks wrong
+    </h2>
+
+    <div class="mb-4">
+      <h3 class="h6 fw-semibold mb-2">A candidate's information looks incorrect</h3>
+      <p class="text-muted">Candidate data is imported from AADSAS applications. If a GPA, DAT score, or personal detail looks wrong, do not adjust your vote based on it — contact the admissions director and note the candidate's name and what looks incorrect. They can verify against the source document.</p>
+    </div>
+
+    <div class="mb-4">
+      <h3 class="h6 fw-semibold mb-2">I can't access a candidate I should be able to see</h3>
+      <p class="text-muted">Access is controlled by your reviewer group assignment. If a candidate you expect to see is missing from your queue entirely and is not in My Reviews, contact the admissions director — you may need to be added to the correct group for that batch.</p>
+    </div>
+
+    <div class="mb-4">
+      <h3 class="h6 fw-semibold mb-2">I found a bug or something broken</h3>
+      <p class="text-muted">Contact the admissions director with a description of what you were doing and what happened. If you can include a screenshot, that helps.</p>
+    </div>
+  </section>
+
+  {# ── Back to top ─────────────────────────────────────────────────────── #}
+  <div class="text-center pt-3 pb-5">
+    <a href="#" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-arrow-up me-1"></i>Back to top
+    </a>
+  </div>
+
+</div>
+{% endblock %}

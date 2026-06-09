@@ -48,8 +48,8 @@
 <div class="alert alert-warning alert-dismissible fade show" role="alert">
   <i class="bi bi-exclamation-circle-fill me-2"></i>
   <strong>This profile is incomplete.</strong> Please fill in missing details —
-  {% if applicant.age == 0 %}age, {% endif %}
-  {% if applicant.gender == 'Not Specified' %}gender, {% endif %}
+  {% if not applicant.date_of_birth %}date of birth, {% endif %}
+  {% if not applicant.gender %}gender, {% endif %}
   {% if not applicant.email %}email{% endif %}
   <a href="{% url 'applicant_edit' applicant.pk %}" class="btn btn-sm btn-warning ms-3">Edit Profile</a>
   <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
@@ -165,12 +165,14 @@
   <!-- LEFT COLUMN: Info + Files + Comments -->
   <div class="col-lg-8">
 
-    <!-- Demographics -->
+    <!-- Candidate Information -->
     <div class="card mb-4">
       <div class="card-header fw-semibold">
         <i class="bi bi-person-lines-fill me-2"></i>Candidate Information
       </div>
       <div class="card-body">
+
+        <!-- ── Basic info ── -->
         <div class="row g-3">
           <div class="col-md-6">
             <div class="text-muted small mb-1">Dataset</div>
@@ -180,14 +182,35 @@
             <div class="text-muted small mb-1">Batch / Round</div>
             <div>{{ applicant.round.DisplayName|default:"—" }}</div>
           </div>
-          <div class="col-md-4">
-            <div class="text-muted small mb-1">Age</div>
-            <div>{% if applicant.age == 0 %}<span class="text-warning">Not set</span>{% else %}{{ applicant.age }}{% endif %}</div>
+          <div class="col-md-3">
+            <div class="text-muted small mb-1">Date of Birth</div>
+            <div>
+              {% if applicant.date_of_birth %}
+                {{ applicant.date_of_birth|date:"M d, Y" }}
+                <span class="text-muted small">(age {{ applicant.age }})</span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </div>
           </div>
-          <div class="col-md-4">
+          <div class="col-md-3">
             <div class="text-muted small mb-1">Gender</div>
             <div>{{ applicant.gender|default:"—" }}</div>
           </div>
+          <div class="col-md-3">
+            <div class="text-muted small mb-1">Citizenship</div>
+            <div>{{ applicant.citizenship|default:"—" }}</div>
+          </div>
+          <div class="col-md-3">
+            <div class="text-muted small mb-1">State</div>
+            <div>{{ applicant.state_of_residence|default:"—" }}</div>
+          </div>
+          {% if applicant.phone %}
+          <div class="col-md-4">
+            <div class="text-muted small mb-1">Phone</div>
+            <div>{{ applicant.phone }}</div>
+          </div>
+          {% endif %}
           {% if applicant.description %}
           <div class="col-12">
             <div class="text-muted small mb-1">Description</div>
@@ -206,12 +229,92 @@
           </div>
         </div>
 
-        <!-- Candidate Info (from Excel Upload) -->
         {% if applicant.candidate_info_imported %}
+
+        <!-- ── GPA ── -->
         <hr class="my-3">
         <div class="d-flex align-items-center gap-2 mb-3">
-          <i class="bi bi-file-earmark-spreadsheet text-success"></i>
-          <span class="fw-semibold small">Candidate Data</span>
+          <i class="bi bi-mortarboard text-primary"></i>
+          <span class="fw-semibold small">GPA</span>
+        </div>
+        <div class="row g-3 mb-2">
+          <div class="col-md-4">
+            <div class="text-center p-3 rounded" style="background:rgba(13,110,253,0.06); border:1px solid rgba(13,110,253,0.15);">
+              <div class="fs-3 fw-bold text-primary">{{ applicant.gpa_overall|default:"—" }}</div>
+              <div class="text-muted small mt-1">Overall GPA</div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-center p-3 rounded" style="background:rgba(25,135,84,0.06); border:1px solid rgba(25,135,84,0.15);">
+              <div class="fs-3 fw-bold text-success">{{ applicant.gpa_science|default:"—" }}</div>
+              <div class="text-muted small mt-1">Science GPA</div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-center p-3 rounded" style="background:rgba(108,117,125,0.06); border:1px solid rgba(108,117,125,0.15);">
+              <div class="fs-3 fw-bold">{{ applicant.gpa_bcp|default:"—" }}</div>
+              <div class="text-muted small mt-1">BCP GPA
+                <span data-bs-toggle="tooltip" title="Biology / Chemistry / Physics">
+                  <i class="bi bi-info-circle ms-1" style="font-size:0.7rem;"></i>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── DAT Scores ── -->
+        {% if applicant.has_dat_scores %}
+        <hr class="my-3">
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <i class="bi bi-bar-chart-fill text-warning"></i>
+          <span class="fw-semibold small">DAT Scores</span>
+        </div>
+        <!-- Academic Average headline -->
+        <div class="d-flex align-items-center gap-3 mb-3 p-3 rounded" style="background:rgba(255,193,7,0.08); border:1px solid rgba(255,193,7,0.2);">
+          <div>
+            <div class="fs-2 fw-bold" style="color:#997404;">{{ applicant.dat_academic_avg }}</div>
+            <div class="text-muted small">Academic Average</div>
+          </div>
+          <div class="vr"></div>
+          <div>
+            <div class="fs-2 fw-bold" style="color:#997404;">{{ applicant.dat_total_science|default:"—" }}</div>
+            <div class="text-muted small">Total Science</div>
+          </div>
+        </div>
+        <!-- Sub-scores grid -->
+        <div class="row g-2" style="font-size:0.85rem;">
+          <div class="col-6 col-md-3">
+            <div class="text-muted small mb-1">Perceptual Ability</div>
+            <div class="fw-semibold">{{ applicant.dat_perceptual_ability|default:"—" }}</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="text-muted small mb-1">Quantitative Reasoning</div>
+            <div class="fw-semibold">{{ applicant.dat_quantitative_reasoning|default:"—" }}</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="text-muted small mb-1">Reading Comprehension</div>
+            <div class="fw-semibold">{{ applicant.dat_reading_comp|default:"—" }}</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="text-muted small mb-1">Biology</div>
+            <div class="fw-semibold">{{ applicant.dat_biology|default:"—" }}</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="text-muted small mb-1">General Chemistry</div>
+            <div class="fw-semibold">{{ applicant.dat_general_chem|default:"—" }}</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="text-muted small mb-1">Organic Chemistry</div>
+            <div class="fw-semibold">{{ applicant.dat_organic_chem|default:"—" }}</div>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- ── AADSAS / Experience ── -->
+        <hr class="my-3">
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <i class="bi bi-clipboard2-data text-success"></i>
+          <span class="fw-semibold small">AADSAS Data</span>
         </div>
         <div class="row g-3">
           <div class="col-md-3">
@@ -227,56 +330,35 @@
             <div class="fw-semibold">{{ applicant.z_score|default:"—" }}</div>
           </div>
           <div class="col-md-3">
+            <div class="text-muted small mb-1">Dental Exp. Hours</div>
+            <div class="fw-semibold">{{ applicant.dental_experience_hours|default:"—" }}</div>
+          </div>
+          <div class="col-md-3">
+            <div class="text-muted small mb-1">Shadowing Hours</div>
+            <div class="fw-semibold">{{ applicant.shadowing_hours|default:"—" }}</div>
+          </div>
+          <div class="col-md-3">
             <div class="text-muted small mb-1">First Generation</div>
-            <div>
-              {% if applicant.first_gen %}
-                <span class="badge bg-success">Yes</span>
-              {% else %}
-                <span class="text-muted">No</span>
-              {% endif %}
-            </div>
+            <div>{% if applicant.first_gen %}<span class="badge bg-success">Yes</span>{% else %}<span class="text-muted">No</span>{% endif %}</div>
           </div>
           <div class="col-md-3">
             <div class="text-muted small mb-1">Re-Applicant</div>
-            <div>
-              {% if applicant.re_applicant %}
-                <span class="badge bg-info text-dark">Yes</span>
-              {% else %}
-                <span class="text-muted">No</span>
-              {% endif %}
-            </div>
+            <div>{% if applicant.re_applicant %}<span class="badge bg-info text-dark">Yes</span>{% else %}<span class="text-muted">No</span>{% endif %}</div>
           </div>
           <div class="col-md-3">
             <div class="text-muted small mb-1">PB to DMD</div>
-            <div>
-              {% if applicant.pb_to_dmd %}
-                <span class="badge bg-primary">Yes</span>
-              {% else %}
-                <span class="text-muted">No</span>
-              {% endif %}
-            </div>
+            <div>{% if applicant.pb_to_dmd %}<span class="badge bg-primary">Yes</span>{% else %}<span class="text-muted">No</span>{% endif %}</div>
           </div>
           <div class="col-md-3">
             <div class="text-muted small mb-1">Former Post Bacc</div>
-            <div>
-              {% if applicant.former_post_bacc %}
-                <span class="badge bg-warning text-dark">Yes</span>
-              {% else %}
-                <span class="text-muted">No</span>
-              {% endif %}
-            </div>
+            <div>{% if applicant.former_post_bacc %}<span class="badge bg-warning text-dark">Yes</span>{% else %}<span class="text-muted">No</span>{% endif %}</div>
           </div>
           <div class="col-md-3">
             <div class="text-muted small mb-1">3+4</div>
-            <div>
-              {% if applicant.three_plus_four %}
-                <span class="badge bg-secondary">Yes</span>
-              {% else %}
-                <span class="text-muted">No</span>
-              {% endif %}
-            </div>
+            <div>{% if applicant.three_plus_four %}<span class="badge bg-secondary">Yes</span>{% else %}<span class="text-muted">No</span>{% endif %}</div>
           </div>
         </div>
+
         {% endif %}
       </div>
     </div>

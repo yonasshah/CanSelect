@@ -12,7 +12,7 @@ class BatchAdmin(admin.ModelAdmin):
 
 @admin.register(Applicant)
 class ApplicantAdmin(admin.ModelAdmin):
-    list_display = ("first_name", "last_name", "email", "age", "gender", "created_at")
+    list_display = ("first_name", "last_name", "email", "date_of_birth", "gender", "created_at")
     
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):

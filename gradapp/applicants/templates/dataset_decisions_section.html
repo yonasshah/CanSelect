@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% include "partials/breadcrumbs.html" with crumbs=crumbs %}
+
+<style>
+  :root {
+    --accept-bg:  rgba(25,135,84,0.08);
+    --deny-bg:    rgba(220,53,69,0.08);
+    --split-bg:   rgba(255,193,7,0.08);
+  }
+  [data-bs-theme="dark"] {
+    --accept-bg:  rgba(25,135,84,0.14);
+    --deny-bg:    rgba(220,53,69,0.14);
+    --split-bg:   rgba(255,193,7,0.12);
+  }
+
+  .candidate-card {
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 10px;
+    margin-bottom: 0.75rem;
+    overflow: hidden;
+    transition: box-shadow 0.15s ease;
+  }
+  .candidate-card:hover { box-shadow: 0 3px 12px rgba(0,0,0,0.1); }
+  [data-bs-theme="dark"] .candidate-card { border-color: rgba(255,255,255,0.08); }
+  [data-bs-theme="dark"] .candidate-card:hover { box-shadow: 0 3px 12px rgba(0,0,0,0.35); }
+  .candidate-card.is-flagged { border-left: 3px solid #dc3545; }
+
+  .card-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    gap: 1rem;
+    flex-wrap: wrap;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+  }
+  [data-bs-theme="dark"] .card-header-row { border-bottom-color: rgba(255,255,255,0.06); }
+
+  .candidate-name {
+    font-weight: 600;
+    font-size: 0.97rem;
+    text-decoration: none;
+    color: inherit;
+  }
+  .candidate-name:hover { color: #0d6efd; }
+
+  .vote-bar {
+    display: flex;
+    height: 7px;
+    border-radius: 4px;
+    overflow: hidden;
+    width: 100px;
+    background: rgba(0,0,0,0.07);
+    flex-shrink: 0;
+  }
+  [data-bs-theme="dark"] .vote-bar { background: rgba(255,255,255,0.1); }
+  .vote-bar-accept { background: #198754; }
+  .vote-bar-deny   { background: #dc3545; }
+  .vote-bar-wait   { background: #ffc107; }
+
+  .stat-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.6rem 1rem 0.75rem;
+  }
+
+  .stat-chip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.35rem 0.65rem;
+    border-radius: 7px;
+    min-width: 62px;
+    background: rgba(0,0,0,0.03);
+    border: 1px solid rgba(0,0,0,0.06);
+  }
+  [data-bs-theme="dark"] .stat-chip {
+    background: rgba(255,255,255,0.04);
+    border-color: rgba(255,255,255,0.08);
+  }
+  .stat-chip .chip-val { font-size: 1rem; font-weight: 700; line-height: 1.1; }
+  .stat-chip .chip-lbl { font-size: 0.62rem; color: #6c757d; margin-top: 2px; white-space: nowrap; }
+
+  .chip-gpa-high { background: rgba(25,135,84,0.09); border-color: rgba(25,135,84,0.2); }
+  .chip-gpa-high .chip-val { color: #146c43; }
+  .chip-gpa-mid  { background: rgba(255,193,7,0.1); border-color: rgba(255,193,7,0.25); }
+  .chip-gpa-mid  .chip-val { color: #997404; }
+  .chip-gpa-low  { background: rgba(220,53,69,0.08); border-color: rgba(220,53,69,0.2); }
+  .chip-gpa-low  .chip-val { color: #b02a37; }
+
+  .chip-dat-high { background: rgba(13,110,253,0.08); border-color: rgba(13,110,253,0.2); }
+  .chip-dat-high .chip-val { color: #084298; }
+  .chip-dat-low  { background: rgba(220,53,69,0.06); border-color: rgba(220,53,69,0.15); }
+  .chip-dat-low  .chip-val { color: #b02a37; }
+
+  [data-bs-theme="dark"] .chip-gpa-high .chip-val { color: #75b798; }
+  [data-bs-theme="dark"] .chip-gpa-mid  .chip-val { color: #ffda6a; }
+  [data-bs-theme="dark"] .chip-gpa-low  .chip-val { color: #ea868f; }
+  [data-bs-theme="dark"] .chip-dat-high .chip-val { color: #6ea8fe; }
+  [data-bs-theme="dark"] .chip-dat-low  .chip-val { color: #ea868f; }
+
+  .stat-divider {
+    width: 1px;
+    background: rgba(0,0,0,0.1);
+    align-self: stretch;
+    margin: 0 0.25rem;
+  }
+  [data-bs-theme="dark"] .stat-divider { background: rgba(255,255,255,0.1); }
+
+  .sort-bar { display: flex; gap: 0.25rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: center; }
+  .sort-bar .sort-label { font-size: 0.78rem; color: #6c757d; margin-right: 0.25rem; }
+  .sort-btn {
+    font-size: 0.78rem;
+    padding: 2px 10px;
+    border-radius: 20px;
+    border: 1px solid rgba(0,0,0,0.15);
+    background: transparent;
+    color: inherit;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .sort-btn:hover { background: rgba(0,0,0,0.04); color: inherit; }
+  .sort-btn.active { background: #0d6efd; border-color: #0d6efd; color: #fff; }
+  [data-bs-theme="dark"] .sort-btn { border-color: rgba(255,255,255,0.15); }
+  [data-bs-theme="dark"] .sort-btn:hover { background: rgba(255,255,255,0.06); }
+
+  .status-accepted   { color: #198754; font-weight: 600; font-size: 0.8rem; }
+  .status-rejected   { color: #dc3545; font-weight: 600; font-size: 0.8rem; }
+  .status-waitlisted { color: #997404; font-weight: 600; font-size: 0.8rem; }
+</style>
+
+<!-- Page header -->
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <div class="d-flex align-items-center gap-2 mb-1">
+      <i class="bi {{ meta.icon }} text-{{ meta.color }} fs-4"></i>
+      <h2 class="mb-0">{{ meta.label }}</h2>
+      <span class="badge bg-{{ meta.color }}">{{ candidates|length }}</span>
+    </div>
+    <div class="text-muted small">
+      <a href="{% url 'dataset_detail' dataset.pk %}" class="text-decoration-none">
+        <i class="bi bi-stack me-1"></i>{{ dataset.DisplayName }}
+      </a>
+      &mdash;
+      <a href="{% url 'dataset_decisions' dataset.pk %}?threshold={{ threshold }}{% if cap %}&cap={{ cap }}{% endif %}"
+         class="text-decoration-none">← All decisions</a>
+    </div>
+  </div>
+  <div class="text-end text-muted small">
+    Threshold: <strong>{{ threshold_display }}</strong>
+    {% if cap %}<br>Class cap: <strong>{{ cap }}</strong>{% endif %}
+  </div>
+</div>
+
+{% if not candidates %}
+<div class="text-center text-muted py-5 border rounded">
+  <i class="bi bi-inbox fs-1 d-block mb-2 opacity-25"></i>
+  <p class="mb-0">No candidates in this group.</p>
+</div>
+{% else %}
+
+<!-- Sort bar -->
+<div class="sort-bar">
+  <span class="sort-label">Sort by</span>
+  {% for s, label in sort_options %}
+    {% if sort == s %}
+      <a href="?threshold={{ threshold }}{% if cap %}&cap={{ cap }}{% endif %}&sort={{ s }}&dir={% if direction == 'asc' %}desc{% else %}asc{% endif %}"
+         class="sort-btn active">
+        {{ label }}
+        <i class="bi bi-arrow-{% if direction == 'asc' %}up{% else %}down{% endif %}" style="font-size:0.65rem;"></i>
+      </a>
+    {% else %}
+      <a href="?threshold={{ threshold }}{% if cap %}&cap={{ cap }}{% endif %}&sort={{ s }}&dir=asc"
+         class="sort-btn">{{ label }}</a>
+    {% endif %}
+  {% endfor %}
+</div>
+
+<!-- Candidate cards -->
+{% for a in candidates %}
+<div class="candidate-card {% if a.is_flagged %}is-flagged{% endif %}">
+
+  <!-- Header row -->
+  <div class="card-header-row">
+    <div class="d-flex align-items-center gap-2 flex-wrap" style="min-width:0;">
+      <a href="{% url 'applicant_detail' a.pk %}" class="candidate-name">
+        {{ a.last_name }}, {{ a.first_name }}
+      </a>
+      {% if a.is_flagged %}
+        <span class="badge bg-danger" style="font-size:0.65rem;">
+          <i class="bi bi-flag-fill me-1"></i>Flagged
+        </span>
+      {% endif %}
+      <span class="text-muted small">{{ a.round.DisplayName|default:"—" }}</span>
+    </div>
+
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+      <div class="d-flex align-items-center gap-1">
+        <span class="badge bg-success">{{ a.accept_ct }}</span>
+        <span class="badge bg-danger">{{ a.deny_ct }}</span>
+        <span class="badge bg-warning text-dark">{{ a.wait_ct }}</span>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <div class="vote-bar">
+          <div class="vote-bar-accept" style="width:{% widthratio a.accept_ct a.total_votes 100 %}%;"></div>
+          <div class="vote-bar-deny"   style="width:{% widthratio a.deny_ct   a.total_votes 100 %}%;"></div>
+          <div class="vote-bar-wait"   style="width:{% widthratio a.wait_ct   a.total_votes 100 %}%;"></div>
+        </div>
+        <span style="font-size:0.78rem; font-weight:600; min-width:38px;">{{ a.accept_pct }}%</span>
+      </div>
+      <div style="min-width:90px; text-align:right;">
+        {% if a.status == 'ACCEPTED' or a.status == 'ACCEPTED_MAILED' or a.status == 'ACCEPTED_NOT_MAILED' %}
+          <span class="status-accepted"><i class="bi bi-check-circle-fill me-1"></i>{{ a.get_status_display }}</span>
+        {% elif a.status == 'REJECTED' %}
+          <span class="status-rejected"><i class="bi bi-x-circle-fill me-1"></i>Rejected</span>
+        {% elif a.status == 'WAITLISTED' %}
+          <span class="status-waitlisted"><i class="bi bi-pause-circle-fill me-1"></i>Waitlisted</span>
+        {% else %}
+          <span class="badge {% if a.status == 'INTERVIEW' %}bg-primary{% elif a.status == 'INTERVIEW_COMPLETE' %}bg-info text-dark{% else %}bg-secondary{% endif %}" style="font-size:0.72rem;">
+            {{ a.get_status_display }}
+          </span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Stat chips — only if any data exists -->
+  {% if a.gpa_overall or a.dat_academic_avg or a.dental_experience_hours or a.shadowing_hours or a.avg_score %}
+  <div class="stat-grid">
+
+    {% if a.gpa_overall %}{% if a.gpa_overall >= 3.5 %}<div class="stat-chip chip-gpa-high">{% elif a.gpa_overall >= 3.0 %}<div class="stat-chip chip-gpa-mid">{% else %}<div class="stat-chip chip-gpa-low">{% endif %}
+      <span class="chip-val">{{ a.gpa_overall }}</span><span class="chip-lbl">Overall GPA</span></div>{% endif %}
+
+    {% if a.gpa_science %}{% if a.gpa_science >= 3.5 %}<div class="stat-chip chip-gpa-high">{% elif a.gpa_science >= 3.0 %}<div class="stat-chip chip-gpa-mid">{% else %}<div class="stat-chip chip-gpa-low">{% endif %}
+      <span class="chip-val">{{ a.gpa_science }}</span><span class="chip-lbl">Science GPA</span></div>{% endif %}
+
+    {% if a.gpa_bcp %}{% if a.gpa_bcp >= 3.5 %}<div class="stat-chip chip-gpa-high">{% elif a.gpa_bcp >= 3.0 %}<div class="stat-chip chip-gpa-mid">{% else %}<div class="stat-chip chip-gpa-low">{% endif %}
+      <span class="chip-val">{{ a.gpa_bcp }}</span><span class="chip-lbl">BCP GPA</span></div>{% endif %}
+
+    {% if a.dat_academic_avg or a.dat_total_science %}{% if a.gpa_overall or a.gpa_science or a.gpa_bcp %}<div class="stat-divider"></div>{% endif %}{% endif %}
+
+    {% if a.dat_academic_avg %}{% if a.dat_academic_avg >= 220 %}<div class="stat-chip chip-dat-high">{% elif a.dat_academic_avg < 190 %}<div class="stat-chip chip-dat-low">{% else %}<div class="stat-chip">{% endif %}
+      <span class="chip-val">{{ a.dat_academic_avg }}</span><span class="chip-lbl">DAT Avg</span></div>{% endif %}
+
+    {% if a.dat_total_science %}<div class="stat-chip"><span class="chip-val">{{ a.dat_total_science }}</span><span class="chip-lbl">DAT Sci</span></div>{% endif %}
+    {% if a.dat_perceptual_ability %}<div class="stat-chip"><span class="chip-val">{{ a.dat_perceptual_ability }}</span><span class="chip-lbl">PAT</span></div>{% endif %}
+    {% if a.dat_reading_comp %}<div class="stat-chip"><span class="chip-val">{{ a.dat_reading_comp }}</span><span class="chip-lbl">Reading</span></div>{% endif %}
+    {% if a.dat_biology %}<div class="stat-chip"><span class="chip-val">{{ a.dat_biology }}</span><span class="chip-lbl">Bio</span></div>{% endif %}
+    {% if a.dat_general_chem %}<div class="stat-chip"><span class="chip-val">{{ a.dat_general_chem }}</span><span class="chip-lbl">Gen Chem</span></div>{% endif %}
+    {% if a.dat_organic_chem %}<div class="stat-chip"><span class="chip-val">{{ a.dat_organic_chem }}</span><span class="chip-lbl">Org Chem</span></div>{% endif %}
+
+    {% if a.dental_experience_hours or a.shadowing_hours %}<div class="stat-divider"></div>{% endif %}
+    {% if a.dental_experience_hours %}<div class="stat-chip"><span class="chip-val">{{ a.dental_experience_hours }}</span><span class="chip-lbl">Dental Hrs</span></div>{% endif %}
+    {% if a.shadowing_hours %}<div class="stat-chip"><span class="chip-val">{{ a.shadowing_hours }}</span><span class="chip-lbl">Shadow Hrs</span></div>{% endif %}
+
+    {% if a.avg_score %}<div class="stat-divider"></div>
+      <div class="stat-chip" style="background:rgba(13,110,253,0.07); border-color:rgba(13,110,253,0.18);">
+        <span class="chip-val" style="color:#084298;">{{ a.avg_score|floatformat:1 }}<span style="font-size:0.65rem; font-weight:400;">/5</span></span>
+        <span class="chip-lbl">Review Score</span>
+      </div>
+    {% endif %}
+
+  </div>
+  {% endif %}
+
+</div>
+{% endfor %}
+
+{% endif %}
+{% endblock %}

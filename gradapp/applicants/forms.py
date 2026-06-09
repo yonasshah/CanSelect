@@ -46,8 +46,10 @@ class EmailLoginForm(forms.Form):
 class ApplicantForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = Applicant
-        fields = ["first_name", "last_name", "email", "age", "gender", "dataset", "round", "description", "street", "profile_picture", "external_id"]
-
+        fields = ["first_name", "last_name", "email", "date_of_birth", "gender", "dataset", "round", "description", "street", "profile_picture", "external_id"]
+        widgets = {
+            'date_of_birth': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+        }
 
 class DataSetForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:

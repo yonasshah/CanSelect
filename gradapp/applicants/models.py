@@ -48,8 +48,11 @@ class Applicant(models.Model):
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     email = models.EmailField(blank=True, null=True)
-    age = models.PositiveIntegerField()
-    gender = models.CharField(max_length=50)
+    date_of_birth = models.DateField(blank=True, null=True, verbose_name='Date of Birth')
+    gender = models.CharField(max_length=50, blank=True, default='')
+    phone = models.CharField(max_length=30, blank=True, null=True, verbose_name='Phone')
+    citizenship = models.CharField(max_length=100, blank=True, null=True, verbose_name='Citizenship')
+    state_of_residence = models.CharField(max_length=100, blank=True, null=True, verbose_name='State of Residence')
     round = models.ForeignKey("Batch", on_delete=models.SET_NULL, null=True, blank=True)
     dataset = models.ForeignKey("DataSet", on_delete=models.SET_NULL, null=True, blank=True, related_name="applicants")
     description = models.TextField(blank=True, max_length=100000)
@@ -59,7 +62,8 @@ class Applicant(models.Model):
     external_id = models.CharField(max_length=100, blank=True, null=True)
     source_folder = models.CharField(max_length=255, blank=True, default='', help_text='Top-level folder name from bulk upload')
     flagged_by = models.ManyToManyField(User, blank=True, related_name='flagged_applicants')
-    # ── Candidate Info (populated via Excel upload, matched by external_id) ──
+
+    # ── Candidate Info (populated via Excel upload or PDF extraction) ──
     total_ai = models.DecimalField(max_digits=6, decimal_places=2, blank=True, null=True, verbose_name='Total AI')
     total_nc = models.DecimalField(max_digits=6, decimal_places=2, blank=True, null=True, verbose_name='Total NC')
     first_gen = models.BooleanField(default=False, verbose_name='First Generation')
@@ -68,9 +72,27 @@ class Applicant(models.Model):
     z_score = models.DecimalField(max_digits=6, decimal_places=2, blank=True, null=True, verbose_name='Z-Score')
     former_post_bacc = models.BooleanField(default=False, verbose_name='Former Post Bacc')
     three_plus_four = models.BooleanField(default=False, verbose_name='3+4')
-    candidate_info_imported = models.BooleanField(default=False, help_text='Whether candidate info was imported from Excel')
+    candidate_info_imported = models.BooleanField(default=False, help_text='Whether candidate info was imported from Excel or PDF')
 
-    
+    # ── Experience hours (extracted from PDF) ────────────────────────
+    dental_experience_hours = models.PositiveIntegerField(blank=True, null=True, verbose_name='Dental Experience Hours')
+    shadowing_hours = models.PositiveIntegerField(blank=True, null=True, verbose_name='Shadowing Hours')
+
+    # ── GPA fields (extracted from PDF or Excel) ──────────────────────
+    gpa_overall = models.DecimalField(max_digits=4, decimal_places=2, blank=True, null=True, verbose_name='Overall GPA')
+    gpa_science = models.DecimalField(max_digits=4, decimal_places=2, blank=True, null=True, verbose_name='Science GPA')
+    gpa_bcp = models.DecimalField(max_digits=4, decimal_places=2, blank=True, null=True, verbose_name='BCP GPA')
+
+    # ── DAT score fields (extracted from PDF or Excel) ─────────────────
+    dat_academic_avg = models.PositiveSmallIntegerField(blank=True, null=True, verbose_name='DAT Academic Average')
+    dat_perceptual_ability = models.PositiveSmallIntegerField(blank=True, null=True, verbose_name='DAT Perceptual Ability')
+    dat_quantitative_reasoning = models.PositiveSmallIntegerField(blank=True, null=True, verbose_name='DAT Quantitative Reasoning')
+    dat_reading_comp = models.PositiveSmallIntegerField(blank=True, null=True, verbose_name='DAT Reading Comprehension')
+    dat_biology = models.PositiveSmallIntegerField(blank=True, null=True, verbose_name='DAT Biology')
+    dat_general_chem = models.PositiveSmallIntegerField(blank=True, null=True, verbose_name='DAT General Chemistry')
+    dat_organic_chem = models.PositiveSmallIntegerField(blank=True, null=True, verbose_name='DAT Organic Chemistry')
+    dat_total_science = models.PositiveSmallIntegerField(blank=True, null=True, verbose_name='DAT Total Science')
+
     status = models.CharField(
         max_length=50,
         choices=Status.choices,
@@ -96,8 +118,27 @@ class Applicant(models.Model):
                 counts["waitlist"] += 1
         return counts
 
+    @property
+    def age(self):
+        """Computed age from date_of_birth for backwards compatibility."""
+        if not self.date_of_birth:
+            return None
+        from django.utils import timezone
+        today = timezone.now().date()
+        dob = self.date_of_birth
+        return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+
+    @property
+    def has_dat_scores(self):
+        return self.dat_academic_avg is not None
+
+    @property
+    def has_gpa(self):
+        return self.gpa_overall is not None
+
     def __str__(self):
         return f"{self.last_name}, {self.first_name}"
+
 
 class ApplicantFile(models.Model):
     applicant = models.ForeignKey(Applicant, related_name="files", on_delete=models.CASCADE)
@@ -106,15 +147,14 @@ class ApplicantFile(models.Model):
 
     @property
     def is_video(self):
-        # You can add more video extensions to this list if you need to
         video_extensions = ['.mp4', '.mov', '.webm', '.avi', '.mkv', '.wmv']
         try:
-            # os.path.splitext splits the filename into its name and extension
             name, extension = os.path.splitext(self.file.name)
             return extension.lower() in video_extensions
         except:
-            # If there's any error, safely assume it's not a video
             return False
+
+
 class Flag(models.Model):
     applicant = models.ForeignKey(Applicant, on_delete=models.CASCADE, related_name='flags')
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='flags')
@@ -122,11 +162,12 @@ class Flag(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('applicant', 'user')  # one flag per user per applicant
+        unique_together = ('applicant', 'user')
         ordering = ['-created_at']
 
     def __str__(self):
         return f"{self.user.username} flagged {self.applicant} — {self.comment[:40]}"
+
     
 class Vote(models.Model):
     VOTE_CHOICES = (
@@ -172,7 +213,7 @@ class DataSet(models.Model):
     PublicView = models.BooleanField(default=False)
     ProgramId = models.IntegerField(blank=True, null=True)
     Active = models.BooleanField(default=True)
-    IsLive = models.BooleanField(default=False)   #
+    IsLive = models.BooleanField(default=False)
     target_class_size = models.PositiveIntegerField(
             blank=True, null=True,
             help_text='Target number of students to accept for this program.'
@@ -185,6 +226,7 @@ class DataSet(models.Model):
 
     def __str__(self):
         return self.DisplayName
+
     
 class Score(models.Model):
     SCORE_CHOICES = [
@@ -203,7 +245,7 @@ class Score(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ('applicant', 'voter') # Each user can only score an applicant once
+        unique_together = ('applicant', 'voter')
 
     def __str__(self):
         return f"Score by {self.voter.username} for {self.applicant}"
@@ -241,7 +283,6 @@ class Batch(models.Model):
         return f"{self.DisplayName} (Dataset: {self.DataSet.DisplayName})"
     
 
-# This signal automatically creates a Profile when a User is created
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
     if created:

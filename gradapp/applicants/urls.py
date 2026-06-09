@@ -7,6 +7,7 @@ urlpatterns = [
     # ── Core ──────────────────────────────────────────────────────────
     path("", views.dashboard, name="dashboard"),
     path("login/", views.email_login, name="login"),
+    path("help/", views.help_page, name="help"),
 
     # ── Applicants ────────────────────────────────────────────────────
     path("applicant/", views.applicant_list, name="applicant_list"),
@@ -32,6 +33,8 @@ urlpatterns = [
     path("datasets/<int:pk>/decisions/", views.dataset_decisions, name="dataset_decisions"),
     path("datasets/<int:pk>/decisions/action/", views.dataset_decisions_action, name="dataset_decisions_action"),
     path("datasets/<int:pk>/decisions/export/", views.export_decisions_csv, name="export_decisions_csv"),
+    path("datasets/<int:pk>/decisions/<str:section>/", views.dataset_decisions_section, name="dataset_decisions_section"),
+    
 
     # ── Batches ───────────────────────────────────────────────────────
     path("batches/", views.batch_list, name="batch_list"),

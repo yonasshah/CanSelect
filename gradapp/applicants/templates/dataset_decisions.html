@@ -147,8 +147,9 @@
 <div class="alert alert-warning d-flex align-items-start gap-3 mb-4">
   <i class="bi bi-exclamation-triangle-fill fs-5 mt-1 flex-shrink-0"></i>
   <div>
-    <strong>{{ pending_batches|length }} batch{{ pending_batches|length|pluralize }} still have outstanding votes.</strong>
-    You can still make decisions now, but you may be working with incomplete data.
+    <strong>{{ dataset.DisplayName }} is not fully reviewed yet.</strong>
+    {{ pending_batches|length }} of {{ total_batches }} batch{{ total_batches|pluralize:"es" }} still have outstanding votes.
+    You can still make decisions now, but some candidate data may be incomplete.
     <div class="mt-2">
       {% for b in pending_batches %}
         <span class="batch-pill batch-pill-pending">
@@ -169,8 +170,8 @@
 <div class="alert alert-success d-flex align-items-center gap-3 mb-4">
   <i class="bi bi-check-circle-fill fs-5 flex-shrink-0"></i>
   <div>
-    <strong>All batches fully voted.</strong>
-    All {{ complete_batches|length }} batch{{ complete_batches|length|pluralize }} in this dataset have complete vote data — you're ready to make final decisions.
+    <strong>{{ dataset.DisplayName }} is fully reviewed.</strong>
+    All {{ complete_batches|length }} batch{{ complete_batches|length|pluralize }} have complete vote data — you're ready to make final decisions.
   </div>
 </div>
 {% endif %}
@@ -276,7 +277,10 @@
   <div class="decision-section-header section-accept">
     <div class="d-flex align-items-center gap-2 flex-wrap">
       <i class="bi bi-check-circle-fill"></i>
-      <span>Clear Accepts</span>
+      <a href="{% url 'dataset_decisions_section' dataset.pk 'accepts' %}?threshold={{ threshold }}{% if cap %}&cap={{ cap }}{% endif %}"
+         class="text-decoration-none" style="color:inherit;">
+        Clear Accepts <i class="bi bi-arrow-up-right-square ms-1" style="font-size:0.75rem;"></i>
+      </a>
       <span class="badge bg-success">{{ clear_accepts|length }}</span>
       <span style="font-size:0.72rem; background:rgba(25,135,84,0.15); color:#146c43;
                    padding:2px 8px; border-radius:20px; font-weight:600;">
@@ -367,7 +371,10 @@
   <div class="decision-section-header section-split">
     <div class="d-flex align-items-center gap-2 flex-wrap">
       <i class="bi bi-exclamation-circle-fill"></i>
-      <span>Split — Needs Discussion</span>
+      <a href="{% url 'dataset_decisions_section' dataset.pk 'split' %}?threshold={{ threshold }}{% if cap %}&cap={{ cap }}{% endif %}"
+         class="text-decoration-none" style="color:inherit;">
+        Split — Needs Discussion <i class="bi bi-arrow-up-right-square ms-1" style="font-size:0.75rem;"></i>
+      </a>
       <span class="badge bg-warning text-dark">{{ split_candidates|length }}</span>
       {% if split_flagged_count %}
         <span style="font-size:0.72rem; background:rgba(220,53,69,0.12); color:#b02a37;
@@ -467,7 +474,10 @@
   <div class="decision-section-header section-deny">
     <div class="d-flex align-items-center gap-2 flex-wrap">
       <i class="bi bi-x-circle-fill"></i>
-      <span>Clear Denies</span>
+      <a href="{% url 'dataset_decisions_section' dataset.pk 'denies' %}?threshold={{ threshold }}{% if cap %}&cap={{ cap }}{% endif %}"
+         class="text-decoration-none" style="color:inherit;">
+        Clear Denies <i class="bi bi-arrow-up-right-square ms-1" style="font-size:0.75rem;"></i>
+      </a>
       <span class="badge bg-danger">{{ clear_denies|length }}</span>
       <span style="font-size:0.72rem; background:rgba(220,53,69,0.12); color:#b02a37;
                    padding:2px 8px; border-radius:20px; font-weight:600;">
@@ -609,7 +619,7 @@
           <i class="bi bi-pause me-1"></i>Waitlist Selected
         </button>
         <button type="button" class="btn btn-outline-secondary" onclick="clearAll()">
-          Clear
+          <i class="bi bi-x-circle me-1"></i>Deselect All
         </button>
       </div>
     </div>

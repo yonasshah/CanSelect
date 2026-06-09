@@ -192,8 +192,15 @@
       <!-- Demographics -->
       <div class="compare-section-label">Demographics</div>
       <div class="compare-field">
-        <span class="field-label">Age</span>
-        <span class="field-value">{% if applicant.age == 0 %}<span class="text-warning">Not set</span>{% else %}{{ applicant.age }}{% endif %}</span>
+        <span class="field-label">Date of Birth</span>
+         <span class="field-value">
+          {% if applicant.date_of_birth %}
+            {{ applicant.date_of_birth|date:"M d, Y" }}
+            <span class="text-muted" style="font-size:0.8rem;">(age {{ applicant.age }})</span>
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </span>
       </div>
       <div class="compare-field">
         <span class="field-label">Gender</span>

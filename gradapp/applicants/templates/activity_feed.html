@@ -1,46 +1,126 @@
 {% extends "base.html" %}
 {% block content %}
-<h2 class="mb-4">System Activity Feed</h2>
-<div class="card">
-    <div class="card-header">
-        <p class="mb-0 text-muted">Showing the last 50 activities.</p>
-    </div>
-    <div class="card-body">
-        <ul class="list-group list-group-flush">
-            {% for activity in activities %}
-            <li class="list-group-item {% if activity.action_type == 'flag_added' %}list-group-item-danger{% endif %}">
-                <div class="d-flex w-100 justify-content-between align-items-start">
-                    <div>
-                        {% if activity.action_type == 'vote_cast' %}
-                            <i class="bi bi-person-check-fill me-2 text-primary"></i>
-                        {% elif activity.action_type == 'comment_added' %}
-                            <i class="bi bi-chat-dots-fill me-2 text-info"></i>
-                        {% elif activity.action_type == 'decision_made' %}
-                            <i class="bi bi-check2-square me-2 text-success"></i>
-                        {% elif activity.action_type == 'flag_added' %}
-                            <i class="bi bi-flag-fill me-2 text-danger"></i>
-                        {% endif %}
 
-                        <strong>{{ activity.actor.get_full_name|default:activity.actor.username }}</strong>
-                        {{ activity.details }}
-                        <a href="{% url 'applicant_detail' activity.target_applicant.pk %}">
-                            {{ activity.target_applicant.first_name }} {{ activity.target_applicant.last_name }}
-                        </a>
-
-                        {% if activity.action_type == 'flag_added' %}
-                        <div class="mt-1 ms-4 p-2 bg-danger bg-opacity-10 border border-danger border-opacity-25 rounded small">
-                            <i class="bi bi-chat-quote me-1 text-danger"></i>
-                            <em>{{ activity.details|slice:"8:" }}</em>
-                        </div>
-                        {% endif %}
-                    </div>
-                    <small class="text-muted text-nowrap ms-3">{{ activity.created_at|date:"M d, Y g:i A" }}</small>
-                </div>
-            </li>
-            {% empty %}
-            <li class="list-group-item text-muted">No system activity has been recorded yet.</li>
-            {% endfor %}
-        </ul>
-    </div>
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-0">System Activity Feed</h2>
+    <p class="text-muted mb-0">
+      {% if has_filters %}{{ total_count }} result{{ total_count|pluralize }} matching filters{% else %}Showing all activity{% endif %}
+    </p>
+  </div>
+  <a href="?reviewer={{ filter_reviewer }}&action={{ filter_action }}&date_from={{ filter_date_from }}&date_to={{ filter_date_to }}&export=csv"
+     class="btn btn-outline-success btn-sm">
+    <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV
+  </a>
 </div>
+
+<!-- Filters -->
+<div class="card mb-4">
+  <div class="card-body py-2">
+    <form method="get">
+      <div class="row g-2 align-items-end flex-wrap">
+
+        <div class="col-md-3">
+          <label class="form-label small text-muted mb-1">Reviewer</label>
+          <select name="reviewer" class="form-select form-select-sm">
+            <option value="">All Reviewers</option>
+            {% for r in all_reviewers %}
+              <option value="{{ r.pk }}" {% if r.pk|stringformat:"s" == filter_reviewer %}selected{% endif %}>
+                {{ r.get_full_name|default:r.username }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-2">
+          <label class="form-label small text-muted mb-1">Action Type</label>
+          <select name="action" class="form-select form-select-sm">
+            <option value="">All Actions</option>
+            {% for val, label in action_choices %}
+              <option value="{{ val }}" {% if val == filter_action %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-2">
+          <label class="form-label small text-muted mb-1">From</label>
+          <input type="date" name="date_from" class="form-control form-control-sm" value="{{ filter_date_from }}">
+        </div>
+
+        <div class="col-md-2">
+          <label class="form-label small text-muted mb-1">To</label>
+          <input type="date" name="date_to" class="form-control form-control-sm" value="{{ filter_date_to }}">
+        </div>
+
+        <div class="col-auto d-flex gap-1 align-items-end">
+          <button type="submit" class="btn btn-outline-secondary btn-sm">Filter</button>
+          <a href="{% url 'activity_feed' %}" class="btn btn-outline-danger btn-sm">Clear</a>
+        </div>
+
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <ul class="list-group list-group-flush">
+      {% for activity in page_obj %}
+      <li class="list-group-item {% if activity.action_type == 'flag_added' %}list-group-item-danger{% endif %}">
+        <div class="d-flex w-100 justify-content-between align-items-start">
+          <div>
+            {% if activity.action_type == 'vote_cast' %}
+              <i class="bi bi-person-check-fill me-2 text-primary"></i>
+            {% elif activity.action_type == 'comment_added' %}
+              <i class="bi bi-chat-dots-fill me-2 text-info"></i>
+            {% elif activity.action_type == 'decision_made' %}
+              <i class="bi bi-check2-square me-2 text-success"></i>
+            {% elif activity.action_type == 'flag_added' %}
+              <i class="bi bi-flag-fill me-2 text-danger"></i>
+            {% endif %}
+
+            <strong>{{ activity.actor.get_full_name|default:activity.actor.username }}</strong>
+            {{ activity.details }}
+            <a href="{% url 'applicant_detail' activity.target_applicant.pk %}">
+              {{ activity.target_applicant.first_name }} {{ activity.target_applicant.last_name }}
+            </a>
+
+            {% if activity.action_type == 'flag_added' %}
+            <div class="mt-1 ms-4 p-2 bg-danger bg-opacity-10 border border-danger border-opacity-25 rounded small">
+              <i class="bi bi-chat-quote me-1 text-danger"></i>
+              <em>{{ activity.details|slice:"8:" }}</em>
+            </div>
+            {% endif %}
+          </div>
+          <small class="text-muted text-nowrap ms-3">{{ activity.created_at|date:"M d, Y g:i A" }}</small>
+        </div>
+      </li>
+      {% empty %}
+      <li class="list-group-item text-muted text-center py-5">
+        <i class="bi bi-search fs-1 d-block mb-2 opacity-25"></i>
+        {% if has_filters %}No activity matches your filters.{% else %}No system activity has been recorded yet.{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+<nav class="mt-4">
+  <ul class="pagination justify-content-center">
+    {% if page_obj.has_previous %}
+      <li class="page-item"><a class="page-link" href="?page=1&reviewer={{ filter_reviewer }}&action={{ filter_action }}&date_from={{ filter_date_from }}&date_to={{ filter_date_to }}">&laquo; First</a></li>
+      <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&reviewer={{ filter_reviewer }}&action={{ filter_action }}&date_from={{ filter_date_from }}&date_to={{ filter_date_to }}">Previous</a></li>
+    {% endif %}
+    <li class="page-item active">
+      <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    </li>
+    {% if page_obj.has_next %}
+      <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&reviewer={{ filter_reviewer }}&action={{ filter_action }}&date_from={{ filter_date_from }}&date_to={{ filter_date_to }}">Next</a></li>
+      <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}&reviewer={{ filter_reviewer }}&action={{ filter_action }}&date_from={{ filter_date_from }}&date_to={{ filter_date_to }}">Last &raquo;</a></li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
+
 {% endblock %}

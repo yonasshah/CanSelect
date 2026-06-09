@@ -16,7 +16,7 @@ import pandas as pd
 from django.utils import timezone
 from decimal import Decimal, InvalidOperation
 import pypdf
-import re
+import re as _re
 from .decorators import admin_required
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
@@ -34,6 +34,131 @@ def email_login(request):
     else:
         form = EmailLoginForm()
     return render(request, "login.html", {"form": form})
+
+def _extract_pdf_data(file_obj):
+    """
+    Extract structured candidate data from an AADSAS application PDF.
+    Returns a dict of field_name -> value. Only includes keys where a value
+    was successfully found — never overwrites with None.
+    """
+    try:
+        import pypdf, io, logging
+        logging.getLogger('pypdf').setLevel(logging.ERROR)
+        file_obj.seek(0)
+        reader = pypdf.PdfReader(file_obj)
+        text = '\n'.join(page.extract_text() or '' for page in reader.pages)
+        file_obj.seek(0)
+    except Exception:
+        return {}
+ 
+    data = {}
+ 
+    def safe_decimal(val):
+        try:
+            return Decimal(str(val).strip())
+        except (InvalidOperation, ValueError):
+            return None
+ 
+    def safe_int(val):
+        try:
+            return int(str(val).strip())
+        except (ValueError, TypeError):
+            return None
+ 
+    # ── Email ────────────────────────────────────────────────────────
+    m = _re.search(r'[\w.\-]+@[\w.\-]+\.\w+', text)
+    if m:
+        data['email'] = m.group(0)
+ 
+    # ── Phone ────────────────────────────────────────────────────────
+    m = _re.search(r'Preferred Phone Number\s+(\+[\d\s]+?)(?:\s+Type)', text)
+    if m:
+        data['phone'] = m.group(1).strip()
+ 
+    # ── Date of birth ─────────────────────────────────────────────────
+    m = _re.search(r'Date of Birth:\s*([\d-]+)', text)
+    if m:
+        raw = m.group(1).strip()  # e.g. "10-25-2003"
+        try:
+            from datetime import datetime
+            data['date_of_birth'] = datetime.strptime(raw, '%m-%d-%Y').date()
+        except ValueError:
+            pass
+ 
+    # ── Gender ───────────────────────────────────────────────────────
+    m = _re.search(r'\nSex:\s*(MALE|FEMALE)', text)
+    if m:
+        raw = m.group(1)
+        data['gender'] = 'Male' if raw == 'MALE' else 'Female'
+ 
+    # ── Citizenship ──────────────────────────────────────────────────
+    m = _re.search(r'Citizenship Status:\s*([^\n]+)', text)
+    if m:
+        data['citizenship'] = m.group(1).strip()
+ 
+    # ── State of residence ───────────────────────────────────────────
+    m = _re.search(r'State of Residence:\s*(\w+)', text)
+    if m:
+        data['state_of_residence'] = m.group(1).strip()
+ 
+    # ── First generation ─────────────────────────────────────────────
+    m = _re.search(r'first.generation college student.*?Answer:\s*(Yes|No)', text, _re.IGNORECASE | _re.DOTALL)
+    if m:
+        data['first_gen'] = (m.group(1).strip().lower() == 'yes')
+ 
+    # ── GPA (from the summary table on page 1) ────────────────────────
+    # Row: "UnderGraduate  BCP_GPA  BCP_HRS  SCI_GPA  SCI_HRS  NSCI_GPA  NSCI_HRS  TOT_GPA  TOT_HRS"
+    m = _re.search(
+        r'UnderGraduate\s+([\d.]+)\s+[\d.]+\s+([\d.]+)\s+[\d.]+\s+[\d.]+\s+[\d.]+\s+([\d.]+)',
+        text
+    )
+    if m:
+        bcp = safe_decimal(m.group(1))
+        sci = safe_decimal(m.group(2))
+        tot = safe_decimal(m.group(3))
+        if bcp is not None:
+            data['gpa_bcp'] = bcp
+        if sci is not None:
+            data['gpa_science'] = sci
+        if tot is not None:
+            data['gpa_overall'] = tot
+ 
+    # ── DAT scores (Official DAT table) ──────────────────────────────
+    # Order: Date  AcadAvg  PAT  QuantReas  ReadComp  Bio  GenChem  OrgChem  TotalSci
+    m = _re.search(
+        r'OFFICIAL DAT.*?(\d{2}-\d{2}-\d{4})\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)',
+        text, _re.DOTALL
+    )
+    if m:
+        fields = [
+            ('dat_academic_avg',          m.group(2)),
+            ('dat_perceptual_ability',    m.group(3)),
+            ('dat_quantitative_reasoning',m.group(4)),
+            ('dat_reading_comp',          m.group(5)),
+            ('dat_biology',               m.group(6)),
+            ('dat_general_chem',          m.group(7)),
+            ('dat_organic_chem',          m.group(8)),
+            ('dat_total_science',         m.group(9)),
+        ]
+        for field_name, raw_val in fields:
+            v = safe_int(raw_val)
+            if v is not None:
+                data[field_name] = v
+ 
+    # ── Experience hours ──────────────────────────────────────────────
+    m = _re.search(r'DENTAL RELATED EXPERIENCE TOTAL HOURS:\s*(\d+)', text)
+    if m:
+        v = safe_int(m.group(1))
+        if v is not None:
+            data['dental_experience_hours'] = v
+ 
+    m = _re.search(r'SHADOWING EXPERIENCE TOTAL HOURS:\s*(\d+)', text)
+    if m:
+        v = safe_int(m.group(1))
+        if v is not None:
+            data['shadowing_hours'] = v
+ 
+    return data
 
 @admin_required
 @login_required
@@ -198,13 +323,12 @@ def applicant_detail(request, pk):
             video_files.append(f)
         elif fname.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp')):
             photo_files.append(f)
-        elif 'application' in fname and fname.endswith('.pdf'):
+        elif fname.endswith('.pdf') and 'application' in fname:
             application_docs.append(f)
-        elif 'evaluation' in fname and fname.endswith('.pdf'):
+        elif fname.endswith('.pdf') and _re.search(r'^\d+_\d{2}_\d{2}_\d{4}_', fname.split('/')[-1]):
             evaluation_docs.append(f)
         else:
             other_docs.append(f)
-
     # ── Next / Previous Navigation ────────────────────────────────────────────
     batch_id     = request.GET.get('batch')
     search_q     = request.GET.get('q', '')
@@ -804,6 +928,7 @@ def dataset_decisions(request, pk):
         'threshold_options':   THRESHOLD_OPTIONS,
         'cap':                 cap,
         'spots_remaining':     spots_remaining,
+        'total_batches': len(pending_batches) + len(complete_batches),
         'decision_log':        decision_log,
         'crumbs': [
             {'label': 'Datasets',          'url': '/datasets/'},
@@ -858,6 +983,138 @@ def dataset_decisions_action(request, pk):
     if cap:
         params += f"&cap={cap}"
     return redirect(f'/datasets/{pk}/decisions/?{params}')
+
+@login_required
+@admin_required
+def dataset_decisions_section(request, pk, section):
+    """
+    Dedicated page for a single decisions section:
+    section = 'accepts' | 'split' | 'denies'
+    Shows expanded columns: GPA, DAT, experience hours, full vote breakdown.
+    """
+    dataset = get_object_or_404(DataSet, pk=pk)
+ 
+    THRESHOLD_OPTIONS = [
+        (60,  '60%+'),
+        (67,  '67%+'),
+        (75,  '75%+'),
+        (80,  '80%+'),
+        (100, '100% (unanimous)'),
+    ]
+    threshold = int(request.GET.get('threshold', 80))
+    if threshold not in [v for v, _ in THRESHOLD_OPTIONS]:
+        threshold = 80
+    threshold_display = next(label for val, label in THRESHOLD_OPTIONS if val == threshold)
+    cap = request.GET.get('cap', '')
+ 
+    SECTION_META = {
+        'accepts': {
+            'label':      'Clear Accepts',
+            'icon':       'bi-check-circle-fill',
+            'color':      'success',
+            'pct_field':  'accept_pct',
+            'min_pct':    threshold,
+            'sort_key':   lambda a: (-a.accept_pct, -(a.avg_score or 0)),
+        },
+        'denies': {
+            'label':      'Clear Denies',
+            'icon':       'bi-x-circle-fill',
+            'color':      'danger',
+            'pct_field':  'deny_pct',
+            'min_pct':    threshold,
+            'sort_key':   lambda a: (-a.deny_pct, -(a.avg_score or 0)),
+        },
+        'split': {
+            'label':      'Split — Needs Discussion',
+            'icon':       'bi-exclamation-circle-fill',
+            'color':      'warning',
+            'pct_field':  None,
+            'min_pct':    None,
+            'sort_key':   lambda a: (not a.is_flagged, -a.accept_pct, -(a.avg_score or 0)),
+        },
+    }
+ 
+    if section not in SECTION_META:
+        return redirect('dataset_decisions', pk=pk)
+ 
+    meta = SECTION_META[section]
+ 
+    applicants = (
+        Applicant.objects.filter(dataset=dataset)
+        .select_related('round')
+        .prefetch_related('flagged_by')
+        .annotate(
+            avg_score=Avg('scores__overall_score'),
+            accept_ct=Count('votes', filter=Q(votes__value=1),  distinct=True),
+            deny_ct=Count('votes',   filter=Q(votes__value=-1), distinct=True),
+            wait_ct=Count('votes',   filter=Q(votes__value=0),  distinct=True),
+            total_votes=Count('votes', distinct=True),
+        )
+    )
+ 
+    FINAL_STATUSES = {'ACCEPTED', 'ACCEPTED_MAILED', 'ACCEPTED_NOT_MAILED',
+                      'REJECTED', 'WAITLISTED', 'DECLINED'}
+ 
+    candidates = []
+    for a in applicants:
+        if a.total_votes == 0:
+            continue
+        a.accept_pct = round(a.accept_ct / a.total_votes * 100)
+        a.deny_pct   = round(a.deny_ct   / a.total_votes * 100)
+        a.is_final   = a.status in FINAL_STATUSES
+        a.is_flagged = a.flagged_by.exists()
+ 
+        if section == 'accepts' and a.accept_pct >= threshold:
+            candidates.append(a)
+        elif section == 'denies' and a.deny_pct >= threshold:
+            candidates.append(a)
+        elif section == 'split' and a.accept_pct < threshold and a.deny_pct < threshold:
+            candidates.append(a)
+ 
+    candidates.sort(key=meta['sort_key'])
+ 
+    # ── Sort overrides from query params ─────────────────────────────
+    sort      = request.GET.get('sort', '')
+    direction = request.GET.get('dir', 'asc')
+    SORT_MAP = {
+        'name':      lambda a: (a.last_name.lower(), a.first_name.lower()),
+        'batch':     lambda a: (a.round.DisplayName if a.round else '').lower(),
+        'gpa':       lambda a: -(a.gpa_overall or 0),
+        'dat':       lambda a: -(a.dat_academic_avg or 0),
+        'accept_pct':lambda a: -a.accept_pct,
+        'score':     lambda a: -(a.avg_score or 0),
+    }
+    if sort in SORT_MAP:
+        reverse = (direction == 'desc')
+        candidates.sort(key=SORT_MAP[sort], reverse=reverse)
+ 
+    sort_options = [
+        ("name",       "Name"),
+        ("batch",      "Batch"),
+        ("gpa",        "Overall GPA"),
+        ("dat",        "DAT Average"),
+        ("accept_pct", "Accept %"),
+        ("score",      "Review Score"),
+    ]
+ 
+    return render(request, "dataset_decisions_section.html", {
+        'dataset':            dataset,
+        'section':            section,
+        'meta':               meta,
+        'candidates':         candidates,
+        'threshold':          threshold,
+        'threshold_display':  threshold_display,
+        'cap':                cap,
+        'sort':               sort,
+        'direction':          direction,
+        'sort_options':       sort_options,
+        'crumbs': [
+            {'label': 'Datasets',          'url': '/datasets/'},
+            {'label': dataset.DisplayName, 'url': f'/datasets/{dataset.pk}/'},
+            {'label': 'Final Decisions',   'url': f'/datasets/{dataset.pk}/decisions/?threshold={threshold}{"&cap=" + cap if cap else ""}'},
+            {'label': meta["label"],       'url': ''},
+        ],
+    })
  
  
 @login_required
@@ -1347,7 +1604,7 @@ def export_applicants_csv(request):
     )
     writer = csv.writer(response)
     writer.writerow([
-        'First Name', 'Last Name', 'Email', 'External ID', 'Age', 'Gender',
+        'First Name', 'Last Name', 'Email', 'External ID', 'Date of Birth', 'Gender',
         'Status', 'Dataset', 'Round',
         'Total AI', 'Total NC', 'Z-Score', 'First Gen', 'Re-Applicant',
         'PB to DMD', 'Former Post Bacc', '3+4',
@@ -1377,6 +1634,17 @@ def export_applicants_csv(request):
 @login_required
 @admin_required
 def activity_feed(request):
+    # ── CSV export ───────────────────────────────────────────────────
+    if request.GET.get('export') == 'csv':
+        return _export_activity_feed_csv(request)
+ 
+    # ── Filters ──────────────────────────────────────────────────────
+    filter_reviewer  = request.GET.get('reviewer', '')
+    filter_action    = request.GET.get('action', '')
+    filter_date_from = request.GET.get('date_from', '')
+    filter_date_to   = request.GET.get('date_to', '')
+    has_filters = any([filter_reviewer, filter_action, filter_date_from, filter_date_to])
+ 
     activities = Activity.objects.filter(
         action_type__in=[
             Activity.VOTE_CAST,
@@ -1384,12 +1652,76 @@ def activity_feed(request):
             Activity.DECISION_MADE,
             Activity.FLAG_ADDED,
         ]
-    ).select_related('actor', 'target_applicant').order_by('-created_at')[:50]
-
-    context = {
-        'activities': activities
-    }
-    return render(request, "activity_feed.html", context)
+    ).select_related('actor', 'target_applicant').order_by('-created_at')
+ 
+    if filter_reviewer:
+        activities = activities.filter(actor_id=filter_reviewer)
+    if filter_action:
+        activities = activities.filter(action_type=filter_action)
+    if filter_date_from:
+        activities = activities.filter(created_at__date__gte=filter_date_from)
+    if filter_date_to:
+        activities = activities.filter(created_at__date__lte=filter_date_to)
+ 
+    paginator = Paginator(activities, 50)
+    page_obj  = paginator.get_page(request.GET.get('page'))
+ 
+    all_reviewers = User.objects.filter(
+        profile__role='COMMITTEE_MEMBER'
+    ).order_by('username')
+ 
+    return render(request, "activity_feed.html", {
+        'page_obj':       page_obj,
+        'filter_reviewer':  filter_reviewer,
+        'filter_action':    filter_action,
+        'filter_date_from': filter_date_from,
+        'filter_date_to':   filter_date_to,
+        'has_filters':      has_filters,
+        'all_reviewers':    all_reviewers,
+        'action_choices':   Activity.ACTION_CHOICES,
+        'total_count':      paginator.count,
+    })
+ 
+ 
+def _export_activity_feed_csv(request):
+    filter_reviewer  = request.GET.get('reviewer', '')
+    filter_action    = request.GET.get('action', '')
+    filter_date_from = request.GET.get('date_from', '')
+    filter_date_to   = request.GET.get('date_to', '')
+ 
+    activities = Activity.objects.filter(
+        action_type__in=[
+            Activity.VOTE_CAST,
+            Activity.COMMENT_ADDED,
+            Activity.DECISION_MADE,
+            Activity.FLAG_ADDED,
+        ]
+    ).select_related('actor', 'target_applicant').order_by('-created_at')
+ 
+    if filter_reviewer:
+        activities = activities.filter(actor_id=filter_reviewer)
+    if filter_action:
+        activities = activities.filter(action_type=filter_action)
+    if filter_date_from:
+        activities = activities.filter(created_at__date__gte=filter_date_from)
+    if filter_date_to:
+        activities = activities.filter(created_at__date__lte=filter_date_to)
+ 
+    response = HttpResponse(
+        content_type='text/csv',
+        headers={'Content-Disposition': 'attachment; filename="activity_feed.csv"'},
+    )
+    writer = csv.writer(response)
+    writer.writerow(['Date', 'Reviewer', 'Action', 'Candidate', 'Details'])
+    for a in activities:
+        writer.writerow([
+            a.created_at.strftime('%Y-%m-%d %H:%M'),
+            a.actor.get_full_name() or a.actor.username if a.actor else 'System',
+            a.get_action_type_display(),
+            str(a.target_applicant) if a.target_applicant else '',
+            a.details,
+        ])
+    return response
 
 @login_required
 @admin_required
@@ -1785,9 +2117,14 @@ def toggle_applicant_flag(request, pk):
     return redirect('applicant_detail', pk=applicant.pk)
 
 @login_required
+def help_page(request):
+    return render(request, "help.html")
+
+@login_required
 @admin_required
 def bulk_upload_applicants(request):
     if request.method == "POST":
+        import re as _re
         files = request.FILES.getlist('folder_files')
         path_map_raw = request.POST.get('path_map')
 
@@ -1795,14 +2132,20 @@ def bulk_upload_applicants(request):
             import json
             path_map = json.loads(path_map_raw)
             candidate_groups = {}
-            folder_name_map = {}  # candidate_folder -> top-level batch folder name
+            folder_name_map = {}
             for i, f in enumerate(files):
                 relative_path = path_map.get(str(i), f.name)
                 parts = relative_path.replace('\\', '/').split('/')
                 if len(parts) < 3:
                     continue
-                batch_folder = parts[0]
-                candidate_folder = parts[1]
+                if ' - ' in parts[1]:
+                    # Flat: batch_folder / candidate_folder / file(s)
+                    batch_folder     = parts[0]
+                    candidate_folder = parts[1]
+                else:
+                    # Deep: top_folder / batch_date / candidate_folder / file(s)
+                    batch_folder     = parts[1]
+                    candidate_folder = parts[2]
                 candidate_groups.setdefault(candidate_folder, []).append(f)
                 folder_name_map[candidate_folder] = batch_folder
         else:
@@ -1812,10 +2155,15 @@ def bulk_upload_applicants(request):
                 parts = f.name.replace('\\', '/').split('/')
                 if len(parts) < 3:
                     continue
-                batch_folder = parts[0]
-                candidate_folder = parts[1]
+                if ' - ' in parts[1]:
+                    batch_folder     = parts[0]
+                    candidate_folder = parts[1]
+                else:
+                    batch_folder     = parts[1]
+                    candidate_folder = parts[2]
                 candidate_groups.setdefault(candidate_folder, []).append(f)
                 folder_name_map[candidate_folder] = batch_folder
+ 
 
         # ── Dataset is now required ──────────────────────────────────────
         dataset_id = request.POST.get('dataset_id') or None
@@ -1844,7 +2192,7 @@ def bulk_upload_applicants(request):
 
         # ── Determine the combined folder name for batch naming ──────────
         unique_batch_folders = list(dict.fromkeys(folder_name_map.values()))
-        combined_folder_name = ' - '.join(unique_batch_folders) if unique_batch_folders else 'Bulk Upload'
+        
 
         created_count = 0
         skipped_count = 0
@@ -1874,22 +2222,35 @@ def bulk_upload_applicants(request):
                 last_name  = 'Bulk'
                 unique_id  = ''
 
-            # ── Extract email from any PDF in the group ──────────────────
+            pdf_data = {}
             email = None
+
+            # Prioritise the full application PDF (contains all structured data).
+            # Look for a PDF with 'application' in the name first; fall back to
+            # any PDF if none found.
+            pdf_to_parse = None
+            fallback_pdf = None
             for f in group_files:
-                if f.name.lower().endswith('.pdf'):
-                    try:
-                        import pypdf, io, logging
-                        logging.getLogger('pypdf').setLevel(logging.ERROR)
-                        reader = pypdf.PdfReader(f)
-                        text = ''.join(page.extract_text() or '' for page in reader.pages)
-                        email_match = _re.search(r'[\w\.-]+@[\w\.-]+\.\w+', text)
-                        if email_match:
-                            email = email_match.group(0)
-                        f.seek(0)   # reset file pointer after reading
-                    except Exception as e:
-                        print(f"PDF parse error for {f.name}: {e}")
-                    break   # only check the first PDF
+                fname_lower = f.name.lower()
+                if fname_lower.endswith('.db') or fname_lower.endswith('.ini'):
+                    continue
+                if fname_lower.endswith('.pdf'):
+                    if 'application' in fname_lower:
+                        pdf_to_parse = f
+                        break
+                    elif fallback_pdf is None:
+                        fallback_pdf = f
+
+            if pdf_to_parse is None:
+                pdf_to_parse = fallback_pdf
+
+            if pdf_to_parse is not None:
+                try:
+                    pdf_data = _extract_pdf_data(pdf_to_parse)
+                    email = pdf_data.get('email')
+                    pdf_to_parse.seek(0)
+                except Exception as e:
+                    print(f"PDF parse error for {pdf_to_parse.name}: {e}")
 
             jpg_files = [f for f in group_files if f.name.lower().endswith(('.jpg', '.jpeg'))]
             profile_pic = jpg_files[2] if len(jpg_files) >= 3 else None
@@ -1897,13 +2258,14 @@ def bulk_upload_applicants(request):
             source = folder_name_map.get(folder_name, '')
 
             parsed_candidates.append({
-                'first_name': first_name,
-                'last_name': last_name,
-                'email': email,
-                'unique_id': unique_id,
-                'profile_pic': profile_pic,
-                'group_files': group_files,
+                'first_name':   first_name,
+                'last_name':    last_name,
+                'email':        email,
+                'unique_id':    unique_id,
+                'profile_pic':  profile_pic,
+                'group_files':  group_files,
                 'source_folder': source,
+                'pdf_data':     pdf_data,
             })
 
         # Sort candidates by source folder so earlier dates fill first
@@ -1912,7 +2274,7 @@ def bulk_upload_applicants(request):
         # ── Place candidates into auto-created batches ───────────────────
         batch_placements = _assign_candidates_to_batches(
             dataset=selected_dataset,
-            folder_name=combined_folder_name,
+            folder_name='Bulk Upload',
             candidates=parsed_candidates,
         )
 
@@ -1924,17 +2286,43 @@ def bulk_upload_applicants(request):
                     first_name=cand['first_name'],
                     last_name=cand['last_name'],
                     email=cand['email'],
-                    age=0,
-                    gender='Not Specified',
+                    date_of_birth=cand['pdf_data'].get('date_of_birth'),
+                    gender=cand['pdf_data'].get('gender', ''),
+                    phone=cand['pdf_data'].get('phone'),
+                    citizenship=cand['pdf_data'].get('citizenship'),
+                    state_of_residence=cand['pdf_data'].get('state_of_residence'),
                     dataset=selected_dataset,
                     round=batch_obj,
                     external_id=cand['unique_id'] or None,
                     profile_picture=cand['profile_pic'],
                     source_folder=cand['source_folder'],
+                    # GPA
+                    gpa_overall=cand['pdf_data'].get('gpa_overall'),
+                    gpa_science=cand['pdf_data'].get('gpa_science'),
+                    gpa_bcp=cand['pdf_data'].get('gpa_bcp'),
+                    # DAT
+                    dat_academic_avg=cand['pdf_data'].get('dat_academic_avg'),
+                    dat_perceptual_ability=cand['pdf_data'].get('dat_perceptual_ability'),
+                    dat_quantitative_reasoning=cand['pdf_data'].get('dat_quantitative_reasoning'),
+                    dat_reading_comp=cand['pdf_data'].get('dat_reading_comp'),
+                    dat_biology=cand['pdf_data'].get('dat_biology'),
+                    dat_general_chem=cand['pdf_data'].get('dat_general_chem'),
+                    dat_organic_chem=cand['pdf_data'].get('dat_organic_chem'),
+                    dat_total_science=cand['pdf_data'].get('dat_total_science'),
+                    # Experience
+                    dental_experience_hours=cand['pdf_data'].get('dental_experience_hours'),
+                    shadowing_hours=cand['pdf_data'].get('shadowing_hours'),
+                    # Flags
+                    first_gen=cand['pdf_data'].get('first_gen', False),
+                    candidate_info_imported=bool(cand['pdf_data']),
                 )
 
                 # ── Attach all files ─────────────────────────────────────
                 for f in cand['group_files']:
+                    # Skip junk files generated by Windows
+                    skip_names = {'thumbs.db', 'desktop.ini', '.ds_store'}
+                    if f.name.lower().split('/')[-1] in skip_names:
+                        continue
                     ApplicantFile.objects.create(applicant=applicant, file=f)
 
                 created_count += 1
@@ -1947,7 +2335,7 @@ def bulk_upload_applicants(request):
             request,
             f"✅ Successfully imported {created_count} candidate profile(s) "
             f"into {len(batch_placements)} batch(es): {batch_details}. "
-            f"Review each profile to complete missing details like age and gender."
+            f"Review each profile to verify the extracted details are correct."
         )
         return redirect('applicant_list')
 
@@ -2047,6 +2435,7 @@ def candidate_info_upload(request):
  
         # Column name -> (model_field, parser)
         field_mapping = {
+            # Existing fields
             'total_ai':         ('total_ai',         parse_decimal),
             'total_nc':         ('total_nc',         parse_decimal),
             'first_gen':        ('first_gen',        parse_bool_yes_no),
@@ -2062,6 +2451,35 @@ def candidate_info_upload(request):
             '3_4':              ('three_plus_four',  parse_bool_yes_no),
             'three_plus_four':  ('three_plus_four',  parse_bool_yes_no),
             'gender':           ('gender',           lambda v: str(v).strip() if pd.notna(v) and str(v).strip() else None),
+            # New GPA fields
+            'gpa_overall':      ('gpa_overall',      parse_decimal),
+            'overall_gpa':      ('gpa_overall',      parse_decimal),
+            'gpa_science':      ('gpa_science',      parse_decimal),
+            'science_gpa':      ('gpa_science',      parse_decimal),
+            'gpa_bcp':          ('gpa_bcp',          parse_decimal),
+            'bcp_gpa':          ('gpa_bcp',          parse_decimal),
+            # New DAT fields
+            'dat_academic_avg':            ('dat_academic_avg',           lambda v: int(float(str(v).strip())) if pd.notna(v) else None),
+            'dat_academic_average':        ('dat_academic_avg',           lambda v: int(float(str(v).strip())) if pd.notna(v) else None),
+            'academic_average':            ('dat_academic_avg',           lambda v: int(float(str(v).strip())) if pd.notna(v) else None),
+            'dat_perceptual_ability':      ('dat_perceptual_ability',     lambda v: int(float(str(v).strip())) if pd.notna(v) else None),
+            'dat_quantitative_reasoning':  ('dat_quantitative_reasoning', lambda v: int(float(str(v).strip())) if pd.notna(v) else None),
+            'dat_reading_comp':            ('dat_reading_comp',           lambda v: int(float(str(v).strip())) if pd.notna(v) else None),
+            'dat_reading_comprehension':   ('dat_reading_comp',           lambda v: int(float(str(v).strip())) if pd.notna(v) else None),
+            'dat_biology':                 ('dat_biology',                lambda v: int(float(str(v).strip())) if pd.notna(v) else None),
+            'dat_general_chem':            ('dat_general_chem',           lambda v: int(float(str(v).strip())) if pd.notna(v) else None),
+            'dat_general_chemistry':       ('dat_general_chem',           lambda v: int(float(str(v).strip())) if pd.notna(v) else None),
+            'dat_organic_chem':            ('dat_organic_chem',           lambda v: int(float(str(v).strip())) if pd.notna(v) else None),
+            'dat_organic_chemistry':       ('dat_organic_chem',           lambda v: int(float(str(v).strip())) if pd.notna(v) else None),
+            'dat_total_science':           ('dat_total_science',          lambda v: int(float(str(v).strip())) if pd.notna(v) else None),
+            # New experience fields
+            'dental_experience_hours':     ('dental_experience_hours',    lambda v: int(float(str(v).strip())) if pd.notna(v) else None),
+            'dental_hours':                ('dental_experience_hours',    lambda v: int(float(str(v).strip())) if pd.notna(v) else None),
+            'shadowing_hours':             ('shadowing_hours',            lambda v: int(float(str(v).strip())) if pd.notna(v) else None),
+            # Contact fields (less common in Excel but supported)
+            'phone':                       ('phone',                      lambda v: str(v).strip() if pd.notna(v) and str(v).strip() else None),
+            'citizenship':                 ('citizenship',                lambda v: str(v).strip() if pd.notna(v) and str(v).strip() else None),
+            'state_of_residence':          ('state_of_residence',         lambda v: str(v).strip() if pd.notna(v) and str(v).strip() else None),
         }
  
         # Build active column mapping for this file
@@ -2154,7 +2572,7 @@ def _get_batch_folder_names(batch):
     """
     name = batch.DisplayName
     # Strip overflow suffix like " (2)"
-    base = re.sub(r'\s*\(\d+\)\s*$', '', name)
+    base = _re.sub(r'\s*\(\d+\)\s*$', '', name)
     return [part.strip() for part in base.split(' - ') if part.strip()]
 
 
@@ -2686,18 +3104,89 @@ def _export_my_reviews_csv(request, user):
 @login_required
 def my_activity(request):
     user = request.user
-
+ 
+    # ── CSV export ───────────────────────────────────────────────────
+    if request.GET.get('export') == 'csv':
+        return _export_my_activity_csv(request, user)
+ 
+    # ── Filters ──────────────────────────────────────────────────────
+    filter_action    = request.GET.get('action', '')
+    filter_batch     = request.GET.get('batch', '')
+    filter_date_from = request.GET.get('date_from', '')
+    filter_date_to   = request.GET.get('date_to', '')
+    has_filters = any([filter_action, filter_batch, filter_date_from, filter_date_to])
+ 
     activities = Activity.objects.filter(
         actor=user,
         action_type__in=[Activity.VOTE_CAST, Activity.COMMENT_ADDED, Activity.FLAG_ADDED]
-    ).select_related('target_applicant').order_by('-created_at')
-
+    ).select_related('target_applicant', 'target_applicant__round').order_by('-created_at')
+ 
+    if filter_action:
+        activities = activities.filter(action_type=filter_action)
+    if filter_batch:
+        activities = activities.filter(target_applicant__round_id=filter_batch)
+    if filter_date_from:
+        activities = activities.filter(created_at__date__gte=filter_date_from)
+    if filter_date_to:
+        activities = activities.filter(created_at__date__lte=filter_date_to)
+ 
     paginator = Paginator(activities, 25)
-    page_obj = paginator.get_page(request.GET.get('page'))
-
+    page_obj  = paginator.get_page(request.GET.get('page'))
+ 
+    assigned_batches = Batch.objects.filter(assigned_reviewers=user).order_by('DisplayName')
+ 
     return render(request, "my_activity.html", {
-        'page_obj': page_obj,
+        'page_obj':         page_obj,
+        'filter_action':    filter_action,
+        'filter_batch':     filter_batch,
+        'filter_date_from': filter_date_from,
+        'filter_date_to':   filter_date_to,
+        'has_filters':      has_filters,
+        'assigned_batches': assigned_batches,
+        'action_choices': [
+            (Activity.VOTE_CAST,     'Vote Cast'),
+            (Activity.COMMENT_ADDED, 'Comment Added'),
+            (Activity.FLAG_ADDED,    'Flag Added'),
+        ],
+        'total_count': paginator.count,
     })
+ 
+ 
+def _export_my_activity_csv(request, user):
+    filter_action    = request.GET.get('action', '')
+    filter_batch     = request.GET.get('batch', '')
+    filter_date_from = request.GET.get('date_from', '')
+    filter_date_to   = request.GET.get('date_to', '')
+ 
+    activities = Activity.objects.filter(
+        actor=user,
+        action_type__in=[Activity.VOTE_CAST, Activity.COMMENT_ADDED, Activity.FLAG_ADDED]
+    ).select_related('target_applicant', 'target_applicant__round').order_by('-created_at')
+ 
+    if filter_action:
+        activities = activities.filter(action_type=filter_action)
+    if filter_batch:
+        activities = activities.filter(target_applicant__round_id=filter_batch)
+    if filter_date_from:
+        activities = activities.filter(created_at__date__gte=filter_date_from)
+    if filter_date_to:
+        activities = activities.filter(created_at__date__lte=filter_date_to)
+ 
+    response = HttpResponse(
+        content_type='text/csv',
+        headers={'Content-Disposition': 'attachment; filename="my_activity.csv"'},
+    )
+    writer = csv.writer(response)
+    writer.writerow(['Date', 'Action', 'Candidate', 'Batch', 'Details'])
+    for a in activities:
+        writer.writerow([
+            a.created_at.strftime('%Y-%m-%d %H:%M'),
+            a.get_action_type_display(),
+            str(a.target_applicant) if a.target_applicant else '',
+            a.target_applicant.round.DisplayName if a.target_applicant and a.target_applicant.round else '',
+            a.details,
+        ])
+    return response
     
 @login_required
 @admin_required
