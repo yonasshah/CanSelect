@@ -49,7 +49,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "gradapp.wsgi.application"
 
-LOGIN_REDIRECT_URL = "applicant_list"   # after login
+LOGIN_REDIRECT_URL = "dashboard"   # after login
 LOGOUT_REDIRECT_URL = "login"   
 
 DATABASES = {

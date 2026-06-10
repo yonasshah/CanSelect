@@ -61,6 +61,43 @@
     border-color: rgba(13,110,253,0.3);
   }
 
+  /* Person type badges */
+  .type-badge {
+    display: inline-block;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 1px 5px;
+    border-radius: 4px;
+    vertical-align: middle;
+    margin-left: 2px;
+  }
+  .type-student { background: rgba(13,110,253,0.12);  color: #084298; border: 1px solid rgba(13,110,253,0.25); }
+  .type-faculty { background: rgba(25,135,84,0.12);   color: #0a3622; border: 1px solid rgba(25,135,84,0.25); }
+  .type-staff   { background: rgba(255,153,0,0.12);   color: #7d4a00; border: 1px solid rgba(255,153,0,0.3);  }
+  .type-other   { background: rgba(108,117,125,0.1);  color: #495057; border: 1px solid rgba(108,117,125,0.2); }
+  [data-bs-theme="dark"] .type-student { color: #6ea8fe; background: rgba(13,110,253,0.2);  }
+  [data-bs-theme="dark"] .type-faculty { color: #75b798; background: rgba(25,135,84,0.2);   }
+  [data-bs-theme="dark"] .type-staff   { color: #ffca6e; background: rgba(255,153,0,0.2);   }
+  [data-bs-theme="dark"] .type-other   { color: #adb5bd; background: rgba(108,117,125,0.15);}
+
+  /* Inline type select — minimal styling */
+  .type-select {
+    font-size: 0.68rem;
+    padding: 1px 4px;
+    border-radius: 4px;
+    border: 1px solid rgba(0,0,0,0.15);
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    max-width: 80px;
+  }
+  [data-bs-theme="dark"] .type-select {
+    border-color: rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.05);
+  }
+
   .member-chip .remove-btn {
     background: none;
     border: none;
@@ -249,6 +286,13 @@
               <span class="member-chip">
                 <i class="bi bi-person-circle" style="font-size:0.75rem;"></i>
                 {{ member.get_full_name|default:member.username }}
+                {% with t=member.profile.person_type %}
+                  {% if t == 'STUDENT' %}<span class="type-badge type-student">Student</span>
+                  {% elif t == 'FACULTY' %}<span class="type-badge type-faculty">Faculty</span>
+                  {% elif t == 'STAFF' %}<span class="type-badge type-staff">Staff</span>
+                  {% elif t == 'OTHER' %}<span class="type-badge type-other">Other</span>
+                  {% endif %}
+                {% endwith %}
               </span>
               {% endfor %}
             </div>
@@ -290,16 +334,47 @@
 <div class="unassigned-card mb-4">
   <div class="section-label"><i class="bi bi-person-dash me-1"></i>Unassigned Reviewers</div>
   <p class="text-muted small mb-2">These committee members are not in any panel and won't see any candidates.</p>
-  <div class="d-flex flex-wrap">
+  <div class="d-flex flex-wrap align-items-center">
     {% for member in unassigned_members %}
     <span class="member-chip" style="background:rgba(108,117,125,0.08); border-color:rgba(108,117,125,0.2);">
       <i class="bi bi-person-circle" style="font-size:0.75rem;"></i>
       {{ member.get_full_name|default:member.username }}
+      {% with t=member.profile.person_type %}
+        {% if t == 'STUDENT' %}<span class="type-badge type-student">Student</span>
+        {% elif t == 'FACULTY' %}<span class="type-badge type-faculty">Faculty</span>
+        {% elif t == 'STAFF' %}<span class="type-badge type-staff">Staff</span>
+        {% elif t == 'OTHER' %}<span class="type-badge type-other">Other</span>
+        {% endif %}
+      {% endwith %}
     </span>
     {% endfor %}
   </div>
 </div>
 {% endif %}
+
+<!-- All members type editor -->
+<div class="unassigned-card mb-4">
+  <div class="section-label"><i class="bi bi-person-badge me-1"></i>Member Types</div>
+  <p class="text-muted small mb-3">Set the person type for each committee member. This label appears on their chip throughout the panel page.</p>
+  <div class="row g-2">
+    {% for member in all_members %}
+    <div class="col-md-4 col-lg-3">
+      <form method="post" action="{% url 'update_member_type' %}" class="d-flex align-items-center gap-2 p-2 rounded border">
+        {% csrf_token %}
+        <input type="hidden" name="user_id" value="{{ member.pk }}">
+        <div class="flex-grow-1 min-w-0">
+          <div class="small fw-semibold text-truncate">{{ member.get_full_name|default:member.username }}</div>
+        </div>
+        <select name="person_type" class="type-select" onchange="this.form.submit()">
+          {% for val, label in person_type_choices %}
+            <option value="{{ val }}" {% if member.profile.person_type == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+</div>
 
 
 <!-- ── MODALS ─────────────────────────────────────────────────────────────── -->
@@ -397,7 +472,16 @@
                     <i class="bi bi-check" style="font-size:0.7rem; display:none;"></i>
                   </div>
                   <div class="flex-grow-1 min-w-0">
-                    <div class="fw-semibold small text-truncate">{{ member.get_full_name|default:member.username }}</div>
+                    <div class="d-flex align-items-center gap-1 flex-wrap">
+                      <span class="fw-semibold small text-truncate">{{ member.get_full_name|default:member.username }}</span>
+                      {% with t=member.profile.person_type %}
+                        {% if t == 'STUDENT' %}<span class="type-badge type-student">Student</span>
+                        {% elif t == 'FACULTY' %}<span class="type-badge type-faculty">Faculty</span>
+                        {% elif t == 'STAFF' %}<span class="type-badge type-staff">Staff</span>
+                        {% elif t == 'OTHER' %}<span class="type-badge type-other">Other</span>
+                        {% endif %}
+                      {% endwith %}
+                    </div>
                     <div style="font-size:0.68rem; color:#6c757d;">
                       {% for panel in panels %}
                         {% if member in panel.members.all %}

@@ -23,7 +23,7 @@ from collections import OrderedDict
 from .decorators import admin_required
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
-from .models import Activity, Applicant, ApplicantFile, Notification, NotificationAttachment, Score, Vote, DataSet, Batch, Flag, Comment, ReviewPanel
+from .models import Activity, Applicant, ApplicantFile, Notification, NotificationAttachment, Profile, Score, Vote, DataSet, Batch, Flag, Comment, ReviewPanel
 from .forms import ApplicantForm, ApplicantStatusForm, BatchAssignmentForm, BulkUploadForm, ReviewerGroupForm, SendNotificationForm, UploadManyFilesForm, EmailLoginForm,DataSetForm, BatchForm, CommentForm, ScoreForm
 
 def email_login(request):
@@ -33,7 +33,7 @@ def email_login(request):
             email = form.cleaned_data["email"]
             user, _ = User.objects.get_or_create(username=email, defaults={"email": email})
             login(request, user, backend="django.contrib.auth.backends.ModelBackend")
-            return redirect("applicant_list")
+            return redirect("dashboard")
     else:
         form = EmailLoginForm()
     return render(request, "login.html", {"form": form})
@@ -162,6 +162,28 @@ def _extract_pdf_data(file_obj):
             data['shadowing_hours'] = v
  
     return data
+
+@login_required
+@admin_required
+@require_POST
+def update_member_type(request):
+    """
+    Quick AJAX-style POST to update a committee member's person_type.
+    Called from the Manage Panels page inline dropdown.
+    """
+    user_id     = request.POST.get('user_id')
+    person_type = request.POST.get('person_type', '')
+ 
+    try:
+        profile = User.objects.get(pk=user_id).profile
+        valid_types = [c[0] for c in profile.PersonType.choices]
+        if person_type in valid_types:
+            profile.person_type = person_type
+            profile.save()
+    except User.DoesNotExist:
+        pass
+ 
+    return redirect('manage_panels')
 
 @admin_required
 @login_required
@@ -1501,8 +1523,9 @@ def batch_edit(request, pk):
     })
 
 @login_required
-@admin_required
 def dashboard(request):
+    if request.user.profile.role != 'ADMIN':
+        return redirect('committee_dashboard')
     # --- 1. Get filter ID and all datasets for the dropdown ---
     selected_dataset_id = request.GET.get('dataset')
     all_datasets = DataSet.objects.all().order_by('DisplayName')
@@ -1627,19 +1650,53 @@ def compare_applicants(request):
     return render(request, "compare_applicants.html", context)
 
 
-@admin_required
+
 @login_required
 def export_applicants_csv(request):
     selected_dataset_id = request.GET.get('dataset')
-    selected_batch_id = request.GET.get('batch')
- 
-    applicants = Applicant.objects.all().order_by("-created_at")
- 
-    if selected_batch_id:
-        applicants = applicants.filter(round_id=selected_batch_id)
-    elif selected_dataset_id:
-        applicants = applicants.filter(dataset_id=selected_dataset_id)
- 
+    selected_batch_id   = request.GET.get('batch')
+    search_query        = request.GET.get('q', '')
+    status_filter       = request.GET.get('status', '')
+    flagged_only        = request.GET.get('flagged_only', '')
+    show_waitlist       = request.GET.get('show_waitlist', '')
+
+    if request.user.profile.role == 'ADMIN':
+        applicants = Applicant.objects.all().order_by("-created_at")
+        if selected_batch_id:
+            applicants = applicants.filter(round_id=selected_batch_id)
+        elif selected_dataset_id:
+            applicants = applicants.filter(dataset_id=selected_dataset_id)
+        if search_query:
+            applicants = applicants.filter(
+                Q(first_name__icontains=search_query) |
+                Q(last_name__icontains=search_query) |
+                Q(external_id__icontains=search_query)
+            )
+        if status_filter:
+            applicants = applicants.filter(status=status_filter)
+    else:
+        assigned_batches = request.user.assigned_batches.all()
+        applicants = Applicant.objects.filter(
+            round__in=assigned_batches
+        ).order_by("-created_at")
+        if selected_batch_id:
+            applicants = applicants.filter(round_id=selected_batch_id)
+        if search_query:
+            applicants = applicants.filter(
+                Q(first_name__icontains=search_query) |
+                Q(last_name__icontains=search_query) |
+                Q(external_id__icontains=search_query)
+            )
+        if status_filter:
+            applicants = applicants.filter(status=status_filter)
+        if flagged_only:
+            applicants = applicants.filter(flagged_by=request.user)
+        if not show_waitlist:
+            applicants = applicants.exclude(
+                votes__voter=request.user,
+                votes__value__in=[1, -1],
+            )
+
     response = HttpResponse(
         content_type='text/csv',
         headers={'Content-Disposition': 'attachment; filename="applicants.csv"'},
@@ -3372,6 +3429,7 @@ def manage_panels(request):
     unassigned_members = [m for m in all_members if m.pk not in assigned_member_ids]
  
     return render(request, 'manage_panels.html', {
+        'person_type_choices': Profile.PersonType.choices,
         'panels':             panels,
         'all_members':        all_members,
         'unassigned_members': unassigned_members,

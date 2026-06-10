@@ -17,6 +17,12 @@ class Profile(models.Model):
         GROUP_B = 'B', 'Group B'
         GROUP_C = 'C', 'Group C'
  
+    class PersonType(models.TextChoices):
+        STUDENT = 'STUDENT', 'Student'
+        FACULTY = 'FACULTY', 'Faculty'
+        STAFF   = 'STAFF',   'Staff'
+        OTHER   = 'OTHER',   'Other'
+ 
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     role = models.CharField(
         max_length=50,
@@ -29,11 +35,18 @@ class Profile(models.Model):
         default=ReviewGroup.UNASSIGNED,
         blank=True,
     )
+    person_type = models.CharField(
+        max_length=20,
+        choices=PersonType.choices,
+        default=PersonType.OTHER,
+        blank=True,
+    )
  
     def __str__(self):
         group_label = f" [{self.get_review_group_display()}]" if self.review_group else ""
-        return f"{self.user.username} - {self.get_role_display()}{group_label}"
-
+        type_label  = f" ({self.get_person_type_display()})" if self.person_type and self.person_type != 'OTHER' else ""
+        return f"{self.user.username} - {self.get_role_display()}{group_label}{type_label}"
+    
 class Applicant(models.Model):   
     class Status(models.TextChoices):
         INTERVIEW = 'INTERVIEW', 'Interview'

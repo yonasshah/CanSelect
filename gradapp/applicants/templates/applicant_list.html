@@ -51,8 +51,8 @@
             form="batch-form" formaction="{% url 'compare_applicants' %}" formmethod="GET">
       <i class="bi bi-layout-split me-1"></i>Compare
     </button>
-    <a href="{% url 'export_applicants_csv' %}?dataset={{ selected_dataset_id|default:'' }}&q={{ search_query|default:'' }}"
-       class="btn btn-outline-success btn-sm">
+    <a href="{% url 'export_applicants_csv' %}?dataset={{ selected_dataset_id|default:'' }}&batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&show_waitlist={{ show_waitlist|default:'' }}"
+      class="btn btn-outline-success btn-sm">
       <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV
     </a>
     {% if user.profile.role == 'ADMIN' %}

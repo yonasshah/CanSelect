@@ -65,5 +65,6 @@ urlpatterns = [
     path("activity-feed/", views.activity_feed, name="activity_feed"),
     path("panels/", views.manage_panels, name="manage_panels"),
     path("search/", views.global_search, name="global_search"),
+    path("members/update-type/", views.update_member_type, name="update_member_type"),
 
 ]
