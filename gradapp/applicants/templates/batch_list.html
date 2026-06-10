@@ -142,7 +142,19 @@
 
 <form id="batch-bulk-form" action="{% url 'batch_bulk_action' %}" method="POST">
   {% csrf_token %}
-
+<style>
+  .sort-link {
+    color: inherit;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+  }
+  .sort-link:hover { opacity: 0.8; }
+  .sort-icon { font-size: 0.7rem; opacity: 0.5; }
+  .sort-icon.active { opacity: 1; color: #90caf9; }
+</style>
   <!-- TABLE VIEW -->
   <div id="table-view">
     <div class="card">
@@ -155,13 +167,55 @@
                 <input type="checkbox" class="form-check-input" id="select-all">
               </th>
               {% endif %}
-              <th>Batch</th>
-              <th>Dataset</th>
-              <th style="width:220px;">Progress</th>
-              <th class="text-center">Candidates</th>
-              <th class="text-center">Deadline</th>
-              <th class="text-center">Group</th>
-              <th class="text-center">Status</th>
+              <th>
+                <a href="?q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort=name&dir={% if sort == 'name' and direction == 'asc' %}desc{% else %}asc{% endif %}"
+                   class="sort-link text-white">
+                  Batch
+                  <i class="bi bi-arrow-{% if sort == 'name' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'name' %}active{% endif %}"></i>
+                </a>
+              </th>
+              <th>
+                <a href="?q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort=dataset&dir={% if sort == 'dataset' and direction == 'asc' %}desc{% else %}asc{% endif %}"
+                   class="sort-link text-white">
+                  Dataset
+                  <i class="bi bi-arrow-{% if sort == 'dataset' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'dataset' %}active{% endif %}"></i>
+                </a>
+              </th>
+              <th style="width:220px;">
+                <a href="?q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort=progress&dir={% if sort == 'progress' and direction == 'asc' %}desc{% else %}asc{% endif %}"
+                   class="sort-link text-white">
+                  Progress
+                  <i class="bi bi-arrow-{% if sort == 'progress' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'progress' %}active{% endif %}"></i>
+                </a>
+              </th>
+              <th class="text-center">
+                <a href="?q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort=candidates&dir={% if sort == 'candidates' and direction == 'asc' %}desc{% else %}asc{% endif %}"
+                   class="sort-link text-white justify-content-center">
+                  Candidates
+                  <i class="bi bi-arrow-{% if sort == 'candidates' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'candidates' %}active{% endif %}"></i>
+                </a>
+              </th>
+              <th class="text-center">
+                <a href="?q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort=deadline&dir={% if sort == 'deadline' and direction == 'asc' %}desc{% else %}asc{% endif %}"
+                   class="sort-link text-white justify-content-center">
+                  Deadline
+                  <i class="bi bi-arrow-{% if sort == 'deadline' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'deadline' %}active{% endif %}"></i>
+                </a>
+              </th>
+              <th class="text-center">
+                <a href="?q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort=group&dir={% if sort == 'group' and direction == 'asc' %}desc{% else %}asc{% endif %}"
+                   class="sort-link text-white justify-content-center">
+                  Group
+                  <i class="bi bi-arrow-{% if sort == 'group' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'group' %}active{% endif %}"></i>
+                </a>
+              </th>
+              <th class="text-center">
+                <a href="?q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort=status&dir={% if sort == 'status' and direction == 'asc' %}desc{% else %}asc{% endif %}"
+                   class="sort-link text-white justify-content-center">
+                  Status
+                  <i class="bi bi-arrow-{% if sort == 'status' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'status' %}active{% endif %}"></i>
+                </a>
+              </th>
               {% if user.profile.role == 'ADMIN' %}<th></th>{% endif %}
             </tr>
           </thead>
@@ -186,15 +240,15 @@
               <td>
                 <div class="d-flex align-items-center gap-2">
                   <div class="progress flex-grow-1" style="height:6px;">
-                    {% if batch.applicant_count > 0 %}
-                      {% widthratio batch.voted_count batch.applicant_count 100 as pct %}
+                    {% if batch.potential_votes > 0 %}
+                      {% widthratio batch.voted_count batch.potential_votes 100 as pct %}
                       <div class="progress-bar bg-success" style="width:{{ pct }}%"></div>
                     {% else %}
                       <div class="progress-bar" style="width:0%"></div>
                     {% endif %}
                   </div>
                   <span class="text-muted small" style="white-space:nowrap;">
-                    {{ batch.voted_count }}/{{ batch.applicant_count }}
+                    {{ batch.voted_count }}/{{ batch.potential_votes }}
                   </span>
                 </div>
               </td>
@@ -324,15 +378,15 @@
 <nav class="mt-4">
   <ul class="pagination justify-content-center">
     {% if page_obj.has_previous %}
-      <li class="page-item"><a class="page-link" href="?page=1">&laquo; First</a></li>
-      <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a></li>
+      <li class="page-item"><a class="page-link" href="?page=1&q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort={{ sort }}&dir={{ direction }}">&laquo; First</a></li>
+      <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort={{ sort }}&dir={{ direction }}">Previous</a></li>
     {% endif %}
     <li class="page-item active">
       <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
     </li>
     {% if page_obj.has_next %}
-      <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a></li>
-      <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Last &raquo;</a></li>
+      <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort={{ sort }}&dir={{ direction }}">Next</a></li>
+      <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}&q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort={{ sort }}&dir={{ direction }}">Last &raquo;</a></li>
     {% endif %}
   </ul>
 </nav>

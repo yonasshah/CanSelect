@@ -6,8 +6,7 @@ from .models import Batch
 from .models import Comment
 from django.contrib.auth.models import User
 from .models import Profile
-
-
+from .models import ReviewPanel
 
 class BootstrapFormMixin:
     """Automatically add Bootstrap 5 classes to all form fields."""
@@ -194,3 +193,13 @@ class SendNotificationForm(BootstrapFormMixin, forms.Form):
         widget=forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
         help_text='Optional. Reminders with deadlines stay pinned at the top.',
     )
+    
+class ReviewPanelForm(BootstrapFormMixin, forms.ModelForm):
+    class Meta:
+        from .models import ReviewPanel
+        model = ReviewPanel
+        fields = ['name', 'description']
+        widgets = {
+            'description': forms.Textarea(attrs={'rows': 2, 'placeholder': 'Optional description...'}),
+        }
+ 

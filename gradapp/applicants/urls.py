@@ -62,8 +62,8 @@ urlpatterns = [
     # ── Admin Tools ───────────────────────────────────────────────────
     path("bulk-upload/", views.bulk_upload_applicants, name="bulk_upload"),
     path("candidate-info-upload/", views.candidate_info_upload, name="candidate_info_upload"),
-    path("reviewer-groups/", views.manage_reviewer_groups, name="manage_reviewer_groups"),
     path("activity-feed/", views.activity_feed, name="activity_feed"),
+    path("panels/", views.manage_panels, name="manage_panels"),
     path("search/", views.global_search, name="global_search"),
 
 ]

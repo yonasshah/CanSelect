@@ -249,7 +249,33 @@ class Score(models.Model):
 
     def __str__(self):
         return f"Score by {self.voter.username} for {self.applicant}"
-
+class ReviewPanel(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True, default='')
+    members = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        blank=True,
+        related_name='review_panels',
+        limit_choices_to={'profile__role': 'COMMITTEE_MEMBER'},
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+ 
+    class Meta:
+        ordering = ['name']
+ 
+    def __str__(self):
+        return self.name
+ 
+    @property
+    def member_count(self):
+        return self.members.count()
+ 
+    @property
+    def batch_count(self):
+        return self.batches.count()
+    
+    
 class Batch(models.Model):
     DataSet = models.ForeignKey("DataSet", related_name="batches", on_delete=models.CASCADE)
     DisplayName = models.CharField(max_length=255)
@@ -274,6 +300,12 @@ class Batch(models.Model):
         choices=[('', 'Unassigned'), ('A', 'Group A'), ('B', 'Group B'), ('C', 'Group C')],
         blank=True,
         default='',
+    )
+    panel = models.ForeignKey(
+        'ReviewPanel',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='batches',
     )
 
     class Meta:

@@ -62,7 +62,6 @@
           {{ form.VoteExpire }}
           <div class="form-text">When voting closes for this batch.</div>
         </div>
-        
       </div>
     </div>
   </div>
@@ -90,11 +89,19 @@
           </div>
         </div>
         <div class="col-md-6">
-          <label for="{{ form.review_group.id_for_label }}" class="form-label">
-            <strong>Review Group</strong>
+          <label for="id_panel" class="form-label">
+            <strong>Review Panel</strong>
           </label>
-          {{ form.review_group }}
-          <div class="text-muted small">Committee members in this group will be auto-assigned as reviewers.</div>
+          <select name="panel" id="id_panel" class="form-select">
+            <option value="">— No panel assigned —</option>
+            {% for panel in available_panels %}
+              <option value="{{ panel.pk }}"
+                {% if batch and batch.panel and batch.panel.pk == panel.pk %}selected{% endif %}>
+                {{ panel.name }}{% if panel.description %} — {{ panel.description }}{% endif %}
+              </option>
+            {% endfor %}
+          </select>
+          <div class="text-muted small">All members of the selected panel will be assigned as reviewers.</div>
         </div>
       </div>
     </div>

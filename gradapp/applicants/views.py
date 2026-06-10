@@ -1,10 +1,12 @@
 # applicants/views.py
 import csv
 import random
+from urllib import request
 from django.db.models import Avg, Case, Count, Exists, F, IntegerField, OuterRef, Q, Value, When
 import json
 from itertools import cycle
 from django.utils.safestring import mark_safe
+from datetime import datetime
 from django.http import HttpResponse
 from django.views.decorators.http import require_POST
 from django.contrib import messages
@@ -17,10 +19,11 @@ from django.utils import timezone
 from decimal import Decimal, InvalidOperation
 import pypdf
 import re as _re
+from collections import OrderedDict
 from .decorators import admin_required
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
-from .models import Activity, Applicant, ApplicantFile, Notification, NotificationAttachment, Score, Vote, DataSet, Batch, Flag, Comment
+from .models import Activity, Applicant, ApplicantFile, Notification, NotificationAttachment, Score, Vote, DataSet, Batch, Flag, Comment, ReviewPanel
 from .forms import ApplicantForm, ApplicantStatusForm, BatchAssignmentForm, BulkUploadForm, ReviewerGroupForm, SendNotificationForm, UploadManyFilesForm, EmailLoginForm,DataSetForm, BatchForm, CommentForm, ScoreForm
 
 def email_login(request):
@@ -307,7 +310,9 @@ def applicant_detail(request, pk):
             new_comment.author = request.user
             new_comment.save()
             messages.success(request, "Your comment has been posted.")
-            return redirect('applicant_detail', pk=applicant.pk)
+            nav_params = request.POST.get('nav_params', '')
+            redirect_url = f'/applicant/{pk}/?{nav_params}' if nav_params else f'/applicant/{pk}/'
+            return redirect(redirect_url)
 
     all_files = applicant.files.all()
     
@@ -1192,11 +1197,13 @@ def batch_list(request):
     deadline_after     = request.GET.get('deadline_after', '')
     progress_filter    = request.GET.get('progress', '')
     show_archived      = request.GET.get('show_archived', '')
+    sort               = request.GET.get('sort', 'name')
+    direction          = request.GET.get('dir', 'asc')
 
     batches_list = Batch.objects.select_related("DataSet").annotate(
         applicant_count=Count('applicant', distinct=True),
         reviewer_count=Count('assigned_reviewers', distinct=True),
-    ).order_by('DataSet__DisplayName', 'DisplayName')
+    ).order_by('DataSet__DisplayName', 'DisplayName')  # default; overridden below
 
     if search_query:
         batches_list = batches_list.filter(DisplayName__icontains=search_query)
@@ -1233,6 +1240,18 @@ def batch_list(request):
     if not show_archived:
         batches_list = batches_list.filter(DataSet__Active=True)
 
+    DB_SORT_MAP = {
+        'name':     'DisplayName',
+        'dataset':  'DataSet__DisplayName',
+        'deadline': 'VoteExpire',
+        'group':    'review_group',
+        'status':   'Active',
+    }
+    if sort in DB_SORT_MAP:
+        order_field = DB_SORT_MAP[sort]
+        batches_list = batches_list.order_by(
+            f'-{order_field}' if direction == 'desc' else order_field
+        )
     # ── Compute progress for each batch, then apply progress filter ──
     # (done in Python; batch counts are small)
     all_batches = list(batches_list)
@@ -1242,10 +1261,15 @@ def batch_list(request):
             applicant__round=batch,
             voter__in=batch.assigned_reviewers.all()
         ).count()
-        batch.actual_votes  = actual
-        batch.voted_count   = actual
+        batch.actual_votes    = actual
+        batch.voted_count     = actual
         batch.potential_votes = potential
-        batch.progress_pct  = int((actual / potential * 100) if potential > 0 else 0)
+        batch.progress_pct    = int((actual / potential * 100) if potential > 0 else 0)
+        
+    if sort == 'candidates':
+        all_batches.sort(key=lambda b: b.applicant_count, reverse=(direction == 'desc'))
+    elif sort == 'progress':
+        all_batches.sort(key=lambda b: b.progress_pct, reverse=(direction == 'desc'))
 
     if progress_filter == 'complete':
         all_batches = [b for b in all_batches if b.applicant_count > 0 and b.progress_pct == 100]
@@ -1272,6 +1296,8 @@ def batch_list(request):
         'progress_filter':            progress_filter,
         'show_archived':              show_archived,
         'all_datasets':               all_datasets,
+        'sort':                       sort,
+        'direction':                  direction,
         'application_system_choices': DataSet.ApplicationSystem.choices,
         'program_type_choices':       DataSet.ProgramType.choices,
         'crumbs': [{'label': 'Batches', 'url': ''}],
@@ -1284,6 +1310,17 @@ def batch_create(request):
         form = BatchForm(request.POST)
         if form.is_valid():
             batch = form.save()
+            # Handle panel assignment
+            panel_id = request.POST.get('panel')
+            if panel_id:
+                try:
+                    from .models import ReviewPanel
+                    panel = ReviewPanel.objects.get(pk=panel_id)
+                    batch.panel = panel
+                    batch.save()
+                    batch.assigned_reviewers.set(panel.members.all())
+                except ReviewPanel.DoesNotExist:
+                    pass
             messages.success(request, f"Batch '{batch.DisplayName}' created successfully.")
             return redirect("batch_detail", pk=batch.pk)
     else:
@@ -1291,6 +1328,7 @@ def batch_create(request):
     return render(request, "batch_form.html", {
         "form": form,
         "batch": None,
+        "available_panels": ReviewPanel.objects.all(),
         "crumbs": [
             {'label': 'Batches', 'url': '/batches/'},
             {'label': 'New Batch', 'url': ''},
@@ -1428,22 +1466,25 @@ def batch_detail(request, pk):
 @login_required
 @admin_required
 def batch_edit(request, pk):
+    from .models import ReviewPanel
     batch = get_object_or_404(Batch, pk=pk)
-    old_group = batch.review_group
     if request.method == "POST":
         form = BatchForm(request.POST, instance=batch)
         if form.is_valid():
             batch = form.save()
-
-            # If the group changed, sync reviewers to the new group
-            if batch.review_group != old_group and batch.review_group:
-                from .models import Profile
-                group_members = User.objects.filter(
-                    profile__role=Profile.Role.COMMITTEE_MEMBER,
-                    profile__review_group=batch.review_group,
-                )
-                batch.assigned_reviewers.set(group_members)
-
+            # Handle panel assignment
+            panel_id = request.POST.get('panel')
+            if panel_id:
+                try:
+                    panel = ReviewPanel.objects.get(pk=panel_id)
+                    batch.panel = panel
+                    batch.save()
+                    batch.assigned_reviewers.set(panel.members.all())
+                except ReviewPanel.DoesNotExist:
+                    pass
+            else:
+                batch.panel = None
+                batch.save()
             messages.success(request, f"Batch '{batch.DisplayName}' updated successfully.")
             return redirect("batch_detail", pk=batch.pk)
     else:
@@ -1451,6 +1492,7 @@ def batch_edit(request, pk):
     return render(request, "batch_form.html", {
         "form": form,
         "batch": batch,
+        "available_panels": ReviewPanel.objects.all(),
         "crumbs": [
             {'label': 'Batches', 'url': '/batches/'},
             {'label': batch.DisplayName, 'url': f'/batches/{batch.pk}/'},
@@ -2071,6 +2113,10 @@ def batch_assign_reviewers(request, pk):
 @login_required
 def toggle_applicant_flag(request, pk):
     applicant = get_object_or_404(Applicant, pk=pk)
+    
+    # Preserve nav params for redirect back
+    nav_params = request.POST.get('nav_params', '')
+    redirect_url = f'/applicant/{pk}/?{nav_params}' if nav_params else f'/applicant/{pk}/'
 
     # Admin: clear all flags
     if request.POST.get('clear_all') and request.user.profile.role == 'ADMIN':
@@ -2083,12 +2129,11 @@ def toggle_applicant_flag(request, pk):
             target_applicant=applicant,
         )
         messages.success(request, "All flags cleared.")
-        return redirect('applicant_detail', pk=applicant.pk)
+        return redirect(redirect_url)
 
     existing_flag = Flag.objects.filter(applicant=applicant, user=request.user).first()
 
     if existing_flag:
-        # Unflag
         existing_flag.delete()
         applicant.flagged_by.remove(request.user)
         Activity.objects.create(
@@ -2099,11 +2144,10 @@ def toggle_applicant_flag(request, pk):
         )
         messages.success(request, "Flag removed.")
     else:
-        # Flag — require comment
         comment = request.POST.get('flag_comment', '').strip()
         if len(comment) < 10:
             messages.error(request, "Please provide a reason (at least 10 characters).")
-            return redirect('applicant_detail', pk=applicant.pk)
+            return redirect(redirect_url)
         Flag.objects.create(applicant=applicant, user=request.user, comment=comment)
         applicant.flagged_by.add(request.user)
         Activity.objects.create(
@@ -2114,7 +2158,7 @@ def toggle_applicant_flag(request, pk):
         )
         messages.success(request, "Candidate flagged for discussion.")
 
-    return redirect('applicant_detail', pk=applicant.pk)
+    return redirect(redirect_url)
 
 @login_required
 def help_page(request):
@@ -2267,9 +2311,6 @@ def bulk_upload_applicants(request):
                 'source_folder': source,
                 'pdf_data':     pdf_data,
             })
-
-        # Sort candidates by source folder so earlier dates fill first
-        parsed_candidates.sort(key=lambda c: c.get('source_folder', ''))
         
         # ── Place candidates into auto-created batches ───────────────────
         batch_placements = _assign_candidates_to_batches(
@@ -2561,6 +2602,12 @@ def candidate_info_upload(request):
         'results': results,
     })
 
+_MONTHS = {
+    'january': 1, 'jan': 1, 'february': 2, 'feb': 2, 'march': 3, 'mar': 3,
+    'april': 4, 'apr': 4, 'may': 5, 'june': 6, 'jun': 6, 'july': 7, 'jul': 7,
+    'august': 8, 'aug': 8, 'september': 9, 'sep': 9, 'sept': 9,
+    'october': 10, 'oct': 10, 'november': 11, 'nov': 11, 'december': 12, 'dec': 12,
+}
 
 def _get_batch_folder_names(batch):
     """
@@ -2573,162 +2620,146 @@ def _get_batch_folder_names(batch):
     name = batch.DisplayName
     # Strip overflow suffix like " (2)"
     base = _re.sub(r'\s*\(\d+\)\s*$', '', name)
+    
     return [part.strip() for part in base.split(' - ') if part.strip()]
 
-
-def _build_batch_display_name(folder_names, overflow_index=None):
+def _parse_date_key(folder_name):
     """
-    Build a display name from unique folder names + optional overflow number.
+    Sortable calendar key for a date-style folder name.
+    'September 3' / 'Sept 3' / 'December 1 Testing'  -> (0, month, day)
+    '2024-09-03' / '09-03-2024'                       -> (0, month, day)
+    Anything unparseable                              -> sorts LAST.
+    """
+    if not folder_name:
+        return (1, 13, 32, '')
+    name = folder_name.strip().lower()
 
-    (["December 1"])                        →  "December 1"
-    (["December 1", "December 2"])          →  "December 1 - December 2"
-    (["December 1"], overflow_index=2)      →  "December 1 (2)"
+    # "Month Day" (tolerates trailing words like "Testing")
+    m = _re.match(r'^([a-z]+)\.?\s+(\d{1,2})\b', name)
+    if m and m.group(1) in _MONTHS:
+        return (0, _MONTHS[m.group(1)], int(m.group(2)))
+
+    # Numeric date formats
+    for fmt in ('%Y-%m-%d', '%m-%d-%Y', '%m/%d/%Y', '%Y/%m/%d', '%m-%d', '%m/%d'):
+        try:
+            d = datetime.strptime(folder_name.strip(), fmt)
+            return (0, d.month, d.day)
+        except ValueError:
+            continue
+
+    return (1, 13, 32, name)  # unparseable -> after all real dates
+
+def _build_batch_display_name(folder_names):
+    """
+    De-duplicated, chronologically-ordered batch name.
+    ['September 4', 'September 3'] -> 'September 3 - September 4'
     """
     seen = set()
     unique = []
     for n in folder_names:
-        if n not in seen:
+        n = (n or '').strip()
+        if n and n not in seen:
             seen.add(n)
             unique.append(n)
-
-    base = ' - '.join(unique)
-    if overflow_index and overflow_index > 1:
-        base = f"{base} ({overflow_index})"
-    return base
-
+    unique.sort(key=_parse_date_key)
+    return ' - '.join(unique) if unique else 'Bulk Upload'
 
 def _assign_candidates_to_batches(dataset, folder_name, candidates):
     """
-    Place a list of parsed candidate dicts into batches of max BATCH_MAX_SIZE.
-    Fills the most recent underfull batch first, then creates new ones.
-    Batch names reflect only the source folders of candidates actually in that batch.
-    Overflow numbering only applies when names would collide.
+    Place candidates into batches of <= BATCH_MAX_SIZE.
+
+    Rules:
+      - Group by source date folder, process dates in CALENDAR order.
+      - A date with > 10 candidates fills full batches of 10; its remainder
+        (the overflow) carries FORWARD and merges into the next date's batch.
+      - A date with <= 10 and no inherited overflow stands as its own batch.
+      - Overflow only ever moves earlier -> later. A later date never backfills
+        an earlier partial batch.
+      - Multi-date batches are named "September 3 - September 4" (chronological).
+      - Same-date continuation across uploads tops off an existing underfull
+        batch whose latest date matches; later dates never top off earlier ones.
 
     Returns: list of (Batch, [candidate_dicts]) tuples.
     """
+    # ── Group by date, then order dates chronologically ──────────────
+    groups = OrderedDict()
+    for c in candidates:
+        key = (c.get('source_folder') or '').strip() or (folder_name or 'Bulk Upload')
+        groups.setdefault(key, []).append(c)
+    sorted_dates = sorted(groups.keys(), key=_parse_date_key)
+
     result = []
-    remaining = list(candidates)
 
-    # ── Step 1: Try to fill the most recent underfull batch ───────────────
-    recent_batch = (
-        Batch.objects.filter(DataSet=dataset, Active=True)
-        .annotate(candidate_count=Count('applicant'))
-        .filter(candidate_count__lt=BATCH_MAX_SIZE)
-        .order_by('-CreatedAt')
-        .first()
+    # ── Same-date top-off of an existing underfull batch (optional) ──
+    # Only continues a batch whose LATEST date equals our EARLIEST date,
+    # so we never push later candidates back into an earlier batch.
+    if sorted_dates:
+        earliest = sorted_dates[0]
+        underfull = (
+            Batch.objects.filter(DataSet=dataset, Active=True)
+            .annotate(cc=Count('applicant'))
+            .filter(cc__lt=BATCH_MAX_SIZE)
+            .order_by('-CreatedAt')
+        )
+        for b in underfull:
+            existing_dates = _get_batch_folder_names(b)
+            if existing_dates and existing_dates[-1] == earliest:
+                slots = BATCH_MAX_SIZE - Applicant.objects.filter(round=b).count()
+                if slots > 0:
+                    fill = groups[earliest][:slots]
+                    groups[earliest] = groups[earliest][slots:]
+                    if fill:
+                        result.append((b, fill))
+                    if not groups[earliest]:
+                        sorted_dates = sorted_dates[1:]
+                break
+
+    # ── Flow-fill, carrying overflow forward in time ─────────────────
+    carry = []                 # leftover candidates spilled from an earlier date
+    batches_to_create = []     # each entry is a list of candidate dicts
+
+    for date in sorted_dates:
+        pool = carry + groups[date]
+        carry = []
+        full_count = 0
+        while len(pool) >= BATCH_MAX_SIZE:
+            batches_to_create.append(pool[:BATCH_MAX_SIZE])
+            pool = pool[BATCH_MAX_SIZE:]
+            full_count += 1
+        if pool:
+            if full_count > 0:
+                carry = pool          # this date overflowed -> spill forward
+            else:
+                batches_to_create.append(pool)  # no overflow -> own batch
+    if carry:
+        batches_to_create.append(carry)
+
+    # ── Create batches with collision-safe, chronological names ──────
+    used_names = set(
+        Batch.objects.filter(DataSet=dataset).values_list('DisplayName', flat=True)
     )
-
-    if recent_batch:
-        current_count = Applicant.objects.filter(round=recent_batch).count()
-        slots = BATCH_MAX_SIZE - current_count
-        if slots > 0:
-            to_fill = remaining[:slots]
-            remaining = remaining[slots:]
-
-            # Update batch name based on NEW candidates' actual source folders
-            new_folders = list(dict.fromkeys(
-                c['source_folder'] for c in to_fill if c.get('source_folder')
-            ))
-            existing_names = _get_batch_folder_names(recent_batch)
-            changed = False
-            for nf in new_folders:
-                if nf not in existing_names:
-                    existing_names.append(nf)
-                    changed = True
-            if changed:
-                # Sort folder names so ordering is consistent
-                existing_names.sort()
-                recent_batch.DisplayName = _build_batch_display_name(existing_names)
-                recent_batch.save()
-
-            result.append((recent_batch, to_fill))
-
-    if not remaining:
-        # ── Clean up orphaned numbering ──────────────────────────────────
-        _cleanup_batch_numbering(dataset)
-        return result
-
-    # ── Step 2: Create new batches for the rest ──────────────────────────
-    chunks = []
-    while remaining:
-        chunks.append(remaining[:BATCH_MAX_SIZE])
-        remaining = remaining[BATCH_MAX_SIZE:]
-
-    for chunk in chunks:
-        # Derive name from the actual source folders in THIS chunk
-        chunk_folders = list(dict.fromkeys(
-            c['source_folder'] for c in chunk if c.get('source_folder')
-        ))
-        if not chunk_folders:
-            chunk_folders = [folder_name]
-
-        # Sort for consistent ordering
-        chunk_folders.sort()
-        base_name = _build_batch_display_name(chunk_folders)
-
-        # Check if this exact name already exists — if so, add numbering
-        existing_with_name = Batch.objects.filter(
-            DataSet=dataset,
-            DisplayName__startswith=base_name
-        ).count()
-
-        if existing_with_name > 0:
-            display_name = f"{base_name} ({existing_with_name + 1})"
-
-            # Retroactively number the first one as (1) if it's unnumbered
-            first_batch = Batch.objects.filter(
-                DataSet=dataset,
-                DisplayName=base_name,
-            ).first()
-            if first_batch:
-                first_batch.DisplayName = f"{base_name} (1)"
-                first_batch.save()
-        else:
-            display_name = base_name
+    for chunk in batches_to_create:
+        date_names = [
+            (c.get('source_folder') or '').strip() or (folder_name or 'Bulk Upload')
+            for c in chunk
+        ]
+        base = _build_batch_display_name(date_names)
+        name = base
+        n = 2
+        while name in used_names:
+            name = f"{base} ({n})"
+            n += 1
+        used_names.add(name)
 
         new_batch = Batch.objects.create(
             DataSet=dataset,
-            DisplayName=display_name,
+            DisplayName=name,
             Active=True,
         )
-        _auto_assign_batch_to_group(new_batch)
+        _auto_assign_batch_to_panel(new_batch)
         result.append((new_batch, chunk))
 
-    # ── Clean up orphaned numbering ──────────────────────────────────────
-    _cleanup_batch_numbering(dataset)
-
     return result
-
-
-def _cleanup_batch_numbering(dataset):
-    """
-    If a batch is named "Something (1)" but there's no "Something (2)",
-    rename it back to just "Something" since numbering is unnecessary.
-    """
-    import re as _re
-    numbered_batches = Batch.objects.filter(
-        DataSet=dataset,
-        Active=True,
-        DisplayName__regex=r'.+ \(\d+\)$',
-    )
-
-    for batch in numbered_batches:
-        match = _re.match(r'^(.+?) \((\d+)\)$', batch.DisplayName)
-        if not match:
-            continue
-
-        base_name = match.group(1)
-        # Count how many batches share this base name (numbered or exact)
-        siblings = Batch.objects.filter(
-            DataSet=dataset,
-            Active=True,
-            DisplayName__startswith=base_name,
-        ).count()
-
-        # If this is the only one with this base name, drop the number
-        if siblings == 1:
-            batch.DisplayName = base_name
-            batch.save()
     
 
 def _reviewer_progress_breakdown(user):
@@ -2954,7 +2985,9 @@ def my_reviews(request):
     filter_batch     = request.GET.get('batch', '')
     filter_vote      = request.GET.get('vote', '')   # '1', '-1', '0', 'none'
     filter_flagged   = request.GET.get('flagged_only', '')
-    has_filters      = any([filter_batch, filter_vote, filter_flagged])
+    filter_score_min = request.GET.get('score_min', '')
+    filter_score_max = request.GET.get('score_max', '')
+    has_filters      = any([filter_batch, filter_vote, filter_flagged, filter_score_min, filter_score_max])
  
     # CSV export branch — triggered by ?export=csv
     if request.GET.get('export') == 'csv':
@@ -3024,6 +3057,12 @@ def my_reviews(request):
  
     reviews.sort(key=sort_key, reverse=(direction == 'desc'))
  
+    if filter_score_min:
+        reviews = [r for r in reviews if r['score'] and r['score'].overall_score and r['score'].overall_score >= int(filter_score_min)]
+    if filter_score_max:
+        reviews = [r for r in reviews if r['score'] and r['score'].overall_score and r['score'].overall_score <= int(filter_score_max)]
+ 
+ 
     # Stats strip
     yes_count      = sum(1 for r in reviews if r['vote'] and r['vote'].value == 1)
     no_count       = sum(1 for r in reviews if r['vote'] and r['vote'].value == -1)
@@ -3034,7 +3073,7 @@ def my_reviews(request):
         round(sum(r['score'].overall_score for r in scored) / len(scored), 1)
         if scored else None
     )
- 
+
     return render(request, "my_reviews.html", {
         'reviews':          reviews,
         'total_votes':      votes.count(),
@@ -3052,6 +3091,8 @@ def my_reviews(request):
         'flagged_count':    flagged_count,
         'avg_overall':      avg_overall,
         'reviewed_count':   len(reviews),
+        'filter_score_min': filter_score_min,
+        'filter_score_max': filter_score_max,
     })
  
  
@@ -3223,85 +3264,141 @@ def batch_bulk_action(request):
 
 @login_required
 @admin_required
-def manage_reviewer_groups(request):
-    """Admin page to assign committee members to review groups (A, B, C)."""
-    members = (
-        User.objects.filter(profile__role='COMMITTEE_MEMBER')
-        .select_related('profile')
-        .order_by('username')
-    )
-
+def manage_panels(request):
+    """
+    Admin page to create, edit, and assign members to review panels.
+    Replaces the old reviewer groups page.
+    """
+    from .models import ReviewPanel
+    from .forms import ReviewPanelForm
+ 
+    panels = ReviewPanel.objects.prefetch_related('members', 'batches').order_by('name')
+    all_members = User.objects.filter(
+        profile__role='COMMITTEE_MEMBER'
+    ).select_related('profile').order_by('last_name', 'first_name', 'username')
+ 
+    # ── Handle panel creation ────────────────────────────────────────
     if request.method == 'POST':
-        form = ReviewerGroupForm(request.POST, members=members)
-        if form.is_valid():
-            for user in members:
-                field_name = f'user_{user.pk}'
-                new_group = form.cleaned_data.get(field_name, '')
-                if user.profile.review_group != new_group:
-                    user.profile.review_group = new_group
-                    user.profile.save()
-
-            # Sync batch reviewers to match current group assignments
-            for group_code in ['A', 'B', 'C']:
-                group_members = User.objects.filter(
-                    profile__role='COMMITTEE_MEMBER',
-                    profile__review_group=group_code,
-                )
-                group_batches = Batch.objects.filter(
-                    review_group=group_code,
-                    Active=True,
-                )
-                for batch in group_batches:
-                    batch.assigned_reviewers.set(group_members)
-
-            messages.success(request, "Reviewer group assignments updated.")
-            return redirect('manage_reviewer_groups')
-    else:
-        form = ReviewerGroupForm(members=members)
-
-    groups = {
-        'A': members.filter(profile__review_group='A'),
-        'B': members.filter(profile__review_group='B'),
-        'C': members.filter(profile__review_group='C'),
-        'unassigned': members.filter(profile__review_group=''),
-    }
-
-    return render(request, 'manage_reviewer_groups.html', {
-        'form': form,
-        'members': members,
-        'groups': groups,
+        action = request.POST.get('action')
+ 
+        if action == 'create_panel':
+            form = ReviewPanelForm(request.POST)
+            if form.is_valid():
+                panel = form.save()
+                messages.success(request, f'Panel "{panel.name}" created.')
+            else:
+                for field, errors in form.errors.items():
+                    for error in errors:
+                        messages.error(request, f'{error}')
+            return redirect('manage_panels')
+ 
+        elif action == 'update_members':
+            panel_id = request.POST.get('panel_id')
+            member_ids = request.POST.getlist('member_ids')
+            try:
+                panel = ReviewPanel.objects.get(pk=panel_id)
+                panel.members.set(member_ids)
+                # Sync assigned_reviewers on all this panel's batches
+                for batch in panel.batches.all():
+                    batch.assigned_reviewers.set(panel.members.all())
+                messages.success(request, f'Members updated for "{panel.name}".')
+            except ReviewPanel.DoesNotExist:
+                messages.error(request, 'Panel not found.')
+            return redirect('manage_panels')
+ 
+        elif action == 'rename_panel':
+            panel_id = request.POST.get('panel_id')
+            new_name = request.POST.get('name', '').strip()
+            new_desc = request.POST.get('description', '').strip()
+            try:
+                panel = ReviewPanel.objects.get(pk=panel_id)
+                if new_name:
+                    panel.name = new_name
+                panel.description = new_desc
+                panel.save()
+                messages.success(request, f'Panel updated.')
+            except ReviewPanel.DoesNotExist:
+                messages.error(request, 'Panel not found.')
+            return redirect('manage_panels')
+ 
+        elif action == 'delete_panel':
+            panel_id = request.POST.get('panel_id')
+            try:
+                panel = ReviewPanel.objects.get(pk=panel_id)
+                # Unassign reviewers from all batches in this panel
+                for batch in panel.batches.all():
+                    batch.assigned_reviewers.clear()
+                    batch.panel = None
+                    batch.save()
+                name = panel.name
+                panel.delete()
+                messages.success(request, f'Panel "{name}" deleted.')
+            except ReviewPanel.DoesNotExist:
+                messages.error(request, 'Panel not found.')
+            return redirect('manage_panels')
+ 
+        elif action == 'assign_batch':
+            panel_id  = request.POST.get('panel_id')
+            batch_ids = request.POST.getlist('batch_ids')
+            try:
+                panel = ReviewPanel.objects.get(pk=panel_id)
+                # Remove this panel from batches it currently owns but aren't in new list
+                for batch in panel.batches.exclude(pk__in=batch_ids):
+                    batch.panel = None
+                    batch.assigned_reviewers.clear()
+                    batch.save()
+                # Assign selected batches to this panel
+                for batch in Batch.objects.filter(pk__in=batch_ids):
+                    batch.panel = panel
+                    batch.save()
+                    batch.assigned_reviewers.set(panel.members.all())
+                messages.success(request, f'Batch assignments updated for "{panel.name}".')
+            except ReviewPanel.DoesNotExist:
+                messages.error(request, 'Panel not found.')
+            return redirect('manage_panels')
+ 
+    create_form = ReviewPanelForm()
+ 
+    # Annotate panels with batch info grouped by dataset for display
+    all_batches = Batch.objects.select_related('DataSet').order_by(
+        'DataSet__DisplayName', 'DisplayName'
+    )
+ 
+    # Build unassigned members set for the "unassigned" column
+    assigned_member_ids = set()
+    for panel in panels:
+        for m in panel.members.all():
+            assigned_member_ids.add(m.pk)
+    unassigned_members = [m for m in all_members if m.pk not in assigned_member_ids]
+ 
+    return render(request, 'manage_panels.html', {
+        'panels':             panels,
+        'all_members':        all_members,
+        'unassigned_members': unassigned_members,
+        'all_batches':        all_batches,
+        'create_form':        create_form,
     })
 
 
-def _auto_assign_batch_to_group(batch):
+def _auto_assign_batch_to_panel(batch):
     """
-    Assign a batch to the review group (A, B, C) with the fewest active batches.
-    Then set the batch's assigned_reviewers to all committee members in that group.
+    Assign a newly created batch to the ReviewPanel with the fewest active batches.
+    Falls back gracefully if no panels exist yet.
     """
-    from .models import Profile
-
-    group_choices = ['A', 'B', 'C']
-
-    group_counts = {}
-    for g in group_choices:
-        group_counts[g] = Batch.objects.filter(
-            DataSet=batch.DataSet,
-            Active=True,
-            review_group=g,
-        ).count()
-
-    selected_group = min(group_choices, key=lambda g: group_counts[g])
-
-    batch.review_group = selected_group
+    from .models import ReviewPanel
+    panels = list(ReviewPanel.objects.annotate(
+        active_batch_count=Count('batches', filter=Q(batches__Active=True))
+    ).order_by('active_batch_count', 'name'))
+ 
+    if not panels:
+        # No panels exist yet — leave unassigned
+        return None
+ 
+    selected_panel = panels[0]
+    batch.panel = selected_panel
     batch.save()
-
-    group_members = User.objects.filter(
-        profile__role=Profile.Role.COMMITTEE_MEMBER,
-        profile__review_group=selected_group,
-    )
-    batch.assigned_reviewers.set(group_members)
-
-    return selected_group
+    batch.assigned_reviewers.set(selected_panel.members.all())
+    return selected_panel
 
 @login_required
 @admin_required
