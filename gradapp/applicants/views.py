@@ -2239,7 +2239,7 @@ def bulk_upload_applicants(request):
                 parts = relative_path.replace('\\', '/').split('/')
                 if len(parts) < 3:
                     continue
-                if ' - ' in parts[1]:
+                if ' - ' in _normalize_dashes(parts[1]):
                     # Flat: batch_folder / candidate_folder / file(s)
                     batch_folder     = parts[0]
                     candidate_folder = parts[1]
@@ -2256,7 +2256,7 @@ def bulk_upload_applicants(request):
                 parts = f.name.replace('\\', '/').split('/')
                 if len(parts) < 3:
                     continue
-                if ' - ' in parts[1]:
+                if ' - ' in _normalize_dashes(parts[1]):
                     batch_folder     = parts[0]
                     candidate_folder = parts[1]
                 else:
@@ -2304,7 +2304,7 @@ def bulk_upload_applicants(request):
         for folder_name, group_files in candidate_groups.items():
             # ── Parse "Last, First - UniqueID" ───────────────────────────
             import re as _re
-            match = _re.match(r'^(.+?)\s*-\s*(\w+)$', folder_name.strip())
+            match = _re.match(r'^(.+?)\s*-\s*(\w+)$', _normalize_dashes(folder_name).strip())
             if match:
                 raw_name = match.group(1).strip()   # "Ali, Huzaifa"
                 unique_id = match.group(2).strip()  # "6815031005"
@@ -2658,6 +2658,14 @@ def candidate_info_upload(request):
         'datasets': datasets,
         'results': results,
     })
+    
+def _normalize_dashes(s):
+    """Normalize en/em/figure/minus dash variants to a plain hyphen-minus."""
+    if not s:
+        return s
+    for ch in ('\u2010', '\u2011', '\u2012', '\u2013', '\u2014', '\u2015', '\u2212'):
+        s = s.replace(ch, '-')
+    return s
 
 _MONTHS = {
     'january': 1, 'jan': 1, 'february': 2, 'feb': 2, 'march': 3, 'mar': 3,

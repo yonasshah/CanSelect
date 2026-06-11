@@ -313,7 +313,7 @@
 
     let html = '';
     candidateList.forEach(([folder, cFiles]) => {
-      const match = folder.match(/^(.+?)\s*-\s*(\w+)$/);
+      const match = folder.match(/^(.+?)\s*[-–—]\s*(\w+)$/);
       const displayName = match ? match[1].trim() : folder;
       const uid = match ? match[2] : '—';
       const pdfs   = cFiles.filter(f => f.name.toLowerCase().endsWith('.pdf'));
