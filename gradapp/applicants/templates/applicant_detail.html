@@ -936,11 +936,20 @@
       const canvas = container.querySelector('canvas');
       const ctx = canvas.getContext('2d');
       pdfDoc.getPage(currentPage).then(page => {
+        const dpr = window.devicePixelRatio || 1;
         const viewport = page.getViewport({ scale: currentScale });
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
-        page.render({ canvasContext: ctx, viewport: viewport });
-        container.querySelector('.pdf-current-page').textContent = currentPage;
+        // Back the canvas with device pixels for crisp, correctly-proportioned output
+        canvas.width = Math.floor(viewport.width * dpr);
+        canvas.height = Math.floor(viewport.height * dpr);
+        canvas.style.width = Math.floor(viewport.width) + 'px';
+        canvas.style.height = Math.floor(viewport.height) + 'px';
+        page.render({
+          canvasContext: ctx,
+          viewport: viewport,
+          transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null,
+        });
+        const pageInput = container.querySelector('.pdf-page-input');
+        if (pageInput) pageInput.value = currentPage;
         container.querySelector('.pdf-prev').disabled = (currentPage <= 1);
         container.querySelector('.pdf-next').disabled = (currentPage >= pdfDoc.numPages);
         const pct = Math.round((currentScale / fitScale) * 100);
@@ -956,6 +965,23 @@
         fitScale = availableWidth / unscaled.width;
         currentScale = Math.min(fitScale, 1.5);
         fitScale = currentScale;
+      });
+    }
+
+    function buildPageInput(container) {
+      const info = container.querySelector('.pdf-page-info');
+      if (!info || info.querySelector('.pdf-page-input')) return;
+      info.innerHTML =
+        '<input type="number" class="pdf-page-input form-control form-control-sm d-inline-block" ' +
+        'min="1" value="1" style="width:56px;"> / ' +
+        '<span class="pdf-total-pages">' + pdfDoc.numPages + '</span>';
+      const pageInput = info.querySelector('.pdf-page-input');
+      pageInput.max = pdfDoc.numPages;
+      pageInput.addEventListener('change', () => {
+        let n = parseInt(pageInput.value, 10);
+        if (isNaN(n)) n = currentPage;
+        currentPage = Math.max(1, Math.min(pdfDoc.numPages, n));
+        renderPage(container);
       });
     }
 
@@ -979,7 +1005,9 @@
         if (!pdfDoc) {
           pdfjsLib.getDocument(btn.getAttribute('data-pdf-url')).promise.then(doc => {
             pdfDoc = doc;
-            container.querySelector('.pdf-total-pages').textContent = doc.numPages;
+            const totalEl = container.querySelector('.pdf-total-pages');
+            if (totalEl) totalEl.textContent = doc.numPages;
+            buildPageInput(container);
             setTimeout(() => {
               calcFitScale(container).then(() => renderPage(container));
             }, 50);
@@ -1008,6 +1036,18 @@
         calcFitScale(container).then(() => renderPage(container));
       };
     });
+  });
+
+  // Arrow-key navigation for whichever PDF viewer is currently open
+  document.addEventListener('keydown', function (e) {
+    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    const open = Array.from(document.querySelectorAll('.pdf-viewer-container'))
+      .find(c => c.style.display !== 'none' && c.offsetParent !== null);
+    if (!open) return;
+    e.preventDefault();
+    if (e.key === 'ArrowLeft') open.querySelector('.pdf-prev').click();
+    else open.querySelector('.pdf-next').click();
   });
 
   document.querySelectorAll('.speed-control').forEach(btn => {

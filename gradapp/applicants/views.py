@@ -348,13 +348,17 @@ def applicant_detail(request, pk):
     
     for f in all_files:
         fname = f.file.name.lower()
+        basename = fname.split('/')[-1]
         if f.is_video:
             video_files.append(f)
         elif fname.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp')):
             photo_files.append(f)
         elif fname.endswith('.pdf') and 'application' in fname:
             application_docs.append(f)
-        elif fname.endswith('.pdf') and _re.search(r'^\d+_\d{2}_\d{2}_\d{4}_', fname.split('/')[-1]):
+        elif fname.endswith('.pdf') and (
+            'evaluation' in basename
+            or _re.search(r'^\d+_\d{2}_\d{2}_\d{4}_', basename)
+        ):
             evaluation_docs.append(f)
         else:
             other_docs.append(f)
