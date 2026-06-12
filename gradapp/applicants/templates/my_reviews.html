@@ -2,6 +2,238 @@
 {% block content %}
 
 <style>
+  :root {
+    --ds-bg: #ffffff;
+    --ds-muted-bg: #f7f8fa;
+    --ds-soft-bg: #f3f5f7;
+    --ds-border: #d9dee5;
+    --ds-border-soft: #e8ebef;
+    --ds-text: #1f2933;
+    --ds-muted: #667085;
+    --ds-hover: #f6f8fa;
+    --ds-primary: #3f5bf6;
+    --ds-primary-soft: rgba(63, 91, 246, 0.08);
+    --ds-success-soft: rgba(25, 135, 84, 0.1);
+    --ds-warning-soft: rgba(255, 193, 7, 0.13);
+    --ds-danger-soft: rgba(220, 53, 69, 0.1);
+    --ds-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  }
+
+  [data-bs-theme="dark"] {
+    --ds-bg: #212529;
+    --ds-muted-bg: #2b3035;
+    --ds-soft-bg: #252a30;
+    --ds-border: #3a4047;
+    --ds-border-soft: #343a40;
+    --ds-text: #f8f9fa;
+    --ds-muted: #adb5bd;
+    --ds-hover: #262b30;
+    --ds-primary: #6f86ff;
+    --ds-primary-soft: rgba(111, 134, 255, 0.14);
+    --ds-success-soft: rgba(25, 135, 84, 0.16);
+    --ds-warning-soft: rgba(255, 193, 7, 0.16);
+    --ds-danger-soft: rgba(220, 53, 69, 0.16);
+    --ds-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+  }
+
+  .reviews-page {
+    max-width: 1380px;
+    margin: 0 auto;
+  }
+
+  .reviews-hero {
+    background: var(--ds-bg);
+    border: 1px solid var(--ds-border);
+    border-radius: 14px;
+    box-shadow: var(--ds-shadow);
+    padding: 1.15rem;
+    margin-bottom: 1rem;
+  }
+
+  .reviews-hero-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: start;
+  }
+
+  .reviews-kicker {
+    color: var(--ds-muted);
+    font-size: 0.72rem;
+    font-weight: 750;
+    letter-spacing: 0.075em;
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+
+  .reviews-title {
+    color: var(--ds-text);
+    font-size: 1.75rem;
+    line-height: 1.15;
+    font-weight: 780;
+    letter-spacing: -0.025em;
+    margin: 0;
+  }
+
+  .reviews-description {
+    color: var(--ds-muted);
+    max-width: 760px;
+    margin: 0.45rem 0 0;
+    font-size: 0.95rem;
+  }
+
+  .reviews-hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+
+  .reviews-section,
+  .reviews-filter-panel,
+  .reviews-stats-panel {
+    background: var(--ds-bg);
+    border: 1px solid var(--ds-border);
+    border-radius: 14px;
+    box-shadow: var(--ds-shadow);
+    margin-bottom: 1rem;
+    overflow: hidden;
+  }
+
+  .reviews-filter-panel {
+    padding: 1rem;
+  }
+
+  .filter-label {
+    color: var(--ds-muted);
+    font-size: 0.72rem;
+    font-weight: 750;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    margin-bottom: 0.35rem;
+  }
+
+  .reviews-stats-panel {
+    padding: 1rem;
+  }
+
+  .stats-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 260px;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .stats-grid {
+    display: flex;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+  }
+
+  .stat-card {
+    background: var(--ds-muted-bg);
+    border: 1px solid var(--ds-border-soft);
+    border-radius: 10px;
+    padding: 0.75rem 0.85rem;
+    min-width: 86px;
+  }
+
+  .stat-num {
+    color: var(--ds-text);
+    font-size: 1.35rem;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .stat-lbl {
+    color: var(--ds-muted);
+    font-size: 0.68rem;
+    font-weight: 750;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    margin-top: 0.35rem;
+  }
+
+  .breakdown-box {
+    background: var(--ds-muted-bg);
+    border: 1px solid var(--ds-border-soft);
+    border-radius: 10px;
+    padding: 0.85rem;
+  }
+
+  .breakdown-label {
+    color: var(--ds-muted);
+    font-size: 0.72rem;
+    font-weight: 750;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+  }
+
+  .breakdown-legend {
+    display: flex;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+    margin-top: 0.45rem;
+    color: var(--ds-muted);
+    font-size: 0.7rem;
+  }
+
+  .section-header {
+    padding: 0.9rem 1rem;
+    background: var(--ds-bg);
+    border-bottom: 1px solid var(--ds-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin: 0;
+    color: var(--ds-text);
+    font-size: 1.12rem;
+    font-weight: 780;
+  }
+
+  .section-subtitle {
+    color: var(--ds-muted);
+    font-size: 0.84rem;
+  }
+
+  .reviews-table {
+    margin: 0;
+  }
+
+  .reviews-table thead th {
+    background: var(--ds-muted-bg);
+    color: var(--ds-muted);
+    border-top: 0;
+    border-bottom: 1px solid var(--ds-border);
+    font-size: 0.73rem;
+    font-weight: 780;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    padding: 0.8rem 1rem;
+    white-space: nowrap;
+  }
+
+  .reviews-table tbody td {
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--ds-border-soft);
+    vertical-align: middle;
+  }
+
+  .reviews-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .reviews-table tbody tr:hover {
+    background: var(--ds-hover);
+  }
+
   .sort-link {
     color: inherit;
     text-decoration: none;
@@ -10,64 +242,256 @@
     gap: 4px;
     white-space: nowrap;
   }
-  .sort-link:hover { opacity: 0.8; }
-  .sort-icon { font-size: 0.7rem; opacity: 0.5; }
-  .sort-icon.active { opacity: 1; color: #90caf9; }
-  .stat-card {
-    text-align: center;
-    padding: 0.6rem 0.9rem;
-    border-radius: 8px;
-    min-width: 72px;
+
+  .sort-link:hover {
+    opacity: 0.8;
   }
-  .stat-card .stat-num { font-size: 1.3rem; font-weight: 700; line-height: 1; }
-  .stat-card .stat-lbl { font-size: 0.68rem; color: #6c757d; margin-top: 3px; }
-  [data-bs-theme="dark"] .stat-card.bg-white { background-color: #2b3035 !important; }
+
+  .sort-icon {
+    font-size: 0.7rem;
+    opacity: 0.5;
+  }
+
+  .sort-icon.active {
+    opacity: 1;
+    color: var(--ds-primary);
+  }
+
+  .candidate-link {
+    color: var(--ds-primary);
+    font-weight: 760;
+    text-decoration: none;
+  }
+
+  .candidate-link:hover {
+    text-decoration: underline;
+  }
+
+  .reviews-mobile-list {
+    display: none;
+  }
+
+  .mobile-review-card {
+    padding: 0.95rem 1rem;
+    border-top: 1px solid var(--ds-border-soft);
+  }
+
+  .mobile-review-card:first-child {
+    border-top: 0;
+  }
+
+  .mobile-review-title {
+    color: var(--ds-primary);
+    font-weight: 760;
+    text-decoration: none;
+  }
+
+  .mobile-review-title:hover {
+    text-decoration: underline;
+  }
+
+  .mobile-review-meta {
+    color: var(--ds-muted);
+    font-size: 0.84rem;
+    margin-top: 0.35rem;
+  }
+
+  .mobile-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-top: 0.7rem;
+  }
+
+  .mobile-meta-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: var(--ds-muted-bg);
+    border: 1px solid var(--ds-border-soft);
+    color: var(--ds-text);
+    border-radius: 999px;
+    padding: 0.28rem 0.6rem;
+    font-size: 0.76rem;
+    font-weight: 700;
+  }
+
+  .empty-state {
+    margin: 1rem;
+    border: 1px dashed var(--ds-border);
+    border-radius: 12px;
+    background: var(--ds-muted-bg);
+    color: var(--ds-muted);
+    padding: 2.25rem 1rem;
+    text-align: center;
+  }
+
+  .empty-state i {
+    display: block;
+    font-size: 2rem;
+    opacity: 0.45;
+    margin-bottom: 0.55rem;
+  }
+
+  @media (max-width: 991.98px) {
+    .reviews-hero-main {
+      grid-template-columns: 1fr;
+    }
+
+    .reviews-hero-actions {
+      justify-content: flex-start;
+    }
+
+    .stats-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .section-header {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+  }
+
+  @media (max-width: 767.98px) {
+    .reviews-page {
+      max-width: none;
+    }
+
+    .reviews-hero {
+      padding: 0.95rem;
+      border-radius: 12px;
+    }
+
+    .reviews-kicker {
+      font-size: 0.68rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .reviews-title {
+      font-size: 1.45rem;
+      line-height: 1.16;
+    }
+
+    .reviews-description {
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+
+    .reviews-hero-actions {
+      display: grid;
+      grid-template-columns: 1fr;
+      width: 100%;
+    }
+
+    .reviews-hero-actions .btn {
+      width: 100%;
+    }
+
+    .reviews-filter-panel,
+    .reviews-stats-panel {
+      padding: 0.85rem;
+      border-radius: 12px;
+    }
+
+    .reviews-filter-panel .form-control,
+    .reviews-filter-panel .form-select,
+    .reviews-filter-panel .btn {
+      min-height: 40px;
+    }
+
+    .filter-button-row {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem !important;
+      width: 100%;
+    }
+
+    .filter-button-row .btn {
+      width: 100%;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.55rem;
+    }
+
+    .stat-card {
+      min-width: 0;
+    }
+
+    .reviews-table-wrap {
+      display: none;
+    }
+
+    .reviews-mobile-list {
+      display: block;
+    }
+  }
+
+  @media (max-width: 390px) {
+    .filter-button-row,
+    .stats-grid {
+      grid-template-columns: 1fr;
+    }
+  }
 </style>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <div>
-    <h2 class="mb-0">My Reviews</h2>
-    <p class="text-muted mb-0">Your votes and scores for assigned candidates.</p>
-  </div>
-  <div class="d-flex gap-2">
-    <a href="?sort={{ sort }}&dir={{ direction }}&batch={{ filter_batch }}&vote={{ filter_vote }}{% if filter_flagged %}&flagged_only=1{% endif %}&score_min={{ filter_score_min }}&score_max={{ filter_score_max }}&export=csv"
-       class="btn btn-outline-success btn-sm">
-      <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV
-    </a>
-  </div>
-</div>
+<div class="reviews-page">
 
-<!-- ── Stats strip ─────────────────────────────────────────────────── -->
-<div class="card mb-4 border-0 bg-light">
-  <div class="card-body py-3">
-    <div class="d-flex gap-2 flex-wrap justify-content-between align-items-center">
-      <div class="d-flex gap-2 flex-wrap">
-        <div class="stat-card bg-white shadow-sm">
+  <div class="reviews-hero">
+    <div class="reviews-hero-main">
+      <div>
+        <div class="reviews-kicker">Reviews</div>
+        <h2 class="reviews-title">My Reviews</h2>
+        <p class="reviews-description">
+          Your votes, scores, and flagged candidates across assigned review batches.
+        </p>
+      </div>
+
+      <div class="reviews-hero-actions">
+        <a href="?sort={{ sort }}&dir={{ direction }}&batch={{ filter_batch }}&vote={{ filter_vote }}{% if filter_flagged %}&flagged_only=1{% endif %}&score_min={{ filter_score_min }}&score_max={{ filter_score_max }}&export=csv"
+           class="btn btn-outline-success btn-sm">
+          <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="reviews-stats-panel">
+    <div class="stats-layout">
+      <div class="stats-grid">
+        <div class="stat-card">
           <div class="stat-num">{{ reviewed_count }}</div>
           <div class="stat-lbl">{% if has_filters %}Filtered{% else %}Reviewed{% endif %}</div>
         </div>
-        <div class="stat-card" style="background:rgba(25,135,84,0.1);">
+
+        <div class="stat-card" style="background:var(--ds-success-soft);">
           <div class="stat-num text-success">{{ yes_count }}</div>
           <div class="stat-lbl">Yes</div>
         </div>
-        <div class="stat-card" style="background:rgba(220,53,69,0.1);">
+
+        <div class="stat-card" style="background:var(--ds-danger-soft);">
           <div class="stat-num text-danger">{{ no_count }}</div>
           <div class="stat-lbl">No</div>
         </div>
-        <div class="stat-card" style="background:rgba(255,193,7,0.15);">
+
+        <div class="stat-card" style="background:var(--ds-warning-soft);">
           <div class="stat-num" style="color:#997404;">{{ waitlist_count }}</div>
           <div class="stat-lbl">Waitlist</div>
         </div>
+
         {% if flagged_count %}
-        <div class="stat-card" style="background:rgba(220,53,69,0.08);">
+        <div class="stat-card" style="background:var(--ds-danger-soft);">
           <div class="stat-num text-danger">
             <i class="bi bi-flag-fill" style="font-size:0.95rem;"></i> {{ flagged_count }}
           </div>
           <div class="stat-lbl">Flagged</div>
         </div>
         {% endif %}
+
         {% if avg_overall %}
-        <div class="stat-card" style="background:rgba(13,110,253,0.08);">
+        <div class="stat-card" style="background:var(--ds-primary-soft);">
           <div class="stat-num text-primary">{{ avg_overall }}/5</div>
           <div class="stat-lbl">Avg Score</div>
         </div>
@@ -75,20 +499,22 @@
       </div>
 
       {% if reviewed_count > 0 %}
-      <div style="min-width:150px; flex-shrink:0;">
-        <div class="d-flex justify-content-between mb-1" style="font-size:0.68rem; color:#6c757d;">
-          <span>Vote breakdown</span>
-          <span>{{ reviewed_count }} total</span>
+      <div class="breakdown-box">
+        <div class="d-flex justify-content-between mb-2">
+          <span class="breakdown-label">Vote Breakdown</span>
+          <span class="text-muted small">{{ reviewed_count }} total</span>
         </div>
+
         <div class="progress" style="height:8px; border-radius:4px;">
           {% widthratio yes_count reviewed_count 100 as yes_pct %}
           {% widthratio no_count reviewed_count 100 as no_pct %}
           {% widthratio waitlist_count reviewed_count 100 as wl_pct %}
           <div class="progress-bar bg-success" style="width:{{ yes_pct }}%" title="Yes: {{ yes_count }}"></div>
-          <div class="progress-bar bg-danger"  style="width:{{ no_pct }}%"  title="No: {{ no_count }}"></div>
-          <div class="progress-bar bg-warning" style="width:{{ wl_pct }}%"  title="Waitlist: {{ waitlist_count }}"></div>
+          <div class="progress-bar bg-danger" style="width:{{ no_pct }}%" title="No: {{ no_count }}"></div>
+          <div class="progress-bar bg-warning" style="width:{{ wl_pct }}%" title="Waitlist: {{ waitlist_count }}"></div>
         </div>
-        <div class="d-flex gap-3 mt-1" style="font-size:0.65rem; color:#6c757d;">
+
+        <div class="breakdown-legend">
           <span><span style="color:#198754;">■</span> Yes</span>
           <span><span style="color:#dc3545;">■</span> No</span>
           <span><span style="color:#ffc107;">■</span> Waitlist</span>
@@ -97,18 +523,15 @@
       {% endif %}
     </div>
   </div>
-</div>
 
-<!-- ── Filter panel ─────────────────────────────────────────────────── -->
-<div class="card mb-4">
-  <div class="card-body py-2">
+  <div class="reviews-filter-panel">
     <form method="get">
       <input type="hidden" name="sort" value="{{ sort }}">
-      <input type="hidden" name="dir"  value="{{ direction }}">
-      <div class="row g-2 align-items-end flex-wrap">
+      <input type="hidden" name="dir" value="{{ direction }}">
 
+      <div class="row g-2 align-items-end flex-wrap">
         <div class="col-md-3">
-          <label class="form-label small text-muted mb-1">Batch</label>
+          <label class="filter-label">Batch</label>
           <select name="batch" class="form-select form-select-sm">
             <option value="">All Batches</option>
             {% for b in assigned_batches %}
@@ -120,18 +543,18 @@
         </div>
 
         <div class="col-md-2">
-          <label class="form-label small text-muted mb-1">Vote</label>
+          <label class="filter-label">Vote</label>
           <select name="vote" class="form-select form-select-sm">
-            <option value=""     {% if not filter_vote      %}selected{% endif %}>All Votes</option>
-            <option value="1"    {% if filter_vote == '1'   %}selected{% endif %}>Yes</option>
-            <option value="-1"   {% if filter_vote == '-1'  %}selected{% endif %}>No</option>
-            <option value="0"    {% if filter_vote == '0'   %}selected{% endif %}>Waitlist</option>
-            <option value="none" {% if filter_vote == 'none'%}selected{% endif %}>No Vote Yet</option>
+            <option value="" {% if not filter_vote %}selected{% endif %}>All Votes</option>
+            <option value="1" {% if filter_vote == '1' %}selected{% endif %}>Yes</option>
+            <option value="-1" {% if filter_vote == '-1' %}selected{% endif %}>No</option>
+            <option value="0" {% if filter_vote == '0' %}selected{% endif %}>Waitlist</option>
+            <option value="none" {% if filter_vote == 'none' %}selected{% endif %}>No Vote Yet</option>
           </select>
         </div>
 
         <div class="col-md-2">
-          <label class="form-label small text-muted mb-1">Overall Score</label>
+          <label class="filter-label">Overall Score</label>
           <div class="d-flex gap-1">
             <select name="score_min" class="form-select form-select-sm" title="Min overall score">
               <option value="">Min</option>
@@ -141,6 +564,7 @@
               <option value="4" {% if filter_score_min == '4' %}selected{% endif %}>4+</option>
               <option value="5" {% if filter_score_min == '5' %}selected{% endif %}>5</option>
             </select>
+
             <select name="score_max" class="form-select form-select-sm" title="Max overall score">
               <option value="">Max</option>
               <option value="1" {% if filter_score_max == '1' %}selected{% endif %}>≤1</option>
@@ -162,117 +586,203 @@
           </div>
         </div>
 
-        <div class="col-auto d-flex gap-1 align-items-end">
-          <button type="submit" class="btn btn-outline-secondary btn-sm">Filter</button>
+        <div class="col-auto d-flex gap-1 align-items-end filter-button-row">
+          <button type="submit" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-funnel me-1"></i>Filter
+          </button>
           <a href="{% url 'my_reviews' %}" class="btn btn-outline-danger btn-sm">Clear</a>
         </div>
-
       </div>
     </form>
   </div>
-</div>
 
-<!-- ── Table ───────────────────────────────────────────────────────── -->
-<div class="card">
-  <div class="card-body p-0">
-    <table class="table table-hover align-middle mb-0">
-      <thead class="table-dark">
-        <tr>
-          <th>
-            <a href="?sort=name&dir={% if sort == 'name' and direction == 'asc' %}desc{% else %}asc{% endif %}&batch={{ filter_batch }}&vote={{ filter_vote }}{% if filter_flagged %}&flagged_only=1{% endif %}&score_min={{ filter_score_min }}&score_max={{ filter_score_max }}" class="sort-link text-white">
-              Candidate
-              <i class="bi bi-arrow-{% if sort == 'name' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'name' %}active{% endif %}"></i>
-            </a>
-          </th>
-          <th>
-            <a href="?sort=batch&dir={% if sort == 'batch' and direction == 'asc' %}desc{% else %}asc{% endif %}&batch={{ filter_batch }}&vote={{ filter_vote }}{% if filter_flagged %}&flagged_only=1{% endif %}&score_min={{ filter_score_min }}&score_max={{ filter_score_max }}" class="sort-link text-white">
-              Batch
-              <i class="bi bi-arrow-{% if sort == 'batch' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'batch' %}active{% endif %}"></i>
-            </a>
-          </th>
-          <th class="text-center">
-            <a href="?sort=vote&dir={% if sort == 'vote' and direction == 'asc' %}desc{% else %}asc{% endif %}&batch={{ filter_batch }}&vote={{ filter_vote }}{% if filter_flagged %}&flagged_only=1{% endif %}&score_min={{ filter_score_min }}&score_max={{ filter_score_max }}" class="sort-link text-white justify-content-center">
-              Your Vote
-              <i class="bi bi-arrow-{% if sort == 'vote' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'vote' %}active{% endif %}"></i>
-            </a>
-          </th>
-          <th class="text-center text-white-50">Research</th>
-          <th class="text-center text-white-50">Statement</th>
-          <th class="text-center">
-            <a href="?sort=overall&dir={% if sort == 'overall' and direction == 'asc' %}desc{% else %}asc{% endif %}&batch={{ filter_batch }}&vote={{ filter_vote }}{% if filter_flagged %}&flagged_only=1{% endif %}&score_min={{ filter_score_min }}&score_max={{ filter_score_max }}" class="sort-link text-white justify-content-center">
-              Overall
-              <i class="bi bi-arrow-{% if sort == 'overall' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'overall' %}active{% endif %}"></i>
-            </a>
-          </th>
-          <th class="text-center">
-            <a href="?sort=flag&dir={% if sort == 'flag' and direction == 'asc' %}desc{% else %}asc{% endif %}&batch={{ filter_batch }}&vote={{ filter_vote }}{% if filter_flagged %}&flagged_only=1{% endif %}&score_min={{ filter_score_min }}&score_max={{ filter_score_max }}" class="sort-link text-white justify-content-center">
-              Flagged
-              <i class="bi bi-arrow-{% if sort == 'flag' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'flag' %}active{% endif %}"></i>
-            </a>
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for review in reviews %}
-        <tr>
-          <td>
-            <a href="{% url 'applicant_detail' review.applicant.pk %}?from=reviews" class="text-decoration-none fw-semibold">
-              {{ review.applicant.last_name }}, {{ review.applicant.first_name }}
-            </a>
-          </td>
-          <td class="text-muted small">{{ review.applicant.round.DisplayName|default:"—" }}</td>
-          <td class="text-center">
-            {% if review.vote %}
-              {% if review.vote.value == 1 %}
-                <span class="badge bg-success">Yes</span>
-              {% elif review.vote.value == -1 %}
-                <span class="badge bg-danger">No</span>
-              {% elif review.vote.value == 0 %}
-                <span class="badge bg-warning text-dark">Waitlist</span>
-              {% endif %}
-            {% else %}
-              <span class="badge bg-light text-dark">No Vote</span>
+  <div class="reviews-section">
+    <div class="section-header">
+      <div>
+        <h4 class="section-title">
+          <i class="bi bi-star"></i>Reviewed Candidates
+        </h4>
+        <div class="section-subtitle">
+          {% if has_filters %}Reviews matching your filters.{% else %}Your submitted votes and scores.{% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="reviews-table-wrap">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle reviews-table" style="font-size:0.9rem;">
+          <thead>
+            <tr>
+              <th>
+                <a href="?sort=name&dir={% if sort == 'name' and direction == 'asc' %}desc{% else %}asc{% endif %}&batch={{ filter_batch }}&vote={{ filter_vote }}{% if filter_flagged %}&flagged_only=1{% endif %}&score_min={{ filter_score_min }}&score_max={{ filter_score_max }}" class="sort-link">
+                  Candidate
+                  <i class="bi bi-arrow-{% if sort == 'name' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'name' %}active{% endif %}"></i>
+                </a>
+              </th>
+
+              <th>
+                <a href="?sort=batch&dir={% if sort == 'batch' and direction == 'asc' %}desc{% else %}asc{% endif %}&batch={{ filter_batch }}&vote={{ filter_vote }}{% if filter_flagged %}&flagged_only=1{% endif %}&score_min={{ filter_score_min }}&score_max={{ filter_score_max }}" class="sort-link">
+                  Batch
+                  <i class="bi bi-arrow-{% if sort == 'batch' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'batch' %}active{% endif %}"></i>
+                </a>
+              </th>
+
+              <th class="text-center">
+                <a href="?sort=vote&dir={% if sort == 'vote' and direction == 'asc' %}desc{% else %}asc{% endif %}&batch={{ filter_batch }}&vote={{ filter_vote }}{% if filter_flagged %}&flagged_only=1{% endif %}&score_min={{ filter_score_min }}&score_max={{ filter_score_max }}" class="sort-link justify-content-center">
+                  Your Vote
+                  <i class="bi bi-arrow-{% if sort == 'vote' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'vote' %}active{% endif %}"></i>
+                </a>
+              </th>
+
+              <th class="text-center">Research</th>
+              <th class="text-center">Statement</th>
+
+              <th class="text-center">
+                <a href="?sort=overall&dir={% if sort == 'overall' and direction == 'asc' %}desc{% else %}asc{% endif %}&batch={{ filter_batch }}&vote={{ filter_vote }}{% if filter_flagged %}&flagged_only=1{% endif %}&score_min={{ filter_score_min }}&score_max={{ filter_score_max }}" class="sort-link justify-content-center">
+                  Overall
+                  <i class="bi bi-arrow-{% if sort == 'overall' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'overall' %}active{% endif %}"></i>
+                </a>
+              </th>
+
+              <th class="text-center">
+                <a href="?sort=flag&dir={% if sort == 'flag' and direction == 'asc' %}desc{% else %}asc{% endif %}&batch={{ filter_batch }}&vote={{ filter_vote }}{% if filter_flagged %}&flagged_only=1{% endif %}&score_min={{ filter_score_min }}&score_max={{ filter_score_max }}" class="sort-link justify-content-center">
+                  Flagged
+                  <i class="bi bi-arrow-{% if sort == 'flag' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'flag' %}active{% endif %}"></i>
+                </a>
+              </th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {% for review in reviews %}
+            <tr>
+              <td>
+                <a href="{% url 'applicant_detail' review.applicant.pk %}?from=reviews" class="candidate-link">
+                  {{ review.applicant.last_name }}, {{ review.applicant.first_name }}
+                </a>
+              </td>
+
+              <td class="text-muted small">{{ review.applicant.round.DisplayName|default:"—" }}</td>
+
+              <td class="text-center">
+                {% if review.vote %}
+                  {% if review.vote.value == 1 %}
+                    <span class="badge bg-success">Yes</span>
+                  {% elif review.vote.value == -1 %}
+                    <span class="badge bg-danger">No</span>
+                  {% elif review.vote.value == 0 %}
+                    <span class="badge bg-warning text-dark">Waitlist</span>
+                  {% endif %}
+                {% else %}
+                  <span class="badge bg-light text-dark">No Vote</span>
+                {% endif %}
+              </td>
+
+              <td class="text-center">
+                {% if review.score and review.score.research_score %}
+                  <span class="badge bg-secondary">{{ review.score.research_score }}/5</span>
+                {% else %}
+                  <span class="text-muted small">—</span>
+                {% endif %}
+              </td>
+
+              <td class="text-center">
+                {% if review.score and review.score.statement_score %}
+                  <span class="badge bg-secondary">{{ review.score.statement_score }}/5</span>
+                {% else %}
+                  <span class="text-muted small">—</span>
+                {% endif %}
+              </td>
+
+              <td class="text-center">
+                {% if review.score and review.score.overall_score %}
+                  <span class="badge bg-primary">{{ review.score.overall_score }}/5</span>
+                {% else %}
+                  <span class="text-muted small">—</span>
+                {% endif %}
+              </td>
+
+              <td class="text-center">
+                {% if review.is_flagged %}
+                  <span class="badge bg-danger">
+                    <i class="bi bi-flag-fill"></i> Flagged
+                  </span>
+                {% else %}
+                  <span class="text-muted small">—</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="7" class="text-center text-muted py-5">
+                <i class="bi bi-{% if has_filters %}search{% else %}star{% endif %} fs-1 d-block mb-2 opacity-25"></i>
+                {% if has_filters %}No reviews match your filters.{% else %}You haven't reviewed any candidates yet.{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="reviews-mobile-list">
+      {% for review in reviews %}
+      <div class="mobile-review-card">
+        <a href="{% url 'applicant_detail' review.applicant.pk %}?from=reviews" class="mobile-review-title">
+          {{ review.applicant.last_name }}, {{ review.applicant.first_name }}
+        </a>
+
+        <div class="mobile-review-meta">
+          {{ review.applicant.round.DisplayName|default:"—" }}
+        </div>
+
+        <div class="mobile-meta-row">
+          {% if review.vote %}
+            {% if review.vote.value == 1 %}
+              <span class="badge bg-success">Yes</span>
+            {% elif review.vote.value == -1 %}
+              <span class="badge bg-danger">No</span>
+            {% elif review.vote.value == 0 %}
+              <span class="badge bg-warning text-dark">Waitlist</span>
             {% endif %}
-          </td>
-          <td class="text-center">
-            {% if review.score and review.score.research_score %}
-              <span class="badge bg-secondary">{{ review.score.research_score }}/5</span>
-            {% else %}
-              <span class="text-muted small">—</span>
-            {% endif %}
-          </td>
-          <td class="text-center">
-            {% if review.score and review.score.statement_score %}
-              <span class="badge bg-secondary">{{ review.score.statement_score }}/5</span>
-            {% else %}
-              <span class="text-muted small">—</span>
-            {% endif %}
-          </td>
-          <td class="text-center">
-            {% if review.score and review.score.overall_score %}
-              <span class="badge bg-primary">{{ review.score.overall_score }}/5</span>
-            {% else %}
-              <span class="text-muted small">—</span>
-            {% endif %}
-          </td>
-          <td class="text-center">
-            {% if review.is_flagged %}
-              <span class="badge bg-danger"><i class="bi bi-flag-fill"></i> Flagged</span>
-            {% else %}
-              <span class="text-muted small">—</span>
-            {% endif %}
-          </td>
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="7" class="text-center text-muted py-5">
-            <i class="bi bi-{% if has_filters %}search{% else %}star{% endif %} fs-1 d-block mb-2 opacity-25"></i>
-            {% if has_filters %}No reviews match your filters.{% else %}You haven't reviewed any candidates yet.{% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+          {% else %}
+            <span class="badge bg-light text-dark">No Vote</span>
+          {% endif %}
+
+          {% if review.score and review.score.research_score %}
+            <span class="mobile-meta-pill">Research {{ review.score.research_score }}/5</span>
+          {% else %}
+            <span class="mobile-meta-pill">Research —</span>
+          {% endif %}
+
+          {% if review.score and review.score.statement_score %}
+            <span class="mobile-meta-pill">Statement {{ review.score.statement_score }}/5</span>
+          {% else %}
+            <span class="mobile-meta-pill">Statement —</span>
+          {% endif %}
+
+          {% if review.score and review.score.overall_score %}
+            <span class="mobile-meta-pill">Overall {{ review.score.overall_score }}/5</span>
+          {% else %}
+            <span class="mobile-meta-pill">Overall —</span>
+          {% endif %}
+
+          {% if review.is_flagged %}
+            <span class="badge bg-danger">
+              <i class="bi bi-flag-fill"></i> Flagged
+            </span>
+          {% endif %}
+        </div>
+      </div>
+      {% empty %}
+      <div class="empty-state">
+        <i class="bi bi-{% if has_filters %}search{% else %}star{% endif %}"></i>
+        <p class="mb-0">
+          {% if has_filters %}No reviews match your filters.{% else %}You haven't reviewed any candidates yet.{% endif %}
+        </p>
+      </div>
+      {% endfor %}
+    </div>
   </div>
 </div>
 

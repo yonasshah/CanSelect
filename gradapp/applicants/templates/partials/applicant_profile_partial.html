@@ -1,111 +1,1120 @@
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h4>{{ applicant.first_name }} {{ applicant.last_name }}</h4>
-  {% if user.profile.role == 'ADMIN' %}
-  <a href="{% url 'applicant_edit' applicant.pk %}" class="btn btn-primary btn-sm">Edit Full Profile</a>
-  {% endif %}
-</div>
+<style>
+  .applicant-modal-profile {
+    --ds-bg: #ffffff;
+    --ds-muted-bg: #f7f8fa;
+    --ds-border: #d9dee5;
+    --ds-border-soft: #e8ebef;
+    --ds-text: #1f2933;
+    --ds-muted: #667085;
+    --ds-hover: #f6f8fa;
+    --ds-primary: #3f5bf6;
+    --ds-primary-soft: rgba(63, 91, 246, 0.08);
+    --ds-success-soft: rgba(25, 135, 84, 0.1);
+    --ds-warning-soft: rgba(255, 193, 7, 0.13);
+    --ds-danger-soft: rgba(220, 53, 69, 0.1);
+    --ds-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    color: var(--ds-text);
+  }
 
-<div class="card mb-4">
-  <div class="card-body">
-    <h5 class="card-title">Demographics</h5>
-    <div class="row">
-      <div class="col-md-6">
-        <p><strong>Dataset:</strong> 
-        {% if applicant.dataset %}
-          {{ applicant.dataset.DisplayName }}
-        {% else %}
-          —
-        {% endif %}
-      </p>
-        <p><strong>Email:</strong> {{ applicant.email }}</p>
-        <p><strong>Age:</strong> {{ applicant.age }}</p>
-        <p><strong>Gender:</strong> {{ applicant.gender }}</p>
-        <p><strong>Round:</strong> {{ applicant.round.DisplayName|default:"—" }}</p>
-        <p><strong>Description:</strong> {{ applicant.description|linebreaksbr|default:"—" }}</p>
-      </div>
-      <div class="col-md-6">
-        <p><strong>Submitted:</strong> {{ applicant.created_at|date:"Y-m-d H:i" }}</p>
-      </div>
-    </div>
-  </div>
-</div>
+  [data-bs-theme="dark"] .applicant-modal-profile {
+    --ds-bg: #212529;
+    --ds-muted-bg: #2b3035;
+    --ds-border: #3a4047;
+    --ds-border-soft: #343a40;
+    --ds-text: #f8f9fa;
+    --ds-muted: #adb5bd;
+    --ds-hover: #262b30;
+    --ds-primary: #6f86ff;
+    --ds-primary-soft: rgba(111, 134, 255, 0.14);
+    --ds-success-soft: rgba(25, 135, 84, 0.16);
+    --ds-warning-soft: rgba(255, 193, 7, 0.16);
+    --ds-danger-soft: rgba(220, 53, 69, 0.16);
+    --ds-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+  }
 
-<div class="card mb-4">
-  <div class="card-body">
-    <h5 class="card-title">Uploaded Files</h5>
+  .modal-candidate-hero,
+  .modal-profile-card {
+    background: var(--ds-bg);
+    border: 1px solid var(--ds-border);
+    border-radius: 14px;
+    box-shadow: var(--ds-shadow);
+    margin-bottom: 1rem;
+    overflow: hidden;
+  }
 
-    {% for video in video_files %}
-      <div class="mb-3 video-player-container">
-        <h6 class="text-muted">{{ video.file.name|cut:"applicants/" }}</h6>
-        <video id="applicant-modal-video-{{ video.pk }}" class="w-100 rounded bg-dark" controls>
-          <source src="{{ video.file.url }}" type="video/mp4">
-          Your browser does not support the video tag.
-        </video>
-        <div class="mt-2 speed-controls-container">
-          <label class="form-label me-2 small text-muted">Playback Speed:</label>
-          <button class="btn btn-outline-secondary btn-sm speed-control" data-video-id="applicant-modal-video-{{ video.pk }}" data-speed="0.5">0.5x</button>
-          <button class="btn btn-secondary btn-sm speed-control active" data-video-id="applicant-modal-video-{{ video.pk }}" data-speed="1">1x</button>
-          <button class="btn btn-outline-secondary btn-sm speed-control" data-video-id="applicant-modal-video-{{ video.pk }}" data-speed="1.5">1.5x</button>
-          <button class="btn btn-outline-secondary btn-sm speed-control" data-video-id="applicant-modal-video-{{ video.pk }}" data-speed="2">2x</button>
-          <button class="btn btn-outline-secondary btn-sm speed-control" data-video-id="applicant-modal-video-{{ video.pk }}" data-speed="3">3x</button>
-          <button class="btn btn-outline-secondary btn-sm speed-control" data-video-id="applicant-modal-video-{{ video.pk }}" data-speed="4">4x</button>
+  .modal-candidate-hero {
+    padding: 1rem;
+  }
+
+  .modal-candidate-top {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 0.9rem;
+    align-items: start;
+  }
+
+  .modal-candidate-photo,
+  .modal-candidate-initials {
+    width: 74px;
+    height: 74px;
+    border-radius: 999px;
+    flex-shrink: 0;
+  }
+
+  .modal-candidate-photo {
+    object-fit: cover;
+    border: 1px solid var(--ds-border-soft);
+  }
+
+  .modal-candidate-initials {
+    background: var(--ds-muted-bg);
+    border: 1px solid var(--ds-border-soft);
+    color: var(--ds-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.45rem;
+    font-weight: 800;
+  }
+
+  .modal-profile-kicker {
+    color: var(--ds-muted);
+    font-size: 0.68rem;
+    font-weight: 750;
+    letter-spacing: 0.075em;
+    text-transform: uppercase;
+    margin-bottom: 0.3rem;
+  }
+
+  .modal-profile-title {
+    color: var(--ds-text);
+    font-size: 1.45rem;
+    line-height: 1.15;
+    font-weight: 780;
+    letter-spacing: -0.025em;
+    margin: 0;
+  }
+
+  .modal-profile-subtitle {
+    color: var(--ds-muted);
+    font-size: 0.88rem;
+    margin-top: 0.35rem;
+    word-break: break-word;
+  }
+
+  .modal-profile-actions {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .modal-profile-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.65rem;
+    margin-top: 1rem;
+  }
+
+  .modal-profile-meta-card,
+  .modal-info-field {
+    background: var(--ds-muted-bg);
+    border: 1px solid var(--ds-border-soft);
+    border-radius: 10px;
+    padding: 0.7rem 0.75rem;
+    min-width: 0;
+  }
+
+  .modal-profile-label {
+    color: var(--ds-muted);
+    font-size: 0.66rem;
+    font-weight: 750;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    margin-bottom: 0.28rem;
+  }
+
+  .modal-profile-value {
+    color: var(--ds-text);
+    font-size: 0.88rem;
+    font-weight: 700;
+    word-break: break-word;
+  }
+
+  .modal-profile-card-header {
+    padding: 0.85rem 1rem;
+    background: var(--ds-bg);
+    border-bottom: 1px solid var(--ds-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .modal-profile-card-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--ds-text);
+    font-size: 1rem;
+    font-weight: 780;
+    margin: 0;
+  }
+
+  .modal-profile-card-title i {
+    color: var(--ds-primary);
+  }
+
+  .modal-profile-card-subtitle {
+    color: var(--ds-muted);
+    font-size: 0.8rem;
+    margin-top: 0.1rem;
+  }
+
+  .modal-profile-card-body {
+    padding: 1rem;
+  }
+
+  .section-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    white-space: nowrap;
+  }
+
+  .section-toggle .collapse-icon {
+    transition: transform 0.15s ease;
+  }
+
+  .section-toggle[aria-expanded="true"] .collapse-icon {
+    transform: rotate(180deg);
+  }
+
+  .modal-info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+  }
+
+  .modal-info-field.full {
+    grid-column: 1 / -1;
+  }
+
+  .media-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-bottom: 0.85rem;
+  }
+
+  .media-tab-btn {
+    border: 1px solid var(--ds-border-soft);
+    background: var(--ds-muted-bg);
+    color: var(--ds-text);
+    border-radius: 999px;
+    padding: 0.35rem 0.7rem;
+    font-size: 0.78rem;
+    font-weight: 750;
+  }
+
+  .media-tab-btn.active {
+    background: var(--ds-primary-soft);
+    color: var(--ds-primary);
+    border-color: rgba(63, 91, 246, 0.22);
+  }
+
+  .media-panel {
+    display: none;
+  }
+
+  .media-panel.active {
+    display: block;
+  }
+
+  .file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  .file-row {
+    background: var(--ds-bg);
+    border: 1px solid var(--ds-border-soft);
+    border-radius: 11px;
+    padding: 0.8rem;
+  }
+
+  .file-row-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .file-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    min-width: 0;
+  }
+
+  .file-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: var(--ds-muted-bg);
+    border: 1px solid var(--ds-border-soft);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .file-name {
+    color: var(--ds-text);
+    font-size: 0.86rem;
+    font-weight: 750;
+    word-break: break-word;
+  }
+
+  .file-date {
+    color: var(--ds-muted);
+    font-size: 0.74rem;
+    margin-top: 0.15rem;
+  }
+
+  .file-actions {
+    display: flex;
+    gap: 0.45rem;
+    flex-shrink: 0;
+  }
+
+  .video-preview {
+    margin-top: 0.85rem;
+    border-top: 1px solid var(--ds-border-soft);
+    padding-top: 0.85rem;
+  }
+
+  .video-preview video {
+    max-height: 430px;
+  }
+
+  .video-speed-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.65rem;
+  }
+
+  .pdf-viewer-container {
+    display: none;
+    border: 1px solid var(--ds-border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 0.85rem;
+  }
+
+  .pdf-controls {
+    background: var(--ds-muted-bg);
+    border-bottom: 1px solid var(--ds-border);
+    padding: 0.45rem 0.65rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .pdf-scroll-area {
+    background: #525659;
+    max-height: 620px;
+    overflow: auto;
+    display: flex;
+    justify-content: center;
+    padding: 16px;
+  }
+
+  .pdf-scroll-area canvas {
+    display: block;
+    box-shadow: 0 1px 8px rgba(0,0,0,0.3);
+    max-width: none;
+  }
+
+  .pdf-zoom-label {
+    min-width: 45px;
+    text-align: center;
+    font-family: monospace;
+    font-size: 0.78rem;
+  }
+
+  .pdf-fallback {
+    color: #fff;
+    text-align: center;
+    padding: 1.5rem;
+  }
+
+  .vote-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.65rem;
+  }
+
+  .vote-card {
+    border-radius: 11px;
+    border: 1px solid var(--ds-border-soft);
+    padding: 0.85rem;
+    text-align: center;
+  }
+
+  .vote-card.accept {
+    background: var(--ds-success-soft);
+  }
+
+  .vote-card.deny {
+    background: var(--ds-danger-soft);
+  }
+
+  .vote-card.waitlist {
+    background: var(--ds-warning-soft);
+  }
+
+  .vote-number {
+    color: var(--ds-text);
+    font-size: 1.45rem;
+    font-weight: 820;
+    line-height: 1;
+  }
+
+  .vote-label {
+    color: var(--ds-muted);
+    font-size: 0.72rem;
+    font-weight: 750;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    margin-top: 0.35rem;
+  }
+
+  .comment-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .comment-row {
+    padding: 0.85rem 0;
+    border-top: 1px solid var(--ds-border-soft);
+  }
+
+  .comment-row:first-child {
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  .comment-topline {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .comment-author {
+    color: var(--ds-text);
+    font-size: 0.82rem;
+    font-weight: 780;
+  }
+
+  .comment-time {
+    color: var(--ds-muted);
+    font-size: 0.76rem;
+    white-space: nowrap;
+  }
+
+  .comment-text {
+    color: var(--ds-text);
+    font-size: 0.88rem;
+    line-height: 1.45;
+    margin: 0;
+  }
+
+  .empty-box {
+    border: 1px dashed var(--ds-border);
+    border-radius: 12px;
+    background: var(--ds-muted-bg);
+    color: var(--ds-muted);
+    padding: 1.5rem 1rem;
+    text-align: center;
+  }
+
+  .empty-box i {
+    display: block;
+    font-size: 1.7rem;
+    opacity: 0.45;
+    margin-bottom: 0.45rem;
+  }
+
+  @media (max-width: 767.98px) {
+    .modal-candidate-hero {
+      padding: 0.9rem;
+      border-radius: 12px;
+    }
+
+    .modal-candidate-top {
+      grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .modal-profile-actions {
+      grid-column: 1 / -1;
+      justify-content: flex-start;
+    }
+
+    .modal-profile-actions .btn {
+      width: 100%;
+    }
+
+    .modal-candidate-photo,
+    .modal-candidate-initials {
+      width: 58px;
+      height: 58px;
+      font-size: 1.15rem;
+    }
+
+    .modal-profile-title {
+      font-size: 1.28rem;
+    }
+
+    .modal-profile-meta-grid,
+    .modal-info-grid,
+    .vote-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .modal-profile-card-header {
+      align-items: flex-start;
+      flex-direction: column;
+      padding: 0.85rem;
+    }
+
+    .section-toggle {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .file-row-main {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .file-actions {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .file-actions .btn {
+      width: 100%;
+    }
+
+    .pdf-controls {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .pdf-controls > div {
+      justify-content: center;
+    }
+
+    .comment-topline {
+      flex-direction: column;
+      gap: 0.15rem;
+    }
+  }
+
+  @media (max-width: 390px) {
+    .file-actions {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<div class="applicant-modal-profile" data-applicant-id="{{ applicant.pk }}">
+
+  <div class="modal-candidate-hero">
+    <div class="modal-candidate-top">
+      {% if applicant.profile_picture %}
+        <img src="{{ applicant.profile_picture.url }}" class="modal-candidate-photo" alt="{{ applicant.first_name }} {{ applicant.last_name }}">
+      {% else %}
+        <div class="modal-candidate-initials">
+          {{ applicant.first_name|first }}{{ applicant.last_name|first }}
+        </div>
+      {% endif %}
+
+      <div class="min-w-0">
+        <div class="modal-profile-kicker">Candidate Preview</div>
+        <h4 class="modal-profile-title">{{ applicant.first_name }} {{ applicant.last_name }}</h4>
+
+        <div class="modal-profile-subtitle">
+          {{ applicant.email|default:"No email" }}
+          {% if applicant.round %}
+            · {{ applicant.round.DisplayName }}
+          {% endif %}
         </div>
       </div>
-    {% endfor %}
 
-    {% if video_files and other_files %}<hr class="my-4">{% endif %}
+      {% if user.profile.role == 'ADMIN' %}
+      <div class="modal-profile-actions">
+        <a href="{% url 'applicant_edit' applicant.pk %}" class="btn btn-primary btn-sm">
+          <i class="bi bi-pencil me-1"></i>Edit Full Profile
+        </a>
+      </div>
+      {% endif %}
+    </div>
 
-    {% if other_files %}
-      <h6 class="text-muted">Other Documents</h6>
-      <ul class="list-group list-group-flush">
-      {% for doc in other_files %}
-        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-          <a href="{{ doc.file.url }}" target="_blank">{{ doc.file.name|cut:"applicants/" }}</a>
-          <small class="text-muted">{{ doc.uploaded_at|date:"Y-m-d H:i" }}</small>
-        </li>
-      {% endfor %}
-      </ul>
-    {% endif %}
+    <div class="modal-profile-meta-grid">
+      <div class="modal-profile-meta-card">
+        <div class="modal-profile-label">Dataset</div>
+        <div class="modal-profile-value">
+          {% if applicant.dataset %}
+            {{ applicant.dataset.DisplayName }}
+          {% else %}
+            —
+          {% endif %}
+        </div>
+      </div>
 
-    {% if not video_files and not other_files %}
-      <p class="text-muted">No files have been uploaded for this applicant.</p>
-    {% endif %}
+      <div class="modal-profile-meta-card">
+        <div class="modal-profile-label">Round</div>
+        <div class="modal-profile-value">{{ applicant.round.DisplayName|default:"—" }}</div>
+      </div>
+
+      <div class="modal-profile-meta-card">
+        <div class="modal-profile-label">Age</div>
+        <div class="modal-profile-value">{{ applicant.age|default:"—" }}</div>
+      </div>
+
+      <div class="modal-profile-meta-card">
+        <div class="modal-profile-label">Submitted</div>
+        <div class="modal-profile-value">{{ applicant.created_at|date:"M d, Y" }}</div>
+      </div>
+    </div>
   </div>
-</div>
 
-<div class="card">
-  <div class="card-body">
-    <h5 class="card-title">Votes</h5>
-    {% with votes=applicant.votes_summary %}
-      <p>
-        <span class="badge bg-success">Accept: {{ votes.accept }}</span>
-        <span class="badge bg-danger">Deny: {{ votes.deny }}</span>
-        <span class="badge bg-warning text-dark">Waitlist: {{ votes.waitlist }}</span>
-      </p>
-    {% endwith %}
+  <div class="modal-profile-card">
+    <div class="modal-profile-card-header">
+      <div>
+        <h5 class="modal-profile-card-title">
+          <i class="bi bi-person-lines-fill"></i>Profile Details
+        </h5>
+        <div class="modal-profile-card-subtitle">Basic imported profile information.</div>
+      </div>
+
+      <button class="btn btn-outline-secondary btn-sm section-toggle"
+              type="button"
+              data-bs-toggle="collapse"
+              data-bs-target="#modal-demographics-collapse-{{ applicant.pk }}"
+              aria-expanded="true"
+              aria-controls="modal-demographics-collapse-{{ applicant.pk }}">
+        Toggle
+        <i class="bi bi-chevron-down collapse-icon"></i>
+      </button>
+    </div>
+
+    <div class="collapse show" id="modal-demographics-collapse-{{ applicant.pk }}">
+      <div class="modal-profile-card-body">
+        <div class="modal-info-grid">
+          <div class="modal-info-field">
+            <div class="modal-profile-label">Email</div>
+            <div class="modal-profile-value">{{ applicant.email|default:"—" }}</div>
+          </div>
+
+          <div class="modal-info-field">
+            <div class="modal-profile-label">Gender</div>
+            <div class="modal-profile-value">{{ applicant.gender|default:"—" }}</div>
+          </div>
+
+          <div class="modal-info-field">
+            <div class="modal-profile-label">Age</div>
+            <div class="modal-profile-value">{{ applicant.age|default:"—" }}</div>
+          </div>
+
+          <div class="modal-info-field">
+            <div class="modal-profile-label">Submitted</div>
+            <div class="modal-profile-value">{{ applicant.created_at|date:"Y-m-d H:i" }}</div>
+          </div>
+
+          <div class="modal-info-field full">
+            <div class="modal-profile-label">Description</div>
+            <div class="modal-profile-value fw-normal">
+              {{ applicant.description|linebreaksbr|default:"—" }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
-</div>
 
-<div class="card mt-4">
-    <div class="card-header">
-        <h5 class="card-title mb-0">Comments</h5>
-        {% if user.profile.role != 'ADMIN' %}
-            <p class="mb-0 text-muted small">You are only seeing your own comments.</p>
+  <div class="modal-profile-card">
+    <div class="modal-profile-card-header">
+      <div>
+        <h5 class="modal-profile-card-title">
+          <i class="bi bi-paperclip"></i>Files & Media
+        </h5>
+        <div class="modal-profile-card-subtitle">Watch interview videos and preview PDF documents inside this modal.</div>
+      </div>
+
+      <button class="btn btn-outline-secondary btn-sm section-toggle"
+              type="button"
+              data-bs-toggle="collapse"
+              data-bs-target="#modal-files-collapse-{{ applicant.pk }}"
+              aria-expanded="true"
+              aria-controls="modal-files-collapse-{{ applicant.pk }}">
+        Toggle
+        <i class="bi bi-chevron-down collapse-icon"></i>
+      </button>
+    </div>
+
+    <div class="collapse show" id="modal-files-collapse-{{ applicant.pk }}">
+      <div class="modal-profile-card-body">
+
+        {% if video_files or other_files %}
+        <div class="media-tabs">
+          {% if video_files %}
+          <button type="button"
+                  class="media-tab-btn active"
+                  data-media-tab="videos-{{ applicant.pk }}">
+            <i class="bi bi-camera-video me-1"></i>Videos
+            <span class="badge bg-secondary ms-1">{{ video_files|length }}</span>
+          </button>
+          {% endif %}
+
+          {% if other_files %}
+          <button type="button"
+                  class="media-tab-btn {% if not video_files %}active{% endif %}"
+                  data-media-tab="docs-{{ applicant.pk }}">
+            <i class="bi bi-file-earmark-text me-1"></i>Documents
+            <span class="badge bg-secondary ms-1">{{ other_files|length }}</span>
+          </button>
+          {% endif %}
+        </div>
         {% endif %}
-    </div>
-    <div class="card-body">
-        <ul class="list-group list-group-flush">
-            {% for comment in comments %}
-            <li class="list-group-item px-0">
-                <div class="d-flex w-100 justify-content-between">
-                    <p class="mb-1">{{ comment.text|linebreaksbr }}</p>
-                    <small class="text-muted">{{ comment.created_at|timesince }} ago</small>
+
+        {% if video_files %}
+        <div class="media-panel active" id="videos-{{ applicant.pk }}">
+          <div class="file-list">
+            {% for video in video_files %}
+            <div class="file-row video-player-container">
+              <div class="file-row-main">
+                <div class="file-title-wrap">
+                  <span class="file-icon">
+                    <i class="bi bi-camera-video text-primary fs-5"></i>
+                  </span>
+
+                  <div>
+                    <div class="file-name">{{ video.file.name|cut:"applicants/" }}</div>
+                    <div class="file-date">Interview recording</div>
+                  </div>
                 </div>
-                <small class="text-muted">by <strong>{{ comment.author.username }}</strong></small>
-            </li>
-            {% empty %}
-            <li class="list-group-item px-0 text-muted">No comments to display.</li>
+
+                <div class="file-actions">
+                  <button class="btn btn-outline-primary btn-sm modal-video-toggle"
+                          type="button"
+                          data-video-target="#modal-video-wrap-{{ applicant.pk }}-{{ video.pk }}">
+                    <i class="bi bi-play-circle me-1"></i>Watch
+                  </button>
+
+                  <a href="{{ video.file.url }}" target="_blank" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-box-arrow-up-right me-1"></i>Open
+                  </a>
+                </div>
+              </div>
+
+              <div id="modal-video-wrap-{{ applicant.pk }}-{{ video.pk }}" class="video-preview" style="display:none;">
+                <video id="applicant-modal-video-{{ applicant.pk }}-{{ video.pk }}" class="w-100 rounded bg-dark" controls preload="metadata">
+                  <source src="{{ video.file.url }}" type="video/mp4">
+                  Your browser does not support the video tag.
+                </video>
+
+                <div class="video-speed-row speed-controls-container">
+                  <span class="small text-muted me-1">Speed:</span>
+                  <button type="button" class="btn btn-outline-secondary btn-sm speed-control" data-video-id="applicant-modal-video-{{ applicant.pk }}-{{ video.pk }}" data-speed="0.5">0.5x</button>
+                  <button type="button" class="btn btn-secondary btn-sm speed-control active" data-video-id="applicant-modal-video-{{ applicant.pk }}-{{ video.pk }}" data-speed="1">1x</button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm speed-control" data-video-id="applicant-modal-video-{{ applicant.pk }}-{{ video.pk }}" data-speed="1.5">1.5x</button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm speed-control" data-video-id="applicant-modal-video-{{ applicant.pk }}-{{ video.pk }}" data-speed="2">2x</button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm speed-control" data-video-id="applicant-modal-video-{{ applicant.pk }}-{{ video.pk }}" data-speed="3">3x</button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm speed-control" data-video-id="applicant-modal-video-{{ applicant.pk }}-{{ video.pk }}" data-speed="4">4x</button>
+                </div>
+              </div>
+            </div>
             {% endfor %}
-        </ul>
+          </div>
+        </div>
+        {% endif %}
+
+        {% if other_files %}
+        <div class="media-panel {% if not video_files %}active{% endif %}" id="docs-{{ applicant.pk }}">
+          <div class="file-list">
+            {% for doc in other_files %}
+            <div class="file-row">
+              <div class="file-row-main">
+                <div class="file-title-wrap">
+                  <span class="file-icon">
+                    {% with doc.file.name|lower as fname %}
+                      {% if ".pdf" in fname %}
+                        <i class="bi bi-file-earmark-pdf-fill text-danger fs-5"></i>
+                      {% elif ".doc" in fname or ".docx" in fname %}
+                        <i class="bi bi-file-earmark-word-fill text-primary fs-5"></i>
+                      {% elif ".xls" in fname or ".xlsx" in fname %}
+                        <i class="bi bi-file-earmark-excel-fill text-success fs-5"></i>
+                      {% else %}
+                        <i class="bi bi-file-earmark-fill text-secondary fs-5"></i>
+                      {% endif %}
+                    {% endwith %}
+                  </span>
+
+                  <div>
+                    <div class="file-name">{{ doc.file.name|cut:"applicants/" }}</div>
+                    <div class="file-date">{{ doc.uploaded_at|date:"Y-m-d H:i" }}</div>
+                  </div>
+                </div>
+
+                <div class="file-actions">
+                  {% with doc.file.name|lower as fname %}
+                    {% if ".pdf" in fname %}
+                      <button type="button"
+                              class="btn btn-outline-primary btn-sm modal-pdf-toggle"
+                              data-pdf-target="#modal-pdf-viewer-{{ applicant.pk }}-{{ doc.pk }}"
+                              data-pdf-url="{{ doc.file.url }}">
+                        <i class="bi bi-eye me-1"></i><span class="pdf-toggle-label">Preview</span>
+                      </button>
+                    {% endif %}
+                  {% endwith %}
+
+                  <a href="{{ doc.file.url }}" target="_blank" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-box-arrow-up-right me-1"></i>Open
+                  </a>
+                </div>
+              </div>
+
+              {% with doc.file.name|lower as fname %}
+                {% if ".pdf" in fname %}
+                <div id="modal-pdf-viewer-{{ applicant.pk }}-{{ doc.pk }}" class="pdf-viewer-container">
+                  <div class="pdf-controls">
+                    <div class="d-flex align-items-center gap-2">
+                      <button type="button" class="btn btn-sm btn-outline-secondary pdf-prev" disabled>&laquo;</button>
+                      <span class="small text-muted pdf-page-info">
+                        <span class="pdf-current-page">1</span> / <span class="pdf-total-pages">?</span>
+                      </span>
+                      <button type="button" class="btn btn-sm btn-outline-secondary pdf-next">&raquo;</button>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-1">
+                      <button type="button" class="btn btn-sm btn-outline-secondary pdf-zoom-out" title="Zoom out">
+                        <i class="bi bi-zoom-out"></i>
+                      </button>
+                      <span class="pdf-zoom-label">100%</span>
+                      <button type="button" class="btn btn-sm btn-outline-secondary pdf-zoom-in" title="Zoom in">
+                        <i class="bi bi-zoom-in"></i>
+                      </button>
+                      <button type="button" class="btn btn-sm btn-outline-secondary pdf-zoom-fit" title="Fit to width">Fit</button>
+                    </div>
+                  </div>
+
+                  <div class="pdf-scroll-area">
+                    <canvas></canvas>
+                  </div>
+                </div>
+                {% endif %}
+              {% endwith %}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        {% if not video_files and not other_files %}
+        <div class="empty-box">
+          <i class="bi bi-folder2-open"></i>
+          <p class="mb-0">No files have been uploaded for this applicant.</p>
+        </div>
+        {% endif %}
+
+      </div>
     </div>
+  </div>
+
+  <div class="modal-profile-card">
+    <div class="modal-profile-card-header">
+      <div>
+        <h5 class="modal-profile-card-title">
+          <i class="bi bi-check2-square"></i>Votes
+        </h5>
+        <div class="modal-profile-card-subtitle">Current reviewer vote totals.</div>
+      </div>
+    </div>
+
+    <div class="modal-profile-card-body">
+      {% with votes=applicant.votes_summary %}
+      <div class="vote-grid">
+        <div class="vote-card accept">
+          <div class="vote-number text-success">{{ votes.accept }}</div>
+          <div class="vote-label">Accept</div>
+        </div>
+
+        <div class="vote-card deny">
+          <div class="vote-number text-danger">{{ votes.deny }}</div>
+          <div class="vote-label">Deny</div>
+        </div>
+
+        <div class="vote-card waitlist">
+          <div class="vote-number" style="color:#997404;">{{ votes.waitlist }}</div>
+          <div class="vote-label">Waitlist</div>
+        </div>
+      </div>
+      {% endwith %}
+    </div>
+  </div>
+
+  <div class="modal-profile-card">
+    <div class="modal-profile-card-header">
+      <div>
+        <h5 class="modal-profile-card-title">
+          <i class="bi bi-chat-dots"></i>Comments
+        </h5>
+
+        {% if user.profile.role != 'ADMIN' %}
+          <div class="modal-profile-card-subtitle">You are only seeing your own comments.</div>
+        {% else %}
+          <div class="modal-profile-card-subtitle">Reviewer and admin comments for this applicant.</div>
+        {% endif %}
+      </div>
+
+      <button class="btn btn-outline-secondary btn-sm section-toggle"
+              type="button"
+              data-bs-toggle="collapse"
+              data-bs-target="#modal-comments-collapse-{{ applicant.pk }}"
+              aria-expanded="true"
+              aria-controls="modal-comments-collapse-{{ applicant.pk }}">
+        Toggle
+        <i class="bi bi-chevron-down collapse-icon"></i>
+      </button>
+    </div>
+
+    <div class="collapse show" id="modal-comments-collapse-{{ applicant.pk }}">
+      <div class="modal-profile-card-body">
+        <div class="comment-list">
+          {% for comment in comments %}
+          <div class="comment-row">
+            <div class="comment-topline">
+              <span class="comment-author">{{ comment.author.username }}</span>
+              <span class="comment-time">{{ comment.created_at|timesince }} ago</span>
+            </div>
+
+            <p class="comment-text">{{ comment.text|linebreaksbr }}</p>
+          </div>
+          {% empty %}
+          <div class="empty-box">
+            <i class="bi bi-chat-dots"></i>
+            <p class="mb-0">No comments to display.</p>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
+
+<script>
+(function () {
+  const root = document.querySelector('.applicant-modal-profile[data-applicant-id="{{ applicant.pk }}"]');
+  if (!root || root.dataset.enhanced === 'true') return;
+  root.dataset.enhanced = 'true';
+
+  root.querySelectorAll('.media-tab-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+      const targetId = this.getAttribute('data-media-tab');
+
+      root.querySelectorAll('.media-tab-btn').forEach(tab => tab.classList.remove('active'));
+      root.querySelectorAll('.media-panel').forEach(panel => panel.classList.remove('active'));
+
+      this.classList.add('active');
+
+      const panel = root.querySelector('#' + targetId);
+      if (panel) panel.classList.add('active');
+    });
+  });
+
+  root.querySelectorAll('.modal-video-toggle').forEach(btn => {
+    btn.addEventListener('click', function () {
+      const target = root.querySelector(this.getAttribute('data-video-target'));
+      if (!target) return;
+
+      const isOpen = target.style.display !== 'none';
+
+      if (isOpen) {
+        target.style.display = 'none';
+        this.innerHTML = '<i class="bi bi-play-circle me-1"></i>Watch';
+
+        const video = target.querySelector('video');
+        if (video) video.pause();
+      } else {
+        target.style.display = 'block';
+        this.innerHTML = '<i class="bi bi-eye-slash me-1"></i>Hide';
+
+        setTimeout(() => {
+          const video = target.querySelector('video');
+          if (video) video.focus();
+        }, 50);
+      }
+    });
+  });
+
+  root.querySelectorAll('.speed-control').forEach(btn => {
+    btn.addEventListener('click', function () {
+      const videoId = this.getAttribute('data-video-id');
+      const speed = parseFloat(this.getAttribute('data-speed'));
+      const video = document.getElementById(videoId);
+
+      if (video) video.playbackRate = speed;
+
+      const container = this.closest('.speed-controls-container') || this.parentElement;
+
+      container.querySelectorAll('.speed-control').forEach(speedBtn => {
+        speedBtn.classList.remove('btn-secondary', 'active');
+        speedBtn.classList.add('btn-outline-secondary');
+      });
+
+      this.classList.add('btn-secondary', 'active');
+      this.classList.remove('btn-outline-secondary');
+    });
+  });
+
+  root.querySelectorAll('.modal-pdf-toggle').forEach(btn => {
+    let pdfDoc = null;
+    let currentPage = 1;
+    let currentScale = 1.0;
+    let fitScale = 1.0;
+    let isLoading = false;
+
+    function showFallback(container) {
+      const url = btn.getAttribute('data-pdf-url');
+      const scrollArea = container.querySelector('.pdf-scroll-area');
+
+      scrollArea.innerHTML = `
+        <div class="pdf-fallback">
+          <p class="mb-3">PDF preview could not load inside the modal.</p>
+          <a href="${url}" target="_blank" class="btn btn-outline-light btn-sm">
+            <i class="bi bi-box-arrow-up-right me-1"></i>Open PDF in new tab
+          </a>
+        </div>
+      `;
+    }
+
+    function renderPage(container) {
+      if (!pdfDoc) return;
+
+      const canvas = container.querySelector('canvas');
+      if (!canvas) return;
+
+      const ctx = canvas.getContext('2d');
+
+      pdfDoc.getPage(currentPage).then(page => {
+        const viewport = page.getViewport({ scale: currentScale });
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        page.render({ canvasContext: ctx, viewport: viewport });
+
+        container.querySelector('.pdf-current-page').textContent = currentPage;
+        container.querySelector('.pdf-prev').disabled = currentPage <= 1;
+        container.querySelector('.pdf-next').disabled = currentPage >= pdfDoc.numPages;
+
+        const pct = Math.round((currentScale / fitScale) * 100);
+        container.querySelector('.pdf-zoom-label').textContent = pct + '%';
+      });
+    }
+
+    function calcFitScale(container) {
+      const scrollArea = container.querySelector('.pdf-scroll-area');
+
+      return pdfDoc.getPage(currentPage).then(page => {
+        const unscaled = page.getViewport({ scale: 1 });
+        const availableWidth = Math.max(scrollArea.clientWidth - 32, 280);
+        fitScale = availableWidth / unscaled.width;
+        currentScale = fitScale;
+      });
+    }
+
+    btn.addEventListener('click', function () {
+      const container = root.querySelector(this.getAttribute('data-pdf-target'));
+      const label = this.querySelector('.pdf-toggle-label');
+
+      if (!container || !label) return;
+
+      const isOpen = container.style.display !== 'none';
+
+      if (isOpen) {
+        container.style.display = 'none';
+        label.textContent = 'Preview';
+        this.classList.remove('active');
+        return;
+      }
+
+      container.style.display = 'block';
+      label.textContent = 'Hide';
+      this.classList.add('active');
+
+      if (pdfDoc || isLoading) return;
+
+      if (typeof pdfjsLib === 'undefined') {
+        showFallback(container);
+        return;
+      }
+
+      isLoading = true;
+
+      pdfjsLib.getDocument(this.getAttribute('data-pdf-url')).promise.then(doc => {
+        pdfDoc = doc;
+        isLoading = false;
+
+        container.querySelector('.pdf-total-pages').textContent = doc.numPages;
+
+        setTimeout(() => {
+          calcFitScale(container).then(() => renderPage(container));
+        }, 75);
+      }).catch(() => {
+        isLoading = false;
+        showFallback(container);
+      });
+
+      container.querySelector('.pdf-prev').onclick = () => {
+        if (currentPage > 1) {
+          currentPage--;
+          renderPage(container);
+        }
+      };
+
+      container.querySelector('.pdf-next').onclick = () => {
+        if (pdfDoc && currentPage < pdfDoc.numPages) {
+          currentPage++;
+          renderPage(container);
+        }
+      };
+
+      container.querySelector('.pdf-zoom-in').onclick = () => {
+        currentScale *= 1.25;
+        renderPage(container);
+      };
+
+      container.querySelector('.pdf-zoom-out').onclick = () => {
+        currentScale *= 0.8;
+        if (currentScale < fitScale * 0.35) currentScale = fitScale * 0.35;
+        renderPage(container);
+      };
+
+      container.querySelector('.pdf-zoom-fit').onclick = () => {
+        calcFitScale(container).then(() => renderPage(container));
+      };
+    });
+  });
+})();
+</script>

@@ -2,6 +2,212 @@
 {% block content %}
 
 <style>
+  :root {
+    --ds-bg: #ffffff;
+    --ds-muted-bg: #f7f8fa;
+    --ds-soft-bg: #f3f5f7;
+    --ds-border: #d9dee5;
+    --ds-border-soft: #e8ebef;
+    --ds-text: #1f2933;
+    --ds-muted: #667085;
+    --ds-hover: #f6f8fa;
+    --ds-primary: #3f5bf6;
+    --ds-primary-soft: rgba(63, 91, 246, 0.08);
+    --ds-success-soft: rgba(25, 135, 84, 0.1);
+    --ds-warning-soft: rgba(255, 193, 7, 0.13);
+    --ds-danger-soft: rgba(220, 53, 69, 0.1);
+    --ds-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  }
+
+  [data-bs-theme="dark"] {
+    --ds-bg: #212529;
+    --ds-muted-bg: #2b3035;
+    --ds-soft-bg: #252a30;
+    --ds-border: #3a4047;
+    --ds-border-soft: #343a40;
+    --ds-text: #f8f9fa;
+    --ds-muted: #adb5bd;
+    --ds-hover: #262b30;
+    --ds-primary: #6f86ff;
+    --ds-primary-soft: rgba(111, 134, 255, 0.14);
+    --ds-success-soft: rgba(25, 135, 84, 0.16);
+    --ds-warning-soft: rgba(255, 193, 7, 0.16);
+    --ds-danger-soft: rgba(220, 53, 69, 0.16);
+    --ds-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+  }
+
+  .applicant-page {
+    max-width: 1380px;
+    margin: 0 auto;
+  }
+
+  .applicant-hero {
+    background: var(--ds-bg);
+    border: 1px solid var(--ds-border);
+    border-radius: 14px;
+    box-shadow: var(--ds-shadow);
+    padding: 1.15rem;
+    margin-bottom: 1rem;
+  }
+
+  .applicant-hero-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: start;
+  }
+
+  .applicant-kicker {
+    color: var(--ds-muted);
+    font-size: 0.72rem;
+    font-weight: 750;
+    letter-spacing: 0.075em;
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+
+  .applicant-title {
+    color: var(--ds-text);
+    font-size: 1.75rem;
+    line-height: 1.15;
+    font-weight: 780;
+    letter-spacing: -0.025em;
+    margin: 0;
+  }
+
+  .applicant-description {
+    color: var(--ds-muted);
+    max-width: 760px;
+    margin: 0.45rem 0 0;
+    font-size: 0.95rem;
+  }
+
+  .applicant-hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+
+  .applicant-filter-panel,
+  .applicant-section,
+  .queue-progress-card {
+    background: var(--ds-bg);
+    border: 1px solid var(--ds-border);
+    border-radius: 14px;
+    box-shadow: var(--ds-shadow);
+    margin-bottom: 1rem;
+    overflow: hidden;
+  }
+
+  .applicant-filter-panel {
+    padding: 1rem;
+  }
+
+  .filter-label {
+    color: var(--ds-muted);
+    font-size: 0.72rem;
+    font-weight: 750;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    margin-bottom: 0.35rem;
+  }
+
+  .advanced-filter-box {
+    background: var(--ds-muted-bg);
+    border: 1px solid var(--ds-border-soft);
+    border-radius: 11px;
+    padding: 0.85rem;
+  }
+
+  .queue-progress-card {
+    padding: 1rem;
+  }
+
+  .queue-progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .queue-progress-title {
+    color: var(--ds-text);
+    font-size: 1rem;
+    font-weight: 780;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+
+  .queue-progress-title i {
+    color: var(--ds-primary);
+  }
+
+  .queue-progress-meta {
+    color: var(--ds-muted);
+    font-size: 0.82rem;
+    margin-top: 0.25rem;
+  }
+
+  .section-header {
+    padding: 0.9rem 1rem;
+    background: var(--ds-bg);
+    border-bottom: 1px solid var(--ds-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin: 0;
+    color: var(--ds-text);
+    font-size: 1.12rem;
+    font-weight: 780;
+  }
+
+  .section-subtitle {
+    color: var(--ds-muted);
+    font-size: 0.84rem;
+  }
+
+  .applicant-table {
+    margin: 0;
+  }
+
+  .applicant-table thead th {
+    background: var(--ds-muted-bg);
+    color: var(--ds-muted);
+    border-top: 0;
+    border-bottom: 1px solid var(--ds-border);
+    font-size: 0.73rem;
+    font-weight: 780;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    padding: 0.8rem 1rem;
+    white-space: nowrap;
+  }
+
+  .applicant-table tbody td {
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--ds-border-soft);
+    vertical-align: middle;
+  }
+
+  .applicant-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .applicant-table tbody tr:hover {
+    background: var(--ds-hover);
+  }
+
   .sort-link {
     color: inherit;
     text-decoration: none;
@@ -10,94 +216,367 @@
     gap: 4px;
     white-space: nowrap;
   }
-  .sort-link:hover { opacity: 0.8; }
-  .sort-icon { font-size: 0.7rem; opacity: 0.5; }
-  .sort-icon.active { opacity: 1; color: #90caf9; }
-  tr.flagged-row { background-color: rgba(220, 53, 69, 0.05); }
-  tr.flagged-row:hover { background-color: rgba(220, 53, 69, 0.1) !important; }
-  .applicant-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
-  .applicant-initials {
-    width: 36px; height: 36px; border-radius: 50%;
-    background: #dee2e6; color: #495057;
-    font-size: 0.75rem; font-weight: 600;
-    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+
+  .sort-link:hover {
+    opacity: 0.8;
   }
-  .table > tbody > tr > td { vertical-align: middle; }
-  .candidate-name { font-weight: 500; text-decoration: none; color: inherit; }
-  .candidate-name:hover { color: #0d6efd; }
+
+  .sort-icon {
+    font-size: 0.7rem;
+    opacity: 0.5;
+  }
+
+  .sort-icon.active {
+    opacity: 1;
+    color: var(--ds-primary);
+  }
+
+  .flagged-row {
+    background-color: var(--ds-danger-soft);
+  }
+
+  .flagged-row:hover {
+    background-color: rgba(220, 53, 69, 0.14) !important;
+  }
+
+  .applicant-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+
+  .applicant-initials {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--ds-muted-bg);
+    border: 1px solid var(--ds-border-soft);
+    color: var(--ds-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .candidate-name {
+    font-weight: 760;
+    text-decoration: none;
+    color: var(--ds-text);
+  }
+
+  .candidate-name:hover {
+    color: var(--ds-primary);
+    text-decoration: underline;
+  }
+
+  .applicant-mobile-list {
+    display: none;
+  }
+
+  .mobile-card {
+    padding: 0.95rem 1rem;
+    border-top: 1px solid var(--ds-border-soft);
+  }
+
+  .mobile-card:first-child {
+    border-top: 0;
+  }
+
+  .mobile-card.flagged-mobile {
+    background: var(--ds-danger-soft);
+  }
+
+  .mobile-card-title {
+    color: var(--ds-primary);
+    font-weight: 760;
+    text-decoration: none;
+  }
+
+  .mobile-card-title:hover {
+    text-decoration: underline;
+  }
+
+  .mobile-card-meta {
+    color: var(--ds-muted);
+    font-size: 0.84rem;
+    margin-top: 0.25rem;
+  }
+
+  .mobile-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-top: 0.7rem;
+  }
+
+  .mobile-meta-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: var(--ds-muted-bg);
+    border: 1px solid var(--ds-border-soft);
+    color: var(--ds-text);
+    border-radius: 999px;
+    padding: 0.28rem 0.6rem;
+    font-size: 0.76rem;
+    font-weight: 700;
+  }
+
+  .mobile-card-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.85rem;
+  }
+
+  .mobile-card-actions .btn {
+    flex: 1;
+  }
+
+  .empty-state {
+    margin: 1rem;
+    border: 1px dashed var(--ds-border);
+    border-radius: 12px;
+    background: var(--ds-muted-bg);
+    color: var(--ds-muted);
+    padding: 2.25rem 1rem;
+    text-align: center;
+  }
+
+  .empty-state i {
+    display: block;
+    font-size: 2rem;
+    opacity: 0.45;
+    margin-bottom: 0.55rem;
+  }
+
+  #batch-action-container,
+  #compare-btn {
+    display: none;
+  }
+
+  @media (max-width: 991.98px) {
+    .applicant-hero-main {
+      grid-template-columns: 1fr;
+    }
+
+    .applicant-hero-actions {
+      justify-content: flex-start;
+    }
+
+    .section-header {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+  }
+
+  @media (max-width: 767.98px) {
+    .applicant-page {
+      max-width: none;
+    }
+
+    .applicant-hero {
+      padding: 0.95rem;
+      border-radius: 12px;
+    }
+
+    .applicant-kicker {
+      font-size: 0.68rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .applicant-title {
+      font-size: 1.45rem;
+      line-height: 1.16;
+    }
+
+    .applicant-description {
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+
+    .applicant-hero-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      width: 100%;
+      gap: 0.5rem;
+    }
+
+    .applicant-hero-actions .btn,
+    .applicant-hero-actions #batch-action-container {
+      width: 100%;
+    }
+
+    #batch-action-container {
+      grid-column: 1 / -1;
+    }
+
+    #batch-action-container select,
+    #batch-action-container button {
+      min-height: 40px;
+    }
+
+    .applicant-filter-panel {
+      padding: 0.85rem;
+      border-radius: 12px;
+    }
+
+    .applicant-filter-panel .form-control,
+    .applicant-filter-panel .form-select,
+    .applicant-filter-panel .btn {
+      min-height: 40px;
+    }
+
+    .filter-button-row {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem !important;
+      width: 100%;
+    }
+
+    .filter-button-row .btn {
+      width: 100%;
+    }
+
+    .advanced-btn {
+      width: 100%;
+    }
+
+    .queue-progress-header {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .queue-progress-header .badge {
+      width: 100%;
+      justify-content: center;
+      padding: 0.5rem;
+    }
+
+    .applicant-table-wrap {
+      display: none;
+    }
+
+    .applicant-mobile-list {
+      display: block;
+    }
+
+    .pagination {
+      gap: 0.25rem;
+    }
+
+    .pagination .page-link {
+      font-size: 0.85rem;
+      padding: 0.42rem 0.6rem;
+    }
+  }
+
+  @media (max-width: 390px) {
+    .applicant-hero-actions,
+    .filter-button-row {
+      grid-template-columns: 1fr;
+    }
+
+    .mobile-card-actions {
+      flex-direction: column;
+    }
+  }
 </style>
 
-<!-- Page Header -->
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <div>
-    <h2 class="mb-0">{% if is_queue_page %}My Queue{% else %}Applicants{% endif %}</h2>
-    <p class="text-muted mb-0 small">{{ paginator_count }} total candidates</p>
-  </div>
-  <div class="d-flex gap-2 flex-wrap justify-content-end">
-    {% if user.profile.role == 'ADMIN' %}
-      <div id="batch-action-container" style="display:none;" class="d-flex gap-1">
-        <select name="action" class="form-select form-select-sm" form="batch-form">
-          <option value="">Batch Action...</option>
-          <option value="set_status_interview">Set: Interview</option>
-          <option value="set_status_interview_complete">Set: Interview Complete</option>
-          <option value="set_status_accepted">Set: Accepted</option>
-          <option value="set_status_waitlisted">Set: Waitlisted</option>
-          <option value="set_status_rejected">Set: Rejected</option>
-        </select>
-        <button type="submit" class="btn btn-primary btn-sm" form="batch-form">Apply</button>
+<div class="applicant-page">
+
+  <div class="applicant-hero">
+    <div class="applicant-hero-main">
+      <div>
+        <div class="applicant-kicker">{% if is_queue_page %}Queue{% else %}Applicants{% endif %}</div>
+        <h2 class="applicant-title">{% if is_queue_page %}My Queue{% else %}Applicants{% endif %}</h2>
+        <p class="applicant-description">
+          {% if is_queue_page %}
+            Review your assigned candidates and keep track of what still needs attention.
+          {% else %}
+            Browse, filter, compare, and manage candidates across batches and datasets.
+          {% endif %}
+        </p>
+        <p class="text-muted mb-0 small mt-2">{{ paginator_count }} total candidate{{ paginator_count|pluralize }}</p>
       </div>
-    {% endif %}
-    <button type="submit" class="btn btn-outline-info btn-sm" id="compare-btn" style="display:none;"
-            form="batch-form" formaction="{% url 'compare_applicants' %}" formmethod="GET">
-      <i class="bi bi-layout-split me-1"></i>Compare
-    </button>
-    <a href="{% url 'export_applicants_csv' %}?dataset={{ selected_dataset_id|default:'' }}&batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&show_waitlist={{ show_waitlist|default:'' }}"
-      class="btn btn-outline-success btn-sm">
-      <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV
-    </a>
-    {% if user.profile.role == 'ADMIN' %}
-      <a href="{% url 'applicant_create' %}" class="btn btn-primary btn-sm">
-        <i class="bi bi-plus-lg me-1"></i>New Applicant
-      </a>
-    {% endif %}
-  </div>
-</div>
 
-{% if is_queue_page %}
-<div class="card mb-4 border-0 shadow-sm">
-    <div class="card-body bg-light rounded">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-            <h5 class="mb-0 text-primary"><i class="bi bi-speedometer2 me-2"></i>Your Review Progress</h5>
-            <span class="badge bg-primary fs-6">{{ voted_count }} / {{ total_assigned }} Candidates Reviewed</span>
-        </div>
-        <div class="progress" style="height: 12px;">
-            <div class="progress-bar bg-success"
-                 role="progressbar"
-                 style="width: {{ progress_pct }}%;"
-                 aria-valuenow="{{ progress_pct }}"
-                 aria-valuemin="0"
-                 aria-valuemax="100">
-            </div>
-        </div>
-        <div class="d-flex justify-content-between mt-2">
-            <small class="text-muted">Completion: <strong>{{ progress_pct }}%</strong></small>
-            <small class="text-muted"><strong>{{ page_obj.paginator.count }}</strong> candidates remaining</small>
-        </div>
+      <div class="applicant-hero-actions">
+        {% if user.profile.role == 'ADMIN' %}
+          <div id="batch-action-container" class="d-flex gap-1">
+            <select name="action" class="form-select form-select-sm" form="batch-form">
+              <option value="">Batch Action...</option>
+              <option value="set_status_interview">Set: Interview</option>
+              <option value="set_status_interview_complete">Set: Interview Complete</option>
+              <option value="set_status_accepted">Set: Accepted</option>
+              <option value="set_status_waitlisted">Set: Waitlisted</option>
+              <option value="set_status_rejected">Set: Rejected</option>
+            </select>
+            <button type="submit" class="btn btn-primary btn-sm" form="batch-form">Apply</button>
+          </div>
+        {% endif %}
+
+        <button type="submit" class="btn btn-outline-info btn-sm" id="compare-btn"
+                form="batch-form" formaction="{% url 'compare_applicants' %}" formmethod="GET">
+          <i class="bi bi-layout-split me-1"></i>Compare
+        </button>
+
+        <a href="{% url 'export_applicants_csv' %}?dataset={{ selected_dataset_id|default:'' }}&batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&show_waitlist={{ show_waitlist|default:'' }}"
+           class="btn btn-outline-success btn-sm">
+          <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV
+        </a>
+
+        {% if user.profile.role == 'ADMIN' %}
+          <a href="{% url 'applicant_create' %}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-lg me-1"></i>New Applicant
+          </a>
+        {% endif %}
+      </div>
     </div>
-</div>
-{% endif %}
+  </div>
 
-<!-- Filters -->
-<div class="card mb-4">
-  <div class="card-body py-3">
+  {% if is_queue_page %}
+  <div class="queue-progress-card">
+    <div class="queue-progress-header">
+      <div>
+        <h5 class="queue-progress-title">
+          <i class="bi bi-speedometer2"></i>Your Review Progress
+        </h5>
+        <div class="queue-progress-meta">
+          Completion: <strong>{{ progress_pct }}%</strong>
+        </div>
+      </div>
 
+      <span class="badge bg-primary fs-6">
+        {{ voted_count }} / {{ total_assigned }} Reviewed
+      </span>
+    </div>
+
+    <div class="progress" style="height:12px;">
+      <div class="progress-bar bg-success"
+           role="progressbar"
+           style="width: {{ progress_pct }}%;"
+           aria-valuenow="{{ progress_pct }}"
+           aria-valuemin="0"
+           aria-valuemax="100">
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-between mt-2">
+      <small class="text-muted"><strong>{{ page_obj.paginator.count }}</strong> candidates remaining</small>
+      <small class="text-muted">{{ progress_pct }}%</small>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="applicant-filter-panel">
     {% if is_queue_page %}
-    {# ── Queue filter strip — richer controls, no advanced panel ── #}
     <form method="get" id="filter-form">
       <div class="row g-2 align-items-end flex-wrap">
-
         <div class="col-md-3">
-          <label class="form-label small text-muted mb-1">Batch</label>
+          <label class="filter-label">Batch</label>
           <select name="batch" class="form-select form-select-sm">
             <option value="">All Batches</option>
             {% for b in batches %}
@@ -109,18 +588,18 @@
         </div>
 
         <div class="col-md-2">
-          <label class="form-label small text-muted mb-1">Status</label>
+          <label class="filter-label">Status</label>
           <select name="status" class="form-select form-select-sm">
             <option value="">Any Status</option>
-            <option value="INTERVIEW"          {% if status_filter == 'INTERVIEW'          %}selected{% endif %}>Interview</option>
+            <option value="INTERVIEW" {% if status_filter == 'INTERVIEW' %}selected{% endif %}>Interview</option>
             <option value="INTERVIEW_COMPLETE" {% if status_filter == 'INTERVIEW_COMPLETE' %}selected{% endif %}>Interview Complete</option>
           </select>
         </div>
 
         <div class="col-md-3">
-          <label class="form-label small text-muted mb-1">Search</label>
+          <label class="filter-label">Search</label>
           <input type="text" name="q" class="form-control form-control-sm"
-                 placeholder="Name or ID…" value="{{ search_query|default:'' }}">
+                 placeholder="Name or ID..." value="{{ search_query|default:'' }}">
         </div>
 
         <div class="col-auto d-flex align-items-end gap-3 pb-1">
@@ -131,6 +610,7 @@
               <i class="bi bi-flag-fill text-danger me-1"></i>Flagged by me
             </label>
           </div>
+
           <div class="form-check mb-0">
             <input class="form-check-input" type="checkbox" name="show_waitlist" id="q_waitlist"
                    value="1" {% if show_waitlist %}checked{% endif %} onchange="this.form.submit()">
@@ -138,20 +618,20 @@
           </div>
         </div>
 
-        <div class="col-auto d-flex gap-1 align-items-end">
-          <button type="submit" class="btn btn-outline-secondary btn-sm">Filter</button>
+        <div class="col-auto d-flex gap-1 align-items-end filter-button-row">
+          <button type="submit" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-funnel me-1"></i>Filter
+          </button>
           <a href="{% url 'applicant_queue' %}" class="btn btn-outline-danger btn-sm">Clear</a>
         </div>
-
       </div>
     </form>
 
     {% else %}
-    {# ── Standard admin applicant list filters ── #}
     <form method="get" id="filter-form">
       <div class="row g-2 align-items-end">
         <div class="col-md-3">
-          <label class="form-label small text-muted mb-1">Batch</label>
+          <label class="filter-label">Batch</label>
           <select name="batch" class="form-select form-select-sm">
             <option value="">All Batches</option>
             {% for b in batches %}
@@ -161,31 +641,35 @@
             {% endfor %}
           </select>
         </div>
+
         <div class="col-md-2">
-          <label class="form-label small text-muted mb-1">Status</label>
+          <label class="filter-label">Status</label>
           <select name="status" class="form-select form-select-sm">
             <option value="">All Statuses</option>
-            <option value="INTERVIEW"           {% if status_filter == 'INTERVIEW'           %}selected{% endif %}>Interview</option>
-            <option value="INTERVIEW_COMPLETE"  {% if status_filter == 'INTERVIEW_COMPLETE'  %}selected{% endif %}>Interview Complete</option>
-            <option value="ACCEPTED"            {% if status_filter == 'ACCEPTED'            %}selected{% endif %}>Accepted</option>
-            <option value="ACCEPTED_MAILED"     {% if status_filter == 'ACCEPTED_MAILED'     %}selected{% endif %}>Accepted – Mailed</option>
+            <option value="INTERVIEW" {% if status_filter == 'INTERVIEW' %}selected{% endif %}>Interview</option>
+            <option value="INTERVIEW_COMPLETE" {% if status_filter == 'INTERVIEW_COMPLETE' %}selected{% endif %}>Interview Complete</option>
+            <option value="ACCEPTED" {% if status_filter == 'ACCEPTED' %}selected{% endif %}>Accepted</option>
+            <option value="ACCEPTED_MAILED" {% if status_filter == 'ACCEPTED_MAILED' %}selected{% endif %}>Accepted – Mailed</option>
             <option value="ACCEPTED_NOT_MAILED" {% if status_filter == 'ACCEPTED_NOT_MAILED' %}selected{% endif %}>Accepted – Not Mailed</option>
-            <option value="WAITLISTED"          {% if status_filter == 'WAITLISTED'          %}selected{% endif %}>Waitlisted</option>
-            <option value="REJECTED"            {% if status_filter == 'REJECTED'            %}selected{% endif %}>Rejected</option>
-            <option value="DECLINED"            {% if status_filter == 'DECLINED'            %}selected{% endif %}>Candidate Declined</option>
+            <option value="WAITLISTED" {% if status_filter == 'WAITLISTED' %}selected{% endif %}>Waitlisted</option>
+            <option value="REJECTED" {% if status_filter == 'REJECTED' %}selected{% endif %}>Rejected</option>
+            <option value="DECLINED" {% if status_filter == 'DECLINED' %}selected{% endif %}>Candidate Declined</option>
           </select>
         </div>
+
         <div class="col-md-3">
-          <label class="form-label small text-muted mb-1">Search</label>
+          <label class="filter-label">Search</label>
           <input type="text" name="q" class="form-control form-control-sm"
                  placeholder="Search by name or ID..." value="{{ search_query|default:'' }}">
         </div>
-        <div class="col-auto">
-          <button type="submit" class="btn btn-outline-secondary btn-sm">Filter</button>
-        </div>
-        <div class="col-auto">
+
+        <div class="col-auto d-flex gap-1 filter-button-row">
+          <button type="submit" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-funnel me-1"></i>Filter
+          </button>
           <a href="{% url 'applicant_list' %}" class="btn btn-outline-danger btn-sm">Clear</a>
         </div>
+
         {% if user.profile.role == 'ADMIN' %}
         <div class="col-auto d-flex align-items-center pt-3">
           <div class="form-check mb-0">
@@ -194,10 +678,12 @@
             <label class="form-check-label small" for="flagged_only">Flagged only</label>
           </div>
         </div>
+
         <div class="col-auto d-flex align-items-center pt-3">
-          <button type="button" class="btn btn-outline-secondary btn-sm"
+          <button type="button" class="btn btn-outline-secondary btn-sm advanced-btn"
                   data-bs-toggle="collapse" data-bs-target="#advanced-filters">
             <i class="bi bi-sliders me-1"></i>Advanced
+            {% if has_advanced %}<span class="badge bg-primary ms-1">ON</span>{% endif %}
           </button>
         </div>
         {% endif %}
@@ -205,10 +691,10 @@
 
       {% if user.profile.role == 'ADMIN' %}
       <div class="collapse {% if has_advanced %}show{% endif %} mt-3" id="advanced-filters">
-        <div class="border rounded p-3 bg-light">
+        <div class="advanced-filter-box">
           <div class="row g-3 align-items-end">
             <div class="col-md-3">
-              <label class="form-label small text-muted mb-1">Program Type</label>
+              <label class="filter-label">Program Type</label>
               <select name="program_type" class="form-select form-select-sm">
                 <option value="">All Programs</option>
                 {% for val, label in program_type_choices %}
@@ -216,8 +702,9 @@
                 {% endfor %}
               </select>
             </div>
+
             <div class="col-md-3">
-              <label class="form-label small text-muted mb-1">Application System</label>
+              <label class="filter-label">Application System</label>
               <select name="application_system" class="form-select form-select-sm">
                 <option value="">All Systems</option>
                 {% for val, label in application_system_choices %}
@@ -225,29 +712,34 @@
                 {% endfor %}
               </select>
             </div>
+
             <div class="col-md-6">
-              <label class="form-label small text-muted mb-1 d-block">Candidate Flags</label>
+              <label class="filter-label d-block">Candidate Flags</label>
               <div class="d-flex flex-wrap gap-3">
                 <div class="form-check">
                   <input class="form-check-input" type="checkbox" name="first_gen" id="f_first_gen"
                          {% if filter_first_gen %}checked{% endif %}>
                   <label class="form-check-label small" for="f_first_gen">First Generation</label>
                 </div>
+
                 <div class="form-check">
                   <input class="form-check-input" type="checkbox" name="re_applicant" id="f_re_applicant"
                          {% if filter_re_applicant %}checked{% endif %}>
                   <label class="form-check-label small" for="f_re_applicant">Re-Applicant</label>
                 </div>
+
                 <div class="form-check">
                   <input class="form-check-input" type="checkbox" name="pb_to_dmd" id="f_pb_to_dmd"
                          {% if filter_pb_to_dmd %}checked{% endif %}>
                   <label class="form-check-label small" for="f_pb_to_dmd">PB to DMD</label>
                 </div>
+
                 <div class="form-check">
                   <input class="form-check-input" type="checkbox" name="former_post_bacc" id="f_former_pb"
                          {% if filter_former_pb %}checked{% endif %}>
                   <label class="form-check-label small" for="f_former_pb">Former Post Bacc</label>
                 </div>
+
                 <div class="form-check">
                   <input class="form-check-input" type="checkbox" name="three_plus_four" id="f_3p4"
                          {% if filter_three_plus_four %}checked{% endif %}>
@@ -256,161 +748,312 @@
               </div>
             </div>
           </div>
-          <div class="mt-2">
+
+          <div class="mt-3">
             <button type="submit" class="btn btn-primary btn-sm">Apply</button>
           </div>
         </div>
       </div>
       {% endif %}
-
     </form>
     {% endif %}
-
   </div>
-</div>
 
-<!-- Table -->
-<form id="batch-form" action="{% url 'batch_action' %}" method="POST">
-  {% csrf_token %}
-  <div class="card">
-    <div class="card-body p-0">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-dark">
-          <tr>
+  <form id="batch-form" action="{% url 'batch_action' %}" method="POST">
+    {% csrf_token %}
+
+    <div class="applicant-section">
+      <div class="section-header">
+        <div>
+          <h4 class="section-title">
+            <i class="bi bi-people"></i>{% if is_queue_page %}Assigned Candidates{% else %}Candidates{% endif %}
+          </h4>
+          <div class="section-subtitle">
+            {{ paginator_count }} candidate{{ paginator_count|pluralize }}{% if search_query %} matching "{{ search_query }}"{% endif %}.
+          </div>
+        </div>
+      </div>
+
+      <div class="applicant-table-wrap">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle applicant-table" style="font-size:0.9rem;">
+            <thead>
+              <tr>
+                {% if user.profile.role == 'ADMIN' %}
+                <th style="width:1%;">
+                  <input type="checkbox" class="form-check-input" id="select-all">
+                </th>
+                {% endif %}
+
+                <th style="width:44px;"></th>
+
+                <th>
+                  <a href="?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}&sort=name&dir={% if sort == 'name' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link">
+                    Name
+                    <i class="bi bi-arrow-{% if sort == 'name' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'name' %}active{% endif %}"></i>
+                  </a>
+                </th>
+
+                <th>Email</th>
+                <th>Dataset</th>
+                <th>Batch</th>
+
+                <th>
+                  <a href="?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}&sort=status&dir={% if sort == 'status' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link">
+                    Status
+                    <i class="bi bi-arrow-{% if sort == 'status' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'status' %}active{% endif %}"></i>
+                  </a>
+                </th>
+
+                <th>
+                  <a href="?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}&sort=date&dir={% if sort == 'date' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link">
+                    Uploaded
+                    <i class="bi bi-arrow-{% if sort == 'date' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'date' %}active{% endif %}"></i>
+                  </a>
+                </th>
+
+                <th class="text-center">
+                  <a href="?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}&sort=score&dir={% if sort == 'score' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link justify-content-center">
+                    Score / Votes
+                    <i class="bi bi-arrow-{% if sort == 'score' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'score' %}active{% endif %}"></i>
+                  </a>
+                </th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {% for a in page_obj %}
+              <tr class="{% if a.flagged_by.exists %}flagged-row{% endif %}">
+                {% if user.profile.role == 'ADMIN' %}
+                <td>
+                  <input type="checkbox" name="ids" value="{{ a.pk }}" class="form-check-input applicant-checkbox">
+                </td>
+                {% endif %}
+
+                <td>
+                  {% if a.profile_picture %}
+                    <img src="{{ a.profile_picture.url }}" class="applicant-avatar" alt="">
+                  {% else %}
+                    <div class="applicant-initials">{{ a.first_name|first }}{{ a.last_name|first }}</div>
+                  {% endif %}
+                </td>
+
+                <td>
+                  {% if is_queue_page %}
+                    <a href="{% url 'applicant_detail' a.pk %}?queue=1&batch={{ a.round.pk }}" class="candidate-name">
+                      {{ a.last_name }}, {{ a.first_name }}
+                    </a>
+                  {% else %}
+                    <a href="{% url 'applicant_detail' a.pk %}?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}" class="candidate-name">
+                      {{ a.last_name }}, {{ a.first_name }}
+                    </a>
+                  {% endif %}
+
+                  {% if request.user in a.flagged_by.all or user.profile.role == 'ADMIN' and a.flagged_by.exists %}
+                    <span class="badge bg-danger ms-1" title="Flagged for discussion">
+                      <i class="bi bi-flag-fill"></i>
+                    </span>
+                  {% endif %}
+                </td>
+
+                <td class="text-muted small">{{ a.email|default:"—" }}</td>
+                <td class="text-muted small">{{ a.dataset.DisplayName|default:"—" }}</td>
+                <td class="text-muted small">{{ a.round.DisplayName|default:"—" }}</td>
+
+                <td>
+                  {% include "partials/status_badge.html" with applicant=a %}
+                </td>
+
+                <td class="text-muted small">{{ a.created_at|date:"M d, Y" }}</td>
+
+                <td class="text-center">
+                  {% if user.profile.role == 'ADMIN' %}
+                    {% if a.avg_score %}
+                      <span class="badge bg-primary me-1">{{ a.avg_score|floatformat:1 }}/5</span>
+                    {% endif %}
+
+                    {% with votes=a.votes_summary %}
+                      <span class="badge bg-success" title="Accept">{{ votes.accept }}</span>
+                      <span class="badge bg-danger" title="Deny">{{ votes.deny }}</span>
+                      <span class="badge bg-warning text-dark" title="Waitlist">{{ votes.waitlist }}</span>
+                    {% endwith %}
+                  {% else %}
+                    {% if a.user_has_voted %}
+                      <span class="badge bg-success">
+                        <i class="bi bi-check-circle-fill me-1"></i>Voted
+                      </span>
+                    {% else %}
+                      <span class="badge bg-light text-dark">Pending</span>
+                    {% endif %}
+                  {% endif %}
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="9" class="text-center text-muted py-5">
+                  <i class="bi bi-people fs-1 d-block mb-2 opacity-25"></i>
+                  No applicants found.
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="applicant-mobile-list">
+        {% for a in page_obj %}
+        <div class="mobile-card {% if a.flagged_by.exists %}flagged-mobile{% endif %}">
+          <div class="d-flex align-items-start gap-2">
             {% if user.profile.role == 'ADMIN' %}
-            <th style="width:1%;">
-              <input type="checkbox" class="form-check-input" id="select-all">
-            </th>
+              <input type="checkbox" name="ids" value="{{ a.pk }}" class="form-check-input applicant-checkbox mt-2">
             {% endif %}
-            <th style="width:44px;"></th>
-            <th>
-              <a href="?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}&sort=name&dir={% if sort == 'name' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link text-white">
-                Name <i class="bi bi-arrow-{% if sort == 'name' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'name' %}active{% endif %}"></i>
-              </a>
-            </th>
-            <th>Email</th>
-            <th>Dataset</th>
-            <th>Batch</th>
-            <th>
-              <a href="?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}&sort=status&dir={% if sort == 'status' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link text-white">
-                Status <i class="bi bi-arrow-{% if sort == 'status' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'status' %}active{% endif %}"></i>
-              </a>
-            </th>
-            <th>
-              <a href="?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}&sort=date&dir={% if sort == 'date' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link text-white">
-                Uploaded <i class="bi bi-arrow-{% if sort == 'date' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'date' %}active{% endif %}"></i>
-              </a>
-            </th>
-            <th class="text-center">
-              <a href="?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}&sort=score&dir={% if sort == 'score' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link text-white justify-content-center">
-                Score / Votes <i class="bi bi-arrow-{% if sort == 'score' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'score' %}active{% endif %}"></i>
-              </a>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for a in page_obj %}
-          <tr class="{% if a.flagged_by.exists %}flagged-row{% endif %}">
-            {% if user.profile.role == 'ADMIN' %}
-            <td>
-              <input type="checkbox" name="ids" value="{{ a.pk }}" class="form-check-input applicant-checkbox">
-            </td>
+
+            {% if a.profile_picture %}
+              <img src="{{ a.profile_picture.url }}" class="applicant-avatar" alt="">
+            {% else %}
+              <div class="applicant-initials">{{ a.first_name|first }}{{ a.last_name|first }}</div>
             {% endif %}
-            <td>
-              {% if a.profile_picture %}
-                <img src="{{ a.profile_picture.url }}" class="applicant-avatar" alt="">
-              {% else %}
-                <div class="applicant-initials">{{ a.first_name|first }}{{ a.last_name|first }}</div>
-              {% endif %}
-            </td>
-            <td>
+
+            <div class="min-w-0 flex-grow-1">
               {% if is_queue_page %}
-              <a href="{% url 'applicant_detail' a.pk %}?queue=1&batch={{ a.round.pk }}"
-                class="candidate-name">
+                <a href="{% url 'applicant_detail' a.pk %}?queue=1&batch={{ a.round.pk }}" class="mobile-card-title">
+                  {{ a.last_name }}, {{ a.first_name }}
+                </a>
               {% else %}
-              <a href="{% url 'applicant_detail' a.pk %}?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}"
-                class="candidate-name">
+                <a href="{% url 'applicant_detail' a.pk %}?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}" class="mobile-card-title">
+                  {{ a.last_name }}, {{ a.first_name }}
+                </a>
               {% endif %}
-                {{ a.last_name }}, {{ a.first_name }}
-              </a>
+
               {% if request.user in a.flagged_by.all or user.profile.role == 'ADMIN' and a.flagged_by.exists %}
                 <span class="badge bg-danger ms-1" title="Flagged for discussion">
                   <i class="bi bi-flag-fill"></i>
                 </span>
               {% endif %}
-            </td>
-            <td class="text-muted small">{{ a.email|default:"—" }}</td>
-            <td class="text-muted small">{{ a.dataset.DisplayName|default:"—" }}</td>
-            <td class="text-muted small">{{ a.round.DisplayName|default:"—" }}</td>
-            <td>
-              {% include "partials/status_badge.html" with applicant=a %}
-            </td>
-            <td class="text-muted small">{{ a.created_at|date:"M d, Y" }}</td>
-            <td class="text-center">
-              {% if user.profile.role == 'ADMIN' %}
-                {% if a.avg_score %}
-                  <span class="badge bg-primary me-1">{{ a.avg_score|floatformat:1 }}/5</span>
-                {% endif %}
-                {% with votes=a.votes_summary %}
-                  <span class="badge bg-success" title="Accept">{{ votes.accept }}</span>
-                  <span class="badge bg-danger" title="Deny">{{ votes.deny }}</span>
-                  <span class="badge bg-warning text-dark" title="Waitlist">{{ votes.waitlist }}</span>
-                {% endwith %}
-              {% else %}
-                {% if a.user_has_voted %}
-                  <span class="badge bg-success"><i class="bi bi-check-circle-fill me-1"></i>Voted</span>
-                {% else %}
-                  <span class="badge bg-light text-dark">Pending</span>
-                {% endif %}
-              {% endif %}
-            </td>
-          </tr>
-          {% empty %}
-          <tr>
-            <td colspan="9" class="text-center text-muted py-5">
-              <i class="bi bi-people fs-1 d-block mb-2 opacity-25"></i>
-              No applicants found.
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-</form>
 
-<!-- Pagination -->
-{% if page_obj.has_other_pages %}
-<nav class="mt-4">
-  <ul class="pagination justify-content-center">
-    {% if page_obj.has_previous %}
-      <li class="page-item"><a class="page-link" href="?page=1&batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&sort={{ sort }}&dir={{ direction }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}">&laquo; First</a></li>
-      <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&sort={{ sort }}&dir={{ direction }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}">Previous</a></li>
-    {% endif %}
-    <li class="page-item active"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
-    {% if page_obj.has_next %}
-      <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&sort={{ sort }}&dir={{ direction }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}">Next</a></li>
-      <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}&batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&sort={{ sort }}&dir={{ direction }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}">Last &raquo;</a></li>
-    {% endif %}
-  </ul>
-</nav>
-{% endif %}
+              <div class="mobile-card-meta">
+                {{ a.email|default:"No email" }}
+              </div>
+            </div>
+          </div>
+
+          <div class="mobile-meta-row">
+            {% include "partials/status_badge.html" with applicant=a %}
+
+            <span class="mobile-meta-pill">
+              <i class="bi bi-stack"></i>{{ a.dataset.DisplayName|default:"—" }}
+            </span>
+
+            <span class="mobile-meta-pill">
+              <i class="bi bi-collection"></i>{{ a.round.DisplayName|default:"—" }}
+            </span>
+
+            <span class="mobile-meta-pill">
+              <i class="bi bi-calendar"></i>{{ a.created_at|date:"M d, Y" }}
+            </span>
+
+            {% if user.profile.role == 'ADMIN' %}
+              {% if a.avg_score %}
+                <span class="mobile-meta-pill">
+                  <i class="bi bi-star"></i>{{ a.avg_score|floatformat:1 }}/5
+                </span>
+              {% endif %}
+
+              {% with votes=a.votes_summary %}
+                <span class="badge bg-success" title="Accept">{{ votes.accept }}</span>
+                <span class="badge bg-danger" title="Deny">{{ votes.deny }}</span>
+                <span class="badge bg-warning text-dark" title="Waitlist">{{ votes.waitlist }}</span>
+              {% endwith %}
+            {% else %}
+              {% if a.user_has_voted %}
+                <span class="badge bg-success">
+                  <i class="bi bi-check-circle-fill me-1"></i>Voted
+                </span>
+              {% else %}
+                <span class="badge bg-light text-dark">Pending</span>
+              {% endif %}
+            {% endif %}
+          </div>
+
+          <div class="mobile-card-actions">
+            {% if is_queue_page %}
+              <a href="{% url 'applicant_detail' a.pk %}?queue=1&batch={{ a.round.pk }}" class="btn btn-sm btn-outline-primary">
+                View
+              </a>
+            {% else %}
+              <a href="{% url 'applicant_detail' a.pk %}?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}" class="btn btn-sm btn-outline-primary">
+                View
+              </a>
+            {% endif %}
+          </div>
+        </div>
+        {% empty %}
+        <div class="empty-state">
+          <i class="bi bi-people"></i>
+          <p class="mb-0">No applicants found.</p>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </form>
+
+  {% if page_obj.has_other_pages %}
+  <nav class="mt-4">
+    <ul class="pagination justify-content-center flex-wrap">
+      {% if page_obj.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?page=1&batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&sort={{ sort }}&dir={{ direction }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}">&laquo; First</a>
+        </li>
+
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_obj.previous_page_number }}&batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&sort={{ sort }}&dir={{ direction }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}">Previous</a>
+        </li>
+      {% endif %}
+
+      <li class="page-item active">
+        <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+      </li>
+
+      {% if page_obj.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_obj.next_page_number }}&batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&sort={{ sort }}&dir={{ direction }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}">Next</a>
+        </li>
+
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}&batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&sort={{ sort }}&dir={{ direction }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}">Last &raquo;</a>
+        </li>
+      {% endif %}
+    </ul>
+  </nav>
+  {% endif %}
+
+</div>
 
 <script>
 const selectAll = document.getElementById('select-all');
+
 if (selectAll) {
   selectAll.addEventListener('change', function() {
     document.querySelectorAll('.applicant-checkbox').forEach(cb => cb.checked = this.checked);
     toggleActionButtons();
   });
 }
+
 function toggleActionButtons() {
   const checked = document.querySelectorAll('.applicant-checkbox:checked').length;
   const batchContainer = document.getElementById('batch-action-container');
   const compareBtn = document.getElementById('compare-btn');
-  if (batchContainer) batchContainer.style.display = checked >= 1 ? 'inline-flex' : 'none';
-  if (compareBtn) compareBtn.style.display = checked >= 2 ? 'inline' : 'none';
+
+  if (batchContainer) {
+    batchContainer.style.display = checked >= 1 ? 'inline-flex' : 'none';
+  }
+
+  if (compareBtn) {
+    compareBtn.style.display = checked >= 2 ? 'inline' : 'none';
+  }
 }
+
 document.querySelectorAll('.applicant-checkbox').forEach(cb => {
   cb.addEventListener('change', toggleActionButtons);
 });

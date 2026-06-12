@@ -1,409 +1,1321 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <div>
-    <h2 class="mb-0">Global Search</h2>
-    <p class="text-muted mb-0">Search across candidates, comments, flags, votes, batches, and datasets.</p>
-  </div>
-</div>
+<style>
+  :root {
+    --ds-bg: #ffffff;
+    --ds-muted-bg: #f7f8fa;
+    --ds-soft-bg: #f3f5f7;
+    --ds-border: #d9dee5;
+    --ds-border-soft: #e8ebef;
+    --ds-text: #1f2933;
+    --ds-muted: #667085;
+    --ds-hover: #f6f8fa;
+    --ds-primary: #3f5bf6;
+    --ds-primary-soft: rgba(63, 91, 246, 0.08);
+    --ds-success-soft: rgba(25, 135, 84, 0.1);
+    --ds-warning-soft: rgba(255, 193, 7, 0.13);
+    --ds-danger-soft: rgba(220, 53, 69, 0.1);
+    --ds-info-soft: rgba(13, 202, 240, 0.12);
+    --ds-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  }
 
-<!-- Search & Filters -->
-<div class="card mb-4">
-  <div class="card-body">
-    <form method="get">
-      <div class="row g-3">
+  [data-bs-theme="dark"] {
+    --ds-bg: #212529;
+    --ds-muted-bg: #2b3035;
+    --ds-soft-bg: #252a30;
+    --ds-border: #3a4047;
+    --ds-border-soft: #343a40;
+    --ds-text: #f8f9fa;
+    --ds-muted: #adb5bd;
+    --ds-hover: #262b30;
+    --ds-primary: #6f86ff;
+    --ds-primary-soft: rgba(111, 134, 255, 0.14);
+    --ds-success-soft: rgba(25, 135, 84, 0.16);
+    --ds-warning-soft: rgba(255, 193, 7, 0.16);
+    --ds-danger-soft: rgba(220, 53, 69, 0.16);
+    --ds-info-soft: rgba(13, 202, 240, 0.16);
+    --ds-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+  }
 
-        <!-- Query -->
-        <div class="col-12">
+  .search-page {
+    max-width: 1380px;
+    margin: 0 auto;
+  }
+
+  .search-shell {
+    background: var(--ds-bg);
+    border: 1px solid var(--ds-border);
+    border-radius: 14px;
+    box-shadow: var(--ds-shadow);
+    padding: 1.15rem;
+    margin-bottom: 1rem;
+  }
+
+  .search-shell-header {
+    margin-bottom: 1rem;
+  }
+
+  .search-kicker {
+    color: var(--ds-muted);
+    font-size: 0.72rem;
+    font-weight: 750;
+    letter-spacing: 0.075em;
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+
+  .search-title {
+    color: var(--ds-text);
+    font-size: 1.75rem;
+    line-height: 1.15;
+    font-weight: 780;
+    letter-spacing: -0.025em;
+    margin: 0;
+  }
+
+  .search-description {
+    color: var(--ds-muted);
+    max-width: 780px;
+    margin: 0.45rem 0 0;
+    font-size: 0.95rem;
+  }
+
+  .search-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-top: 0.7rem;
+  }
+
+  .search-meta-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: var(--ds-muted-bg);
+    border: 1px solid var(--ds-border-soft);
+    color: var(--ds-muted);
+    border-radius: 999px;
+    padding: 0.28rem 0.6rem;
+    font-size: 0.76rem;
+    font-weight: 700;
+  }
+
+  .search-form-area {
+    background: var(--ds-muted-bg);
+    border: 1px solid var(--ds-border-soft);
+    border-radius: 12px;
+    padding: 1rem;
+  }
+
+  .global-search-box {
+    margin-bottom: 0.85rem;
+  }
+
+  .global-search-box .input-group-text {
+    border-color: var(--ds-border);
+    background: var(--ds-bg);
+  }
+
+  .global-search-box .form-control {
+    border-color: var(--ds-border);
+    background: var(--ds-bg);
+  }
+
+  .global-search-box .form-control:focus {
+    border-color: var(--ds-primary);
+    box-shadow: 0 0 0 0.18rem var(--ds-primary-soft);
+  }
+
+  .filter-block {
+    background: var(--ds-bg);
+    border: 1px solid var(--ds-border-soft);
+    border-radius: 11px;
+    padding: 0.9rem;
+  }
+
+  .filter-block-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-bottom: 0.75rem;
+    margin-bottom: 0.8rem;
+    border-bottom: 1px solid var(--ds-border-soft);
+  }
+
+  .filter-block-title {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: var(--ds-text);
+    font-size: 0.92rem;
+    font-weight: 780;
+  }
+
+  .filter-block-title i {
+    color: var(--ds-primary);
+  }
+
+  .filter-block-subtitle {
+    color: var(--ds-muted);
+    font-size: 0.8rem;
+    margin-top: 0.15rem;
+  }
+
+  .filter-label {
+    color: var(--ds-muted);
+    font-size: 0.72rem;
+    font-weight: 750;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    margin-bottom: 0.35rem;
+  }
+
+  .search-section,
+  .search-start-state,
+  .search-empty-state {
+    background: var(--ds-bg);
+    border: 1px solid var(--ds-border);
+    border-radius: 14px;
+    box-shadow: var(--ds-shadow);
+    margin-bottom: 1rem;
+    overflow: hidden;
+  }
+
+  .result-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 0.65rem;
+    margin-bottom: 1rem;
+  }
+
+  .result-summary-card {
+    background: var(--ds-bg);
+    border: 1px solid var(--ds-border);
+    border-radius: 12px;
+    box-shadow: var(--ds-shadow);
+    padding: 0.8rem;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+  }
+
+  .result-summary-card:hover {
+    background: var(--ds-hover);
+  }
+
+  .result-summary-icon {
+    color: var(--ds-primary);
+    font-size: 1rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .result-summary-num {
+    color: var(--ds-text);
+    font-size: 1.3rem;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .result-summary-label {
+    color: var(--ds-muted);
+    font-size: 0.68rem;
+    font-weight: 750;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    margin-top: 0.35rem;
+  }
+
+  .section-header {
+    padding: 0.9rem 1rem;
+    background: var(--ds-bg);
+    border-bottom: 1px solid var(--ds-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .section-title-wrap {
+    min-width: 0;
+  }
+
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin: 0;
+    color: var(--ds-text);
+    font-size: 1.12rem;
+    font-weight: 780;
+  }
+
+  .section-subtitle {
+    color: var(--ds-muted);
+    font-size: 0.84rem;
+    margin-top: 0.12rem;
+  }
+
+  .section-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    white-space: nowrap;
+  }
+
+  .section-toggle .collapse-icon {
+    transition: transform 0.15s ease;
+  }
+
+  .section-toggle[aria-expanded="true"] .collapse-icon {
+    transform: rotate(180deg);
+  }
+
+  .search-table {
+    margin: 0;
+  }
+
+  .search-table thead th {
+    background: var(--ds-muted-bg);
+    color: var(--ds-muted);
+    border-top: 0;
+    border-bottom: 1px solid var(--ds-border);
+    font-size: 0.73rem;
+    font-weight: 780;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    padding: 0.8rem 1rem;
+    white-space: nowrap;
+  }
+
+  .search-table tbody td {
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--ds-border-soft);
+    vertical-align: middle;
+  }
+
+  .search-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .search-table tbody tr:hover {
+    background: var(--ds-hover);
+  }
+
+  .result-link {
+    color: var(--ds-primary);
+    font-weight: 760;
+    text-decoration: none;
+  }
+
+  .result-link:hover {
+    text-decoration: underline;
+  }
+
+  .result-muted {
+    color: var(--ds-muted);
+    font-size: 0.84rem;
+  }
+
+  .result-mobile-list {
+    display: none;
+  }
+
+  .mobile-result-card {
+    padding: 0.95rem 1rem;
+    border-top: 1px solid var(--ds-border-soft);
+  }
+
+  .mobile-result-card:first-child {
+    border-top: 0;
+  }
+
+  .mobile-result-title {
+    color: var(--ds-primary);
+    font-weight: 760;
+    text-decoration: none;
+  }
+
+  .mobile-result-title:hover {
+    text-decoration: underline;
+  }
+
+  .mobile-result-meta {
+    color: var(--ds-muted);
+    font-size: 0.84rem;
+    margin-top: 0.35rem;
+  }
+
+  .mobile-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-top: 0.7rem;
+  }
+
+  .mobile-meta-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: var(--ds-muted-bg);
+    border: 1px solid var(--ds-border-soft);
+    color: var(--ds-text);
+    border-radius: 999px;
+    padding: 0.28rem 0.6rem;
+    font-size: 0.76rem;
+    font-weight: 700;
+  }
+
+  .mobile-result-text {
+    color: var(--ds-text);
+    font-size: 0.86rem;
+    margin-top: 0.65rem;
+    line-height: 1.45;
+  }
+
+  .search-start-state,
+  .search-empty-state {
+    color: var(--ds-muted);
+    padding: 3rem 1rem;
+    text-align: center;
+  }
+
+  .search-start-state i,
+  .search-empty-state i {
+    display: block;
+    font-size: 2.4rem;
+    opacity: 0.35;
+    margin-bottom: 0.75rem;
+  }
+
+  @media (max-width: 1199.98px) {
+    .result-summary-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 991.98px) {
+    .section-header {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .section-toggle {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
+  @media (max-width: 767.98px) {
+    .search-page {
+      max-width: none;
+    }
+
+    .search-shell {
+      padding: 0.95rem;
+      border-radius: 12px;
+    }
+
+    .search-kicker {
+      font-size: 0.68rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .search-title {
+      font-size: 1.45rem;
+      line-height: 1.16;
+    }
+
+    .search-description {
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+
+    .search-form-area {
+      padding: 0.85rem;
+    }
+
+    .global-search-box .input-group {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .global-search-box .input-group-text {
+      border-radius: 0.375rem 0 0 0.375rem !important;
+    }
+
+    .global-search-box .form-control {
+      border-radius: 0 0.375rem 0.375rem 0 !important;
+    }
+
+    .global-search-box .btn {
+      grid-column: 1 / -1;
+      border-radius: 0.375rem !important;
+      margin-top: 0.5rem;
+      min-height: 40px;
+    }
+
+    .search-form-area .form-control,
+    .search-form-area .form-select,
+    .search-form-area .btn {
+      min-height: 40px;
+    }
+
+    .filter-block-header {
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+
+    .filter-block-header .btn {
+      width: 100%;
+    }
+
+    .filter-button-row {
+      display: grid !important;
+      grid-template-columns: 1fr;
+      gap: 0.5rem !important;
+      width: 100%;
+    }
+
+    .filter-button-row .btn {
+      width: 100%;
+    }
+
+    .result-summary-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.55rem;
+    }
+
+    .section-header {
+      padding: 0.9rem;
+    }
+
+    .section-title {
+      font-size: 1.18rem;
+    }
+
+    .search-table-wrap {
+      display: none;
+    }
+
+    .result-mobile-list {
+      display: block;
+    }
+  }
+
+  @media (max-width: 390px) {
+    .result-summary-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<div class="search-page">
+
+  <div class="search-shell">
+    <div class="search-shell-header">
+      <div class="search-kicker">Search</div>
+      <h2 class="search-title">Global Search</h2>
+      <p class="search-description">
+        Search across candidates, comments, flags, votes, batches, and datasets.
+      </p>
+
+      {% if has_filters %}
+      <div class="search-meta-row">
+        {% if query %}
+          <span class="search-meta-pill">
+            <i class="bi bi-search"></i>{{ query }}
+          </span>
+        {% endif %}
+
+        {% if dataset_id %}
+          <span class="search-meta-pill">
+            <i class="bi bi-stack"></i>Dataset filtered
+          </span>
+        {% endif %}
+
+        {% if batch_id %}
+          <span class="search-meta-pill">
+            <i class="bi bi-collection"></i>Batch filtered
+          </span>
+        {% endif %}
+
+        {% if status_filter %}
+          <span class="search-meta-pill">
+            <i class="bi bi-tag"></i>Status filtered
+          </span>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="search-form-area">
+      <form method="get">
+        <div class="global-search-box">
           <div class="input-group input-group-lg">
-            <span class="input-group-text bg-transparent">
+            <span class="input-group-text">
               <i class="bi bi-search text-muted"></i>
             </span>
-            <input type="text" name="q" class="form-control border-start-0"
+
+            <input type="text"
+                   name="q"
+                   class="form-control border-start-0"
                    placeholder="Search by name, email, ID, comment text, flag reason..."
-                   value="{{ query }}" autofocus>
-            <button type="submit" class="btn btn-primary px-4">Search</button>
+                   value="{{ query }}"
+                   autofocus>
+
+            <button type="submit" class="btn btn-primary px-4">
+              Search
+            </button>
           </div>
         </div>
 
-        <!-- Filters row 1 -->
-        <div class="col-md-3">
-          <label class="form-label small text-muted mb-1">Dataset</label>
-          <select name="dataset" class="form-select form-select-sm">
-            <option value="">All Datasets</option>
-            {% for ds in all_datasets %}
-              <option value="{{ ds.pk }}" {% if ds.pk|stringformat:"s" == dataset_id %}selected{% endif %}>
-                {{ ds.DisplayName }}
-              </option>
-            {% endfor %}
-          </select>
+        <div class="filter-block">
+          <div class="filter-block-header">
+            <div>
+              <div class="filter-block-title">
+                <i class="bi bi-sliders"></i>
+                Filters
+              </div>
+              <div class="filter-block-subtitle">
+                Narrow results by dataset, batch, reviewer, vote, status, or date.
+              </div>
+            </div>
+
+            <a href="{% url 'global_search' %}" class="btn btn-outline-danger btn-sm">
+              Clear
+            </a>
+          </div>
+
+          <div class="row g-2 align-items-end">
+            <div class="col-lg-3 col-md-6">
+              <label class="filter-label">Dataset</label>
+              <select name="dataset" class="form-select form-select-sm">
+                <option value="">All Datasets</option>
+                {% for ds in all_datasets %}
+                  <option value="{{ ds.pk }}" {% if ds.pk|stringformat:"s" == dataset_id %}selected{% endif %}>
+                    {{ ds.DisplayName }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+              <label class="filter-label">Batch</label>
+              <select name="batch" class="form-select form-select-sm">
+                <option value="">All Batches</option>
+                {% for b in all_batches %}
+                  <option value="{{ b.pk }}" {% if b.pk|stringformat:"s" == batch_id %}selected{% endif %}>
+                    {{ b.DisplayName }} — {{ b.DataSet.DisplayName }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+              <label class="filter-label">Candidate Status</label>
+              <select name="status" class="form-select form-select-sm">
+                <option value="">Any Status</option>
+                {% for val, label in status_choices %}
+                  <option value="{{ val }}" {% if val == status_filter %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+              <label class="filter-label">Reviewer</label>
+              <select name="reviewer" class="form-select form-select-sm">
+                <option value="">Any Reviewer</option>
+                {% for r in all_reviewers %}
+                  <option value="{{ r.pk }}" {% if r.pk|stringformat:"s" == reviewer_id %}selected{% endif %}>
+                    {{ r.get_full_name|default:r.username }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+              <label class="filter-label">Vote</label>
+              <select name="vote_value" class="form-select form-select-sm">
+                <option value="">Any Vote</option>
+                {% for val, label in vote_choices %}
+                  <option value="{{ val }}" {% if val|stringformat:"s" == vote_value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+              <label class="filter-label">Date From</label>
+              <input type="date" name="date_from" class="form-control form-control-sm" value="{{ date_from }}">
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+              <label class="filter-label">Date To</label>
+              <input type="date" name="date_to" class="form-control form-control-sm" value="{{ date_to }}">
+            </div>
+
+            <div class="col-lg-3 col-12 d-flex gap-1 align-items-end filter-button-row">
+              <button type="submit" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-funnel me-1"></i>Apply Filters
+              </button>
+            </div>
+          </div>
         </div>
-        <div class="col-md-3">
-          <label class="form-label small text-muted mb-1">Batch</label>
-          <select name="batch" class="form-select form-select-sm">
-            <option value="">All Batches</option>
-            {% for b in all_batches %}
-              <option value="{{ b.pk }}" {% if b.pk|stringformat:"s" == batch_id %}selected{% endif %}>
-                {{ b.DisplayName }} — {{ b.DataSet.DisplayName }}
-              </option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-md-3">
-          <label class="form-label small text-muted mb-1">Candidate Status</label>
-          <select name="status" class="form-select form-select-sm">
-            <option value="">Any Status</option>
-            {% for val, label in status_choices %}
-              <option value="{{ val }}" {% if val == status_filter %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-md-3">
-          <label class="form-label small text-muted mb-1">Reviewer</label>
-          <select name="reviewer" class="form-select form-select-sm">
-            <option value="">Any Reviewer</option>
-            {% for r in all_reviewers %}
-              <option value="{{ r.pk }}" {% if r.pk|stringformat:"s" == reviewer_id %}selected{% endif %}>
-                {{ r.get_full_name|default:r.username }}
-              </option>
-            {% endfor %}
-          </select>
+      </form>
+    </div>
+  </div>
+
+  {% if not has_filters %}
+    <div class="search-start-state">
+      <i class="bi bi-search"></i>
+      <p class="mb-0">Enter a search term or apply filters to get started.</p>
+    </div>
+
+  {% else %}
+
+    <div class="result-summary-grid">
+      <a href="#section-candidates" class="result-summary-card">
+        <div class="result-summary-icon"><i class="bi bi-people-fill"></i></div>
+        <div class="result-summary-num">{{ candidates|length|default:0 }}{% if candidates|length == 50 %}+{% endif %}</div>
+        <div class="result-summary-label">Candidates</div>
+      </a>
+
+      <a href="#section-comments" class="result-summary-card">
+        <div class="result-summary-icon"><i class="bi bi-chat-dots-fill"></i></div>
+        <div class="result-summary-num">{{ comments|length|default:0 }}{% if comments|length == 50 %}+{% endif %}</div>
+        <div class="result-summary-label">Comments</div>
+      </a>
+
+      <a href="#section-flags" class="result-summary-card">
+        <div class="result-summary-icon text-danger"><i class="bi bi-flag-fill"></i></div>
+        <div class="result-summary-num">{{ flags|length|default:0 }}{% if flags|length == 50 %}+{% endif %}</div>
+        <div class="result-summary-label">Flags</div>
+      </a>
+
+      <a href="#section-votes" class="result-summary-card">
+        <div class="result-summary-icon"><i class="bi bi-person-check-fill"></i></div>
+        <div class="result-summary-num">{{ votes|length|default:0 }}{% if votes|length == 50 %}+{% endif %}</div>
+        <div class="result-summary-label">Votes</div>
+      </a>
+
+      <a href="#section-batches" class="result-summary-card">
+        <div class="result-summary-icon"><i class="bi bi-collection-fill"></i></div>
+        <div class="result-summary-num">{{ batches|length|default:0 }}{% if batches|length == 50 %}+{% endif %}</div>
+        <div class="result-summary-label">Batches</div>
+      </a>
+
+      <a href="#section-datasets" class="result-summary-card">
+        <div class="result-summary-icon"><i class="bi bi-stack"></i></div>
+        <div class="result-summary-num">{{ datasets|length|default:0 }}</div>
+        <div class="result-summary-label">Datasets</div>
+      </a>
+    </div>
+
+    {% if candidates %}
+    <div class="search-section" id="section-candidates">
+      <div class="section-header">
+        <div class="section-title-wrap">
+          <h4 class="section-title">
+            <i class="bi bi-people-fill"></i>Candidates
+            <span class="badge bg-primary">{{ candidates|length }}{% if candidates|length == 50 %}+{% endif %}</span>
+          </h4>
+          <div class="section-subtitle">Candidates matching the current search and filters.</div>
         </div>
 
-        <!-- Filters row 2 -->
-        <div class="col-md-3">
-          <label class="form-label small text-muted mb-1">Vote</label>
-          <select name="vote_value" class="form-select form-select-sm">
-            <option value="">Any Vote</option>
-            {% for val, label in vote_choices %}
-              <option value="{{ val }}" {% if val|stringformat:"s" == vote_value %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-md-3">
-          <label class="form-label small text-muted mb-1">Date From</label>
-          <input type="date" name="date_from" class="form-control form-control-sm" value="{{ date_from }}">
-        </div>
-        <div class="col-md-3">
-          <label class="form-label small text-muted mb-1">Date To</label>
-          <input type="date" name="date_to" class="form-control form-control-sm" value="{{ date_to }}">
-        </div>
-        <div class="col-md-3 d-flex align-items-end gap-2">
-          <button type="submit" class="btn btn-outline-secondary btn-sm">Apply Filters</button>
-          <a href="{% url 'global_search' %}" class="btn btn-outline-danger btn-sm">Clear</a>
-        </div>
-
+        <button class="btn btn-outline-secondary btn-sm section-toggle"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#collapse-candidates"
+                aria-expanded="true"
+                aria-controls="collapse-candidates">
+          Toggle
+          <i class="bi bi-chevron-down collapse-icon"></i>
+        </button>
       </div>
-    </form>
-  </div>
-</div>
 
-{% if not has_filters %}
-<div class="text-center text-muted py-5">
-  <i class="bi bi-search fs-1 d-block mb-3 opacity-25"></i>
-  <p class="mb-0">Enter a search term or apply filters to get started.</p>
-</div>
+      <div class="collapse show" id="collapse-candidates">
+        <div class="search-table-wrap">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle search-table" style="font-size:0.87rem;">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>External ID</th>
+                  <th>Dataset</th>
+                  <th>Batch</th>
+                  <th>Status</th>
+                  <th class="text-center">Votes</th>
+                  <th class="text-center">Avg Score</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for a in candidates %}
+                <tr>
+                  <td>
+                    <a href="{% url 'applicant_detail' a.pk %}" class="result-link">
+                      {{ a.last_name }}, {{ a.first_name }}
+                    </a>
+                  </td>
+                  <td class="result-muted">{{ a.email|default:"—" }}</td>
+                  <td class="result-muted"><code>{{ a.external_id|default:"—" }}</code></td>
+                  <td class="result-muted">{{ a.dataset.DisplayName|default:"—" }}</td>
+                  <td class="result-muted">{{ a.round.DisplayName|default:"—" }}</td>
+                  <td>{% include "partials/status_badge.html" with applicant=a %}</td>
+                  <td class="text-center">
+                    <span class="badge bg-success" title="Accept">{{ a.accept_ct }}</span>
+                    <span class="badge bg-danger mx-1" title="Deny">{{ a.deny_ct }}</span>
+                    <span class="badge bg-warning text-dark" title="Waitlist">{{ a.wait_ct }}</span>
+                  </td>
+                  <td class="text-center">
+                    {% if a.avg_score %}
+                      <span class="badge bg-primary">{{ a.avg_score|floatformat:1 }}</span>
+                    {% else %}
+                      <span class="text-muted">—</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-{% else %}
-
-<!-- ── Candidates ─────────────────────────────────────────────────── -->
-{% if candidates %}
-<div class="card mb-4">
-  <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
-    <span><i class="bi bi-people-fill me-2"></i>Candidates</span>
-    <span class="badge bg-primary">{{ candidates|length }}{% if candidates|length == 50 %}+{% endif %}</span>
-  </div>
-  <div class="card-body p-0">
-    <table class="table table-hover align-middle mb-0" style="font-size:0.87rem;">
-      <thead class="table-light">
-        <tr>
-          <th>Name</th>
-          <th>Email</th>
-          <th>External ID</th>
-          <th>Dataset</th>
-          <th>Batch</th>
-          <th>Status</th>
-          <th class="text-center">Votes</th>
-          <th class="text-center">Avg Score</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for a in candidates %}
-        <tr>
-          <td>
-            <a href="{% url 'applicant_detail' a.pk %}" class="fw-semibold text-decoration-none">
+        <div class="result-mobile-list">
+          {% for a in candidates %}
+          <div class="mobile-result-card">
+            <a href="{% url 'applicant_detail' a.pk %}" class="mobile-result-title">
               {{ a.last_name }}, {{ a.first_name }}
             </a>
-          </td>
-          <td class="text-muted">{{ a.email|default:"—" }}</td>
-          <td class="text-muted"><code>{{ a.external_id|default:"—" }}</code></td>
-          <td class="text-muted small">{{ a.dataset.DisplayName|default:"—" }}</td>
-          <td class="text-muted small">{{ a.round.DisplayName|default:"—" }}</td>
-          <td>{% include "partials/status_badge.html" with applicant=a %}</td>
-          <td class="text-center">
-            <span class="badge bg-success" title="Accept">{{ a.accept_ct }}</span>
-            <span class="badge bg-danger mx-1" title="Deny">{{ a.deny_ct }}</span>
-            <span class="badge bg-warning text-dark" title="Waitlist">{{ a.wait_ct }}</span>
-          </td>
-          <td class="text-center">
-            {% if a.avg_score %}
-              <span class="badge bg-primary">{{ a.avg_score|floatformat:1 }}</span>
-            {% else %}
-              <span class="text-muted">—</span>
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-{% endif %}
 
-<!-- ── Comments ───────────────────────────────────────────────────── -->
-{% if comments %}
-<div class="card mb-4">
-  <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
-    <span><i class="bi bi-chat-dots-fill me-2"></i>Comments</span>
-    <span class="badge bg-info text-dark">{{ comments|length }}{% if comments|length == 50 %}+{% endif %}</span>
-  </div>
-  <div class="card-body p-0">
-    <table class="table table-hover align-middle mb-0" style="font-size:0.87rem;">
-      <thead class="table-light">
-        <tr>
-          <th>Candidate</th>
-          <th>Dataset / Batch</th>
-          <th>Author</th>
-          <th>Comment</th>
-          <th>Date</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for c in comments %}
-        <tr>
-          <td>
-            <a href="{% url 'applicant_detail' c.applicant.pk %}" class="fw-semibold text-decoration-none">
+            <div class="mobile-result-meta">
+              {{ a.email|default:"No email" }} · ID: <code>{{ a.external_id|default:"—" }}</code>
+            </div>
+
+            <div class="mobile-meta-row">
+              {% include "partials/status_badge.html" with applicant=a %}
+
+              <span class="mobile-meta-pill">
+                <i class="bi bi-stack"></i>{{ a.dataset.DisplayName|default:"—" }}
+              </span>
+
+              <span class="mobile-meta-pill">
+                <i class="bi bi-collection"></i>{{ a.round.DisplayName|default:"—" }}
+              </span>
+
+              <span class="badge bg-success" title="Accept">{{ a.accept_ct }}</span>
+              <span class="badge bg-danger" title="Deny">{{ a.deny_ct }}</span>
+              <span class="badge bg-warning text-dark" title="Waitlist">{{ a.wait_ct }}</span>
+
+              {% if a.avg_score %}
+                <span class="mobile-meta-pill">
+                  <i class="bi bi-star"></i>{{ a.avg_score|floatformat:1 }}
+                </span>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if comments %}
+    <div class="search-section" id="section-comments">
+      <div class="section-header">
+        <div class="section-title-wrap">
+          <h4 class="section-title">
+            <i class="bi bi-chat-dots-fill"></i>Comments
+            <span class="badge bg-info text-dark">{{ comments|length }}{% if comments|length == 50 %}+{% endif %}</span>
+          </h4>
+          <div class="section-subtitle">Comment text, authors, and related candidates.</div>
+        </div>
+
+        <button class="btn btn-outline-secondary btn-sm section-toggle"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#collapse-comments"
+                aria-expanded="true"
+                aria-controls="collapse-comments">
+          Toggle
+          <i class="bi bi-chevron-down collapse-icon"></i>
+        </button>
+      </div>
+
+      <div class="collapse show" id="collapse-comments">
+        <div class="search-table-wrap">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle search-table" style="font-size:0.87rem;">
+              <thead>
+                <tr>
+                  <th>Candidate</th>
+                  <th>Dataset / Batch</th>
+                  <th>Author</th>
+                  <th>Comment</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for c in comments %}
+                <tr>
+                  <td>
+                    <a href="{% url 'applicant_detail' c.applicant.pk %}" class="result-link">
+                      {{ c.applicant.last_name }}, {{ c.applicant.first_name }}
+                    </a>
+                  </td>
+                  <td class="result-muted">
+                    {{ c.applicant.dataset.DisplayName|default:"—" }}
+                    {% if c.applicant.round %}
+                      <span class="text-muted">· {{ c.applicant.round.DisplayName }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="result-muted">{{ c.author.get_full_name|default:c.author.username }}</td>
+                  <td><span class="small">{{ c.text|truncatechars:120 }}</span></td>
+                  <td class="result-muted text-nowrap">{{ c.created_at|date:"M d, Y" }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="result-mobile-list">
+          {% for c in comments %}
+          <div class="mobile-result-card">
+            <a href="{% url 'applicant_detail' c.applicant.pk %}" class="mobile-result-title">
               {{ c.applicant.last_name }}, {{ c.applicant.first_name }}
             </a>
-          </td>
-          <td class="text-muted small">
-            {{ c.applicant.dataset.DisplayName|default:"—" }}
-            {% if c.applicant.round %}
-              <span class="text-muted">· {{ c.applicant.round.DisplayName }}</span>
-            {% endif %}
-          </td>
-          <td class="text-muted small">{{ c.author.get_full_name|default:c.author.username }}</td>
-          <td>
-            <span class="small">{{ c.text|truncatechars:120 }}</span>
-          </td>
-          <td class="text-muted small text-nowrap">{{ c.created_at|date:"M d, Y" }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-{% endif %}
 
-<!-- ── Flags ──────────────────────────────────────────────────────── -->
-{% if flags %}
-<div class="card mb-4">
-  <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
-    <span><i class="bi bi-flag-fill me-2 text-danger"></i>Flags</span>
-    <span class="badge bg-danger">{{ flags|length }}{% if flags|length == 50 %}+{% endif %}</span>
-  </div>
-  <div class="card-body p-0">
-    <table class="table table-hover align-middle mb-0" style="font-size:0.87rem;">
-      <thead class="table-light">
-        <tr>
-          <th>Candidate</th>
-          <th>Dataset / Batch</th>
-          <th>Flagged By</th>
-          <th>Reason</th>
-          <th>Date</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for f in flags %}
-        <tr>
-          <td>
-            <a href="{% url 'applicant_detail' f.applicant.pk %}" class="fw-semibold text-decoration-none">
+            <div class="mobile-result-meta">
+              {{ c.author.get_full_name|default:c.author.username }} · {{ c.created_at|date:"M d, Y" }}
+            </div>
+
+            <div class="mobile-result-text">
+              {{ c.text|truncatechars:160 }}
+            </div>
+
+            <div class="mobile-meta-row">
+              <span class="mobile-meta-pill">
+                <i class="bi bi-stack"></i>{{ c.applicant.dataset.DisplayName|default:"—" }}
+              </span>
+
+              {% if c.applicant.round %}
+                <span class="mobile-meta-pill">
+                  <i class="bi bi-collection"></i>{{ c.applicant.round.DisplayName }}
+                </span>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if flags %}
+    <div class="search-section" id="section-flags">
+      <div class="section-header">
+        <div class="section-title-wrap">
+          <h4 class="section-title">
+            <i class="bi bi-flag-fill text-danger"></i>Flags
+            <span class="badge bg-danger">{{ flags|length }}{% if flags|length == 50 %}+{% endif %}</span>
+          </h4>
+          <div class="section-subtitle">Flag reasons and the candidates they were attached to.</div>
+        </div>
+
+        <button class="btn btn-outline-secondary btn-sm section-toggle"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#collapse-flags"
+                aria-expanded="true"
+                aria-controls="collapse-flags">
+          Toggle
+          <i class="bi bi-chevron-down collapse-icon"></i>
+        </button>
+      </div>
+
+      <div class="collapse show" id="collapse-flags">
+        <div class="search-table-wrap">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle search-table" style="font-size:0.87rem;">
+              <thead>
+                <tr>
+                  <th>Candidate</th>
+                  <th>Dataset / Batch</th>
+                  <th>Flagged By</th>
+                  <th>Reason</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for f in flags %}
+                <tr>
+                  <td>
+                    <a href="{% url 'applicant_detail' f.applicant.pk %}" class="result-link">
+                      {{ f.applicant.last_name }}, {{ f.applicant.first_name }}
+                    </a>
+                  </td>
+                  <td class="result-muted">
+                    {{ f.applicant.dataset.DisplayName|default:"—" }}
+                    {% if f.applicant.round %}
+                      <span class="text-muted">· {{ f.applicant.round.DisplayName }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="result-muted">{{ f.user.get_full_name|default:f.user.username }}</td>
+                  <td><span class="small">{{ f.comment|truncatechars:120 }}</span></td>
+                  <td class="result-muted text-nowrap">{{ f.created_at|date:"M d, Y" }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="result-mobile-list">
+          {% for f in flags %}
+          <div class="mobile-result-card">
+            <a href="{% url 'applicant_detail' f.applicant.pk %}" class="mobile-result-title">
               {{ f.applicant.last_name }}, {{ f.applicant.first_name }}
             </a>
-          </td>
-          <td class="text-muted small">
-            {{ f.applicant.dataset.DisplayName|default:"—" }}
-            {% if f.applicant.round %}
-              <span class="text-muted">· {{ f.applicant.round.DisplayName }}</span>
-            {% endif %}
-          </td>
-          <td class="text-muted small">{{ f.user.get_full_name|default:f.user.username }}</td>
-          <td><span class="small">{{ f.comment|truncatechars:120 }}</span></td>
-          <td class="text-muted small text-nowrap">{{ f.created_at|date:"M d, Y" }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-{% endif %}
 
-<!-- ── Votes ──────────────────────────────────────────────────────── -->
-{% if votes %}
-<div class="card mb-4">
-  <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
-    <span><i class="bi bi-person-check-fill me-2"></i>Votes</span>
-    <span class="badge bg-secondary">{{ votes|length }}{% if votes|length == 50 %}+{% endif %}</span>
-  </div>
-  <div class="card-body p-0">
-    <table class="table table-hover align-middle mb-0" style="font-size:0.87rem;">
-      <thead class="table-light">
-        <tr>
-          <th>Candidate</th>
-          <th>Dataset / Batch</th>
-          <th>Reviewer</th>
-          <th class="text-center">Vote</th>
-          <th>Date</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for v in votes %}
-        <tr>
-          <td>
-            <a href="{% url 'applicant_detail' v.applicant.pk %}" class="fw-semibold text-decoration-none">
+            <div class="mobile-result-meta">
+              Flagged by {{ f.user.get_full_name|default:f.user.username }} · {{ f.created_at|date:"M d, Y" }}
+            </div>
+
+            <div class="mobile-result-text">
+              {{ f.comment|truncatechars:160 }}
+            </div>
+
+            <div class="mobile-meta-row">
+              <span class="mobile-meta-pill">
+                <i class="bi bi-stack"></i>{{ f.applicant.dataset.DisplayName|default:"—" }}
+              </span>
+
+              {% if f.applicant.round %}
+                <span class="mobile-meta-pill">
+                  <i class="bi bi-collection"></i>{{ f.applicant.round.DisplayName }}
+                </span>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if votes %}
+    <div class="search-section" id="section-votes">
+      <div class="section-header">
+        <div class="section-title-wrap">
+          <h4 class="section-title">
+            <i class="bi bi-person-check-fill"></i>Votes
+            <span class="badge bg-secondary">{{ votes|length }}{% if votes|length == 50 %}+{% endif %}</span>
+          </h4>
+          <div class="section-subtitle">Vote records matching your search.</div>
+        </div>
+
+        <button class="btn btn-outline-secondary btn-sm section-toggle"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#collapse-votes"
+                aria-expanded="true"
+                aria-controls="collapse-votes">
+          Toggle
+          <i class="bi bi-chevron-down collapse-icon"></i>
+        </button>
+      </div>
+
+      <div class="collapse show" id="collapse-votes">
+        <div class="search-table-wrap">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle search-table" style="font-size:0.87rem;">
+              <thead>
+                <tr>
+                  <th>Candidate</th>
+                  <th>Dataset / Batch</th>
+                  <th>Reviewer</th>
+                  <th class="text-center">Vote</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for v in votes %}
+                <tr>
+                  <td>
+                    <a href="{% url 'applicant_detail' v.applicant.pk %}" class="result-link">
+                      {{ v.applicant.last_name }}, {{ v.applicant.first_name }}
+                    </a>
+                  </td>
+                  <td class="result-muted">
+                    {{ v.applicant.dataset.DisplayName|default:"—" }}
+                    {% if v.applicant.round %}
+                      <span class="text-muted">· {{ v.applicant.round.DisplayName }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="result-muted">{{ v.voter.get_full_name|default:v.voter.username }}</td>
+                  <td class="text-center">
+                    {% if v.value == 1 %}
+                      <span class="badge bg-success">Accept</span>
+                    {% elif v.value == -1 %}
+                      <span class="badge bg-danger">Deny</span>
+                    {% else %}
+                      <span class="badge bg-warning text-dark">Waitlist</span>
+                    {% endif %}
+                  </td>
+                  <td class="result-muted text-nowrap">{{ v.created_at|date:"M d, Y" }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="result-mobile-list">
+          {% for v in votes %}
+          <div class="mobile-result-card">
+            <a href="{% url 'applicant_detail' v.applicant.pk %}" class="mobile-result-title">
               {{ v.applicant.last_name }}, {{ v.applicant.first_name }}
             </a>
-          </td>
-          <td class="text-muted small">
-            {{ v.applicant.dataset.DisplayName|default:"—" }}
-            {% if v.applicant.round %}
-              <span class="text-muted">· {{ v.applicant.round.DisplayName }}</span>
-            {% endif %}
-          </td>
-          <td class="text-muted small">{{ v.voter.get_full_name|default:v.voter.username }}</td>
-          <td class="text-center">
-            {% if v.value == 1 %}
-              <span class="badge bg-success">Accept</span>
-            {% elif v.value == -1 %}
-              <span class="badge bg-danger">Deny</span>
-            {% else %}
-              <span class="badge bg-warning text-dark">Waitlist</span>
-            {% endif %}
-          </td>
-          <td class="text-muted small text-nowrap">{{ v.created_at|date:"M d, Y" }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-{% endif %}
 
-<!-- ── Batches ────────────────────────────────────────────────────── -->
-{% if batches %}
-<div class="card mb-4">
-  <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
-    <span><i class="bi bi-collection-fill me-2"></i>Batches</span>
-    <span class="badge bg-secondary">{{ batches|length }}{% if batches|length == 50 %}+{% endif %}</span>
-  </div>
-  <div class="card-body p-0">
-    <table class="table table-hover align-middle mb-0" style="font-size:0.87rem;">
-      <thead class="table-light">
-        <tr>
-          <th>Batch</th>
-          <th>Dataset</th>
-          <th class="text-center">Candidates</th>
-          <th class="text-center">Deadline</th>
-          <th class="text-center">Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for b in batches %}
-        <tr>
-          <td>
-            <a href="{% url 'batch_detail' b.pk %}" class="fw-semibold text-decoration-none">
+            <div class="mobile-result-meta">
+              {{ v.voter.get_full_name|default:v.voter.username }} · {{ v.created_at|date:"M d, Y" }}
+            </div>
+
+            <div class="mobile-meta-row">
+              {% if v.value == 1 %}
+                <span class="badge bg-success">Accept</span>
+              {% elif v.value == -1 %}
+                <span class="badge bg-danger">Deny</span>
+              {% else %}
+                <span class="badge bg-warning text-dark">Waitlist</span>
+              {% endif %}
+
+              <span class="mobile-meta-pill">
+                <i class="bi bi-stack"></i>{{ v.applicant.dataset.DisplayName|default:"—" }}
+              </span>
+
+              {% if v.applicant.round %}
+                <span class="mobile-meta-pill">
+                  <i class="bi bi-collection"></i>{{ v.applicant.round.DisplayName }}
+                </span>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if batches %}
+    <div class="search-section" id="section-batches">
+      <div class="section-header">
+        <div class="section-title-wrap">
+          <h4 class="section-title">
+            <i class="bi bi-collection-fill"></i>Batches
+            <span class="badge bg-secondary">{{ batches|length }}{% if batches|length == 50 %}+{% endif %}</span>
+          </h4>
+          <div class="section-subtitle">Review batches matching the search.</div>
+        </div>
+
+        <button class="btn btn-outline-secondary btn-sm section-toggle"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#collapse-batches"
+                aria-expanded="true"
+                aria-controls="collapse-batches">
+          Toggle
+          <i class="bi bi-chevron-down collapse-icon"></i>
+        </button>
+      </div>
+
+      <div class="collapse show" id="collapse-batches">
+        <div class="search-table-wrap">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle search-table" style="font-size:0.87rem;">
+              <thead>
+                <tr>
+                  <th>Batch</th>
+                  <th>Dataset</th>
+                  <th class="text-center">Candidates</th>
+                  <th class="text-center">Deadline</th>
+                  <th class="text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for b in batches %}
+                <tr>
+                  <td>
+                    <a href="{% url 'batch_detail' b.pk %}" class="result-link">
+                      {{ b.DisplayName }}
+                    </a>
+                  </td>
+                  <td class="result-muted">
+                    <a href="{% url 'dataset_detail' b.DataSet.pk %}" class="text-decoration-none text-muted">
+                      {{ b.DataSet.DisplayName }}
+                    </a>
+                  </td>
+                  <td class="text-center">{{ b.applicant_count }}</td>
+                  <td class="text-center result-muted">{{ b.VoteExpire|date:"M d, Y"|default:"—" }}</td>
+                  <td class="text-center">
+                    {% if b.Active %}
+                      <span class="badge bg-success">Active</span>
+                    {% else %}
+                      <span class="badge bg-secondary">Inactive</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="result-mobile-list">
+          {% for b in batches %}
+          <div class="mobile-result-card">
+            <a href="{% url 'batch_detail' b.pk %}" class="mobile-result-title">
               {{ b.DisplayName }}
             </a>
-          </td>
-          <td class="text-muted small">
-            <a href="{% url 'dataset_detail' b.DataSet.pk %}" class="text-decoration-none text-muted">
-              {{ b.DataSet.DisplayName }}
-            </a>
-          </td>
-          <td class="text-center">{{ b.applicant_count }}</td>
-          <td class="text-center text-muted small">{{ b.VoteExpire|date:"M d, Y"|default:"—" }}</td>
-          <td class="text-center">
-            {% if b.Active %}
-              <span class="badge bg-success">Active</span>
-            {% else %}
-              <span class="badge bg-secondary">Inactive</span>
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-{% endif %}
 
-<!-- ── Datasets ───────────────────────────────────────────────────── -->
-{% if datasets %}
-<div class="card mb-4">
-  <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
-    <span><i class="bi bi-stack me-2"></i>Datasets</span>
-    <span class="badge bg-secondary">{{ datasets|length }}</span>
-  </div>
-  <div class="card-body p-0">
-    <table class="table table-hover align-middle mb-0" style="font-size:0.87rem;">
-      <thead class="table-light">
-        <tr>
-          <th>Dataset</th>
-          <th>Program Type</th>
-          <th>Application System</th>
-          <th class="text-center">Candidates</th>
-          <th class="text-center">Batches</th>
-          <th class="text-center">Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for ds in datasets %}
-        <tr>
-          <td>
-            <a href="{% url 'dataset_detail' ds.pk %}" class="fw-semibold text-decoration-none">
+            <div class="mobile-result-meta">
+              <a href="{% url 'dataset_detail' b.DataSet.pk %}" class="text-decoration-none">
+                {{ b.DataSet.DisplayName }}
+              </a>
+            </div>
+
+            <div class="mobile-meta-row">
+              <span class="mobile-meta-pill">
+                <i class="bi bi-people"></i>{{ b.applicant_count }} candidates
+              </span>
+
+              <span class="mobile-meta-pill">
+                <i class="bi bi-clock"></i>{{ b.VoteExpire|date:"M d, Y"|default:"No deadline" }}
+              </span>
+
+              {% if b.Active %}
+                <span class="badge bg-success">Active</span>
+              {% else %}
+                <span class="badge bg-secondary">Inactive</span>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if datasets %}
+    <div class="search-section" id="section-datasets">
+      <div class="section-header">
+        <div class="section-title-wrap">
+          <h4 class="section-title">
+            <i class="bi bi-stack"></i>Datasets
+            <span class="badge bg-secondary">{{ datasets|length }}</span>
+          </h4>
+          <div class="section-subtitle">Datasets matching the current search.</div>
+        </div>
+
+        <button class="btn btn-outline-secondary btn-sm section-toggle"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#collapse-datasets"
+                aria-expanded="true"
+                aria-controls="collapse-datasets">
+          Toggle
+          <i class="bi bi-chevron-down collapse-icon"></i>
+        </button>
+      </div>
+
+      <div class="collapse show" id="collapse-datasets">
+        <div class="search-table-wrap">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle search-table" style="font-size:0.87rem;">
+              <thead>
+                <tr>
+                  <th>Dataset</th>
+                  <th>Program Type</th>
+                  <th>Application System</th>
+                  <th class="text-center">Candidates</th>
+                  <th class="text-center">Batches</th>
+                  <th class="text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for ds in datasets %}
+                <tr>
+                  <td>
+                    <a href="{% url 'dataset_detail' ds.pk %}" class="result-link">
+                      {{ ds.DisplayName }}
+                    </a>
+                  </td>
+                  <td class="result-muted">{{ ds.get_program_type_display|default:"—" }}</td>
+                  <td class="result-muted">{{ ds.get_application_system_display|default:"—" }}</td>
+                  <td class="text-center">{{ ds.applicant_count }}</td>
+                  <td class="text-center">{{ ds.batch_count }}</td>
+                  <td class="text-center">
+                    {% if ds.IsLive %}
+                      <span class="badge bg-success">Live</span>
+                    {% elif ds.Active %}
+                      <span class="badge bg-secondary">Offline</span>
+                    {% else %}
+                      <span class="badge bg-dark">Archived</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="result-mobile-list">
+          {% for ds in datasets %}
+          <div class="mobile-result-card">
+            <a href="{% url 'dataset_detail' ds.pk %}" class="mobile-result-title">
               {{ ds.DisplayName }}
             </a>
-          </td>
-          <td class="text-muted small">{{ ds.get_program_type_display|default:"—" }}</td>
-          <td class="text-muted small">{{ ds.get_application_system_display|default:"—" }}</td>
-          <td class="text-center">{{ ds.applicant_count }}</td>
-          <td class="text-center">{{ ds.batch_count }}</td>
-          <td class="text-center">
-            {% if ds.IsLive %}
-              <span class="badge bg-success">Live</span>
-            {% elif ds.Active %}
-              <span class="badge bg-secondary">Offline</span>
-            {% else %}
-              <span class="badge bg-dark">Archived</span>
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-{% endif %}
 
-<!-- No results -->
-{% if has_filters and candidates is not None and not candidates and not comments and not flags and not votes and not batches and not datasets %}
-<div class="text-center text-muted py-5 border rounded">
-  <i class="bi bi-search fs-1 d-block mb-2 opacity-25"></i>
-  <p class="mb-0">No results found. Try a different search term or adjust your filters.</p>
-</div>
-{% endif %}
+            <div class="mobile-result-meta">
+              {{ ds.get_program_type_display|default:"—" }} · {{ ds.get_application_system_display|default:"—" }}
+            </div>
 
-{% endif %}
+            <div class="mobile-meta-row">
+              <span class="mobile-meta-pill">
+                <i class="bi bi-people"></i>{{ ds.applicant_count }} candidates
+              </span>
+
+              <span class="mobile-meta-pill">
+                <i class="bi bi-collection"></i>{{ ds.batch_count }} batches
+              </span>
+
+              {% if ds.IsLive %}
+                <span class="badge bg-success">Live</span>
+              {% elif ds.Active %}
+                <span class="badge bg-secondary">Offline</span>
+              {% else %}
+                <span class="badge bg-dark">Archived</span>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if has_filters and candidates is not None and not candidates and not comments and not flags and not votes and not batches and not datasets %}
+    <div class="search-empty-state">
+      <i class="bi bi-search"></i>
+      <p class="mb-0">No results found. Try a different search term or adjust your filters.</p>
+    </div>
+    {% endif %}
+
+  {% endif %}
+
+</div>
 
 {% endblock %}

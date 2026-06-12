@@ -1,27 +1,503 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <div>
-    <h2 class="mb-0">System Activity Feed</h2>
-    <p class="text-muted mb-0">
-      {% if has_filters %}{{ total_count }} result{{ total_count|pluralize }} matching filters{% else %}Showing all activity{% endif %}
-    </p>
-  </div>
-  <a href="?reviewer={{ filter_reviewer }}&action={{ filter_action }}&date_from={{ filter_date_from }}&date_to={{ filter_date_to }}&export=csv"
-     class="btn btn-outline-success btn-sm">
-    <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV
-  </a>
-</div>
+<style>
+  :root {
+    --ds-bg: #ffffff;
+    --ds-muted-bg: #f7f8fa;
+    --ds-soft-bg: #f3f5f7;
+    --ds-border: #d9dee5;
+    --ds-border-soft: #e8ebef;
+    --ds-text: #1f2933;
+    --ds-muted: #667085;
+    --ds-hover: #f6f8fa;
+    --ds-primary: #3f5bf6;
+    --ds-primary-soft: rgba(63, 91, 246, 0.08);
+    --ds-success-soft: rgba(25, 135, 84, 0.1);
+    --ds-warning-soft: rgba(255, 193, 7, 0.13);
+    --ds-danger-soft: rgba(220, 53, 69, 0.1);
+    --ds-info-soft: rgba(13, 202, 240, 0.12);
+    --ds-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  }
 
-<!-- Filters -->
-<div class="card mb-4">
-  <div class="card-body py-2">
+  [data-bs-theme="dark"] {
+    --ds-bg: #212529;
+    --ds-muted-bg: #2b3035;
+    --ds-soft-bg: #252a30;
+    --ds-border: #3a4047;
+    --ds-border-soft: #343a40;
+    --ds-text: #f8f9fa;
+    --ds-muted: #adb5bd;
+    --ds-hover: #262b30;
+    --ds-primary: #6f86ff;
+    --ds-primary-soft: rgba(111, 134, 255, 0.14);
+    --ds-success-soft: rgba(25, 135, 84, 0.16);
+    --ds-warning-soft: rgba(255, 193, 7, 0.16);
+    --ds-danger-soft: rgba(220, 53, 69, 0.16);
+    --ds-info-soft: rgba(13, 202, 240, 0.16);
+    --ds-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+  }
+
+  .activity-feed-page {
+    max-width: 1380px;
+    margin: 0 auto;
+  }
+
+  .activity-hero,
+  .activity-filter-panel,
+  .activity-section {
+    background: var(--ds-bg);
+    border: 1px solid var(--ds-border);
+    border-radius: 14px;
+    box-shadow: var(--ds-shadow);
+    margin-bottom: 1rem;
+    overflow: hidden;
+  }
+
+  .activity-hero {
+    padding: 1.15rem;
+  }
+
+  .activity-hero-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: start;
+  }
+
+  .activity-kicker {
+    color: var(--ds-muted);
+    font-size: 0.72rem;
+    font-weight: 750;
+    letter-spacing: 0.075em;
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+
+  .activity-title {
+    color: var(--ds-text);
+    font-size: 1.75rem;
+    line-height: 1.15;
+    font-weight: 780;
+    letter-spacing: -0.025em;
+    margin: 0;
+  }
+
+  .activity-description {
+    color: var(--ds-muted);
+    max-width: 760px;
+    margin: 0.45rem 0 0;
+    font-size: 0.95rem;
+  }
+
+  .activity-hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+
+  .activity-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-top: 0.7rem;
+  }
+
+  .activity-meta-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: var(--ds-muted-bg);
+    border: 1px solid var(--ds-border-soft);
+    color: var(--ds-muted);
+    border-radius: 999px;
+    padding: 0.28rem 0.6rem;
+    font-size: 0.76rem;
+    font-weight: 700;
+  }
+
+  .activity-filter-panel {
+    padding: 1rem;
+  }
+
+  .filter-label {
+    color: var(--ds-muted);
+    font-size: 0.72rem;
+    font-weight: 750;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    margin-bottom: 0.35rem;
+  }
+
+  .section-header {
+    padding: 0.9rem 1rem;
+    background: var(--ds-bg);
+    border-bottom: 1px solid var(--ds-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin: 0;
+    color: var(--ds-text);
+    font-size: 1.12rem;
+    font-weight: 780;
+  }
+
+  .section-subtitle {
+    color: var(--ds-muted);
+    font-size: 0.84rem;
+  }
+
+  .activity-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .activity-row {
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    align-items: start;
+    padding: 0.95rem 1rem;
+    border-bottom: 1px solid var(--ds-border-soft);
+    background: var(--ds-bg);
+  }
+
+  .activity-row:last-child {
+    border-bottom: 0;
+  }
+
+  .activity-row:hover {
+    background: var(--ds-hover);
+  }
+
+  .activity-row.is-flag {
+    background: var(--ds-danger-soft);
+  }
+
+  .activity-row.is-flag:hover {
+    background: rgba(220, 53, 69, 0.14);
+  }
+
+  .activity-row.is-upload {
+    background: var(--ds-success-soft);
+  }
+
+  .activity-row.is-upload:hover {
+    background: rgba(25, 135, 84, 0.14);
+  }
+
+  .activity-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border: 1px solid var(--ds-border-soft);
+    background: var(--ds-muted-bg);
+  }
+
+  .activity-icon.vote {
+    background: var(--ds-primary-soft);
+    color: var(--ds-primary);
+  }
+
+  .activity-icon.comment {
+    background: var(--ds-info-soft);
+    color: #0aa2c0;
+  }
+
+  .activity-icon.decision {
+    background: var(--ds-success-soft);
+    color: #198754;
+  }
+
+  .activity-icon.flag {
+    background: var(--ds-danger-soft);
+    color: #dc3545;
+  }
+
+  .activity-icon.upload {
+    background: var(--ds-success-soft);
+    color: #198754;
+  }
+
+  .activity-body {
+    min-width: 0;
+  }
+
+  .activity-mainline {
+    color: var(--ds-text);
+    font-size: 0.92rem;
+    line-height: 1.45;
+  }
+
+  .activity-mainline strong {
+    font-weight: 780;
+  }
+
+  .activity-mainline a {
+    color: var(--ds-primary);
+    font-weight: 760;
+    text-decoration: none;
+  }
+
+  .activity-mainline a:hover {
+    text-decoration: underline;
+  }
+
+  .activity-target-muted {
+    color: var(--ds-muted);
+    font-size: 0.8rem;
+  }
+
+  .activity-pill-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-top: 0.5rem;
+  }
+
+  .activity-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: var(--ds-muted-bg);
+    border: 1px solid var(--ds-border-soft);
+    color: var(--ds-muted);
+    border-radius: 999px;
+    padding: 0.25rem 0.55rem;
+    font-size: 0.74rem;
+    font-weight: 700;
+  }
+
+  .activity-pill.flag {
+    background: var(--ds-danger-soft);
+    border-color: rgba(220, 53, 69, 0.2);
+    color: #dc3545;
+  }
+
+  .activity-pill.upload {
+    background: var(--ds-success-soft);
+    border-color: rgba(25, 135, 84, 0.2);
+    color: #198754;
+  }
+
+  .activity-time {
+    color: var(--ds-muted);
+    font-size: 0.78rem;
+    white-space: nowrap;
+    padding-top: 0.15rem;
+  }
+
+  .flag-quote {
+    margin-top: 0.65rem;
+    padding: 0.7rem 0.8rem;
+    background: rgba(220, 53, 69, 0.08);
+    border: 1px solid rgba(220, 53, 69, 0.18);
+    border-radius: 10px;
+    color: var(--ds-text);
+    font-size: 0.82rem;
+  }
+
+  .flag-quote i {
+    color: #dc3545;
+  }
+
+  .empty-state {
+    margin: 1rem;
+    border: 1px dashed var(--ds-border);
+    border-radius: 12px;
+    background: var(--ds-muted-bg);
+    color: var(--ds-muted);
+    padding: 2.25rem 1rem;
+    text-align: center;
+  }
+
+  .empty-state i {
+    display: block;
+    font-size: 2rem;
+    opacity: 0.45;
+    margin-bottom: 0.55rem;
+  }
+
+  @media (max-width: 991.98px) {
+    .activity-hero-main {
+      grid-template-columns: 1fr;
+    }
+
+    .activity-hero-actions {
+      justify-content: flex-start;
+    }
+
+    .section-header {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+  }
+
+  @media (max-width: 767.98px) {
+    .activity-feed-page {
+      max-width: none;
+    }
+
+    .activity-hero {
+      padding: 0.95rem;
+      border-radius: 12px;
+    }
+
+    .activity-kicker {
+      font-size: 0.68rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .activity-title {
+      font-size: 1.45rem;
+      line-height: 1.16;
+    }
+
+    .activity-description {
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+
+    .activity-hero-actions {
+      display: grid;
+      grid-template-columns: 1fr;
+      width: 100%;
+    }
+
+    .activity-hero-actions .btn {
+      width: 100%;
+    }
+
+    .activity-filter-panel {
+      padding: 0.85rem;
+      border-radius: 12px;
+    }
+
+    .activity-filter-panel .form-control,
+    .activity-filter-panel .form-select,
+    .activity-filter-panel .btn {
+      min-height: 40px;
+    }
+
+    .filter-button-row {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem !important;
+      width: 100%;
+    }
+
+    .filter-button-row .btn {
+      width: 100%;
+    }
+
+    .section-header {
+      padding: 0.9rem;
+    }
+
+    .section-title {
+      font-size: 1.18rem;
+    }
+
+    .activity-row {
+      grid-template-columns: 34px minmax(0, 1fr);
+      gap: 0.65rem;
+      padding: 0.95rem 0.9rem;
+    }
+
+    .activity-time {
+      grid-column: 2;
+      padding-top: 0;
+      margin-top: 0.2rem;
+    }
+
+    .pagination {
+      gap: 0.25rem;
+    }
+
+    .pagination .page-link {
+      font-size: 0.85rem;
+      padding: 0.42rem 0.6rem;
+    }
+  }
+
+  @media (max-width: 390px) {
+    .filter-button-row {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<div class="activity-feed-page">
+
+  <div class="activity-hero">
+    <div class="activity-hero-main">
+      <div>
+        <div class="activity-kicker">System Activity</div>
+        <h2 class="activity-title">System Activity Feed</h2>
+        <p class="activity-description">
+          {% if has_filters %}
+            {{ total_count }} result{{ total_count|pluralize }} matching your filters.
+          {% else %}
+            Showing all activity across reviewers, candidates, batches, comments, flags, and decisions.
+          {% endif %}
+        </p>
+
+        {% if has_filters %}
+        <div class="activity-meta-row">
+          {% if filter_reviewer %}
+            <span class="activity-meta-pill">
+              <i class="bi bi-person"></i>Reviewer filtered
+            </span>
+          {% endif %}
+
+          {% if filter_action %}
+            <span class="activity-meta-pill">
+              <i class="bi bi-lightning"></i>Action filtered
+            </span>
+          {% endif %}
+
+          {% if filter_date_from %}
+            <span class="activity-meta-pill">
+              <i class="bi bi-calendar"></i>From {{ filter_date_from }}
+            </span>
+          {% endif %}
+
+          {% if filter_date_to %}
+            <span class="activity-meta-pill">
+              <i class="bi bi-calendar-check"></i>To {{ filter_date_to }}
+            </span>
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="activity-hero-actions">
+        <a href="?reviewer={{ filter_reviewer }}&action={{ filter_action }}&date_from={{ filter_date_from }}&date_to={{ filter_date_to }}&export=csv"
+           class="btn btn-outline-success btn-sm">
+          <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="activity-filter-panel">
     <form method="get">
       <div class="row g-2 align-items-end flex-wrap">
 
         <div class="col-md-3">
-          <label class="form-label small text-muted mb-1">Reviewer</label>
+          <label class="filter-label">Reviewer</label>
           <select name="reviewer" class="form-select form-select-sm">
             <option value="">All Reviewers</option>
             {% for r in all_reviewers %}
@@ -33,7 +509,7 @@
         </div>
 
         <div class="col-md-2">
-          <label class="form-label small text-muted mb-1">Action Type</label>
+          <label class="filter-label">Action Type</label>
           <select name="action" class="form-select form-select-sm">
             <option value="">All Actions</option>
             {% for val, label in action_choices %}
@@ -43,44 +519,77 @@
         </div>
 
         <div class="col-md-2">
-          <label class="form-label small text-muted mb-1">From</label>
+          <label class="filter-label">From</label>
           <input type="date" name="date_from" class="form-control form-control-sm" value="{{ filter_date_from }}">
         </div>
 
         <div class="col-md-2">
-          <label class="form-label small text-muted mb-1">To</label>
+          <label class="filter-label">To</label>
           <input type="date" name="date_to" class="form-control form-control-sm" value="{{ filter_date_to }}">
         </div>
 
-        <div class="col-auto d-flex gap-1 align-items-end">
-          <button type="submit" class="btn btn-outline-secondary btn-sm">Filter</button>
-          <a href="{% url 'activity_feed' %}" class="btn btn-outline-danger btn-sm">Clear</a>
+        <div class="col-auto d-flex gap-1 align-items-end filter-button-row">
+          <button type="submit" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-funnel me-1"></i>Filter
+          </button>
+
+          <a href="{% url 'activity_feed' %}" class="btn btn-outline-danger btn-sm">
+            Clear
+          </a>
         </div>
 
       </div>
     </form>
   </div>
-</div>
 
-<div class="card">
-  <div class="card-body p-0">
-    <ul class="list-group list-group-flush">
+  <div class="activity-section">
+    <div class="section-header">
+      <div>
+        <h4 class="section-title">
+          <i class="bi bi-activity"></i>Activity Feed
+        </h4>
+        <div class="section-subtitle">
+          {% if has_filters %}
+            Filtered system activity.
+          {% else %}
+            Most recent system activity first.
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="activity-list">
       {% for activity in page_obj %}
-      <li class="list-group-item {% if activity.action_type == 'flag_added' %}list-group-item-danger{% elif activity.action_type == 'batch_uploaded' %}list-group-item-success{% endif %}">
-        <div class="d-flex w-100 justify-content-between align-items-start">
-          <div>
-            {% if activity.action_type == 'vote_cast' %}
-              <i class="bi bi-person-check-fill me-2 text-primary"></i>
-            {% elif activity.action_type == 'comment_added' %}
-              <i class="bi bi-chat-dots-fill me-2 text-info"></i>
-            {% elif activity.action_type == 'decision_made' %}
-              <i class="bi bi-check2-square me-2 text-success"></i>
-            {% elif activity.action_type == 'flag_added' %}
-              <i class="bi bi-flag-fill me-2 text-danger"></i>
-            {% elif activity.action_type == 'batch_uploaded' %}
-              <i class="bi bi-cloud-upload-fill me-2 text-success"></i>
-            {% endif %}
+      <div class="activity-row {% if activity.action_type == 'flag_added' %}is-flag{% elif activity.action_type == 'batch_uploaded' %}is-upload{% endif %}">
 
+        {% if activity.action_type == 'vote_cast' %}
+          <div class="activity-icon vote">
+            <i class="bi bi-person-check-fill"></i>
+          </div>
+        {% elif activity.action_type == 'comment_added' %}
+          <div class="activity-icon comment">
+            <i class="bi bi-chat-dots-fill"></i>
+          </div>
+        {% elif activity.action_type == 'decision_made' %}
+          <div class="activity-icon decision">
+            <i class="bi bi-check2-square"></i>
+          </div>
+        {% elif activity.action_type == 'flag_added' %}
+          <div class="activity-icon flag">
+            <i class="bi bi-flag-fill"></i>
+          </div>
+        {% elif activity.action_type == 'batch_uploaded' %}
+          <div class="activity-icon upload">
+            <i class="bi bi-cloud-upload-fill"></i>
+          </div>
+        {% else %}
+          <div class="activity-icon">
+            <i class="bi bi-clock-history"></i>
+          </div>
+        {% endif %}
+
+        <div class="activity-body">
+          <div class="activity-mainline">
             <strong>{{ activity.actor.get_full_name|default:activity.actor.username }}</strong>
 
             {% if activity.action_type == 'batch_uploaded' %}
@@ -89,7 +598,9 @@
                 <a href="{% url 'batch_detail' activity.target_batch.pk %}">
                   {{ activity.target_batch.DisplayName }}
                 </a>
-                <span class="text-muted small">({{ activity.target_batch.DataSet.DisplayName }})</span>
+                <span class="activity-target-muted">
+                  ({{ activity.target_batch.DataSet.DisplayName }})
+                </span>
               {% endif %}
             {% else %}
               {{ activity.details }}
@@ -99,43 +610,105 @@
                 </a>
               {% endif %}
             {% endif %}
+          </div>
 
-            {% if activity.action_type == 'flag_added' %}
-            <div class="mt-1 ms-4 p-2 bg-danger bg-opacity-10 border border-danger border-opacity-25 rounded small">
-              <i class="bi bi-chat-quote me-1 text-danger"></i>
-              <em>{{ activity.details|slice:"8:" }}</em>
-            </div>
+          <div class="activity-pill-row">
+            {% if activity.action_type == 'vote_cast' %}
+              <span class="activity-pill">
+                <i class="bi bi-check2-circle"></i>Vote
+              </span>
+            {% elif activity.action_type == 'comment_added' %}
+              <span class="activity-pill">
+                <i class="bi bi-chat-dots"></i>Comment
+              </span>
+            {% elif activity.action_type == 'decision_made' %}
+              <span class="activity-pill upload">
+                <i class="bi bi-check2-square"></i>Decision
+              </span>
+            {% elif activity.action_type == 'flag_added' %}
+              <span class="activity-pill flag">
+                <i class="bi bi-flag"></i>Flag
+              </span>
+            {% elif activity.action_type == 'batch_uploaded' %}
+              <span class="activity-pill upload">
+                <i class="bi bi-cloud-upload"></i>Batch Upload
+              </span>
+            {% else %}
+              <span class="activity-pill">
+                <i class="bi bi-clock-history"></i>Activity
+              </span>
+            {% endif %}
+
+            {% if activity.target_batch %}
+              <span class="activity-pill">
+                <i class="bi bi-collection"></i>{{ activity.target_batch.DisplayName }}
+              </span>
+            {% endif %}
+
+            {% if activity.target_applicant and activity.target_applicant.round %}
+              <span class="activity-pill">
+                <i class="bi bi-collection"></i>{{ activity.target_applicant.round.DisplayName }}
+              </span>
             {% endif %}
           </div>
-          <small class="text-muted text-nowrap ms-3">{{ activity.created_at|date:"M d, Y g:i A" }}</small>
-        </div>
-      </li>
-      {% empty %}
-      <li class="list-group-item text-muted text-center py-5">
-        <i class="bi bi-search fs-1 d-block mb-2 opacity-25"></i>
-        {% if has_filters %}No activity matches your filters.{% else %}No system activity has been recorded yet.{% endif %}
-      </li>
-      {% endfor %}
-    </ul>
-  </div>
-</div>
 
-{% if page_obj.has_other_pages %}
-<nav class="mt-4">
-  <ul class="pagination justify-content-center">
-    {% if page_obj.has_previous %}
-      <li class="page-item"><a class="page-link" href="?page=1&reviewer={{ filter_reviewer }}&action={{ filter_action }}&date_from={{ filter_date_from }}&date_to={{ filter_date_to }}">&laquo; First</a></li>
-      <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&reviewer={{ filter_reviewer }}&action={{ filter_action }}&date_from={{ filter_date_from }}&date_to={{ filter_date_to }}">Previous</a></li>
-    {% endif %}
-    <li class="page-item active">
-      <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-    </li>
-    {% if page_obj.has_next %}
-      <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&reviewer={{ filter_reviewer }}&action={{ filter_action }}&date_from={{ filter_date_from }}&date_to={{ filter_date_to }}">Next</a></li>
-      <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}&reviewer={{ filter_reviewer }}&action={{ filter_action }}&date_from={{ filter_date_from }}&date_to={{ filter_date_to }}">Last &raquo;</a></li>
-    {% endif %}
-  </ul>
-</nav>
-{% endif %}
+          {% if activity.action_type == 'flag_added' %}
+          <div class="flag-quote">
+            <i class="bi bi-chat-quote me-1"></i>
+            <em>{{ activity.details|slice:"8:" }}</em>
+          </div>
+          {% endif %}
+        </div>
+
+        <div class="activity-time">
+          {{ activity.created_at|date:"M d, Y g:i A" }}
+        </div>
+      </div>
+      {% empty %}
+      <div class="empty-state">
+        <i class="bi bi-{% if has_filters %}search{% else %}clock-history{% endif %}"></i>
+        <p class="mb-0">
+          {% if has_filters %}
+            No activity matches your filters.
+          {% else %}
+            No system activity has been recorded yet.
+          {% endif %}
+        </p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if page_obj.has_other_pages %}
+  <nav class="mt-4">
+    <ul class="pagination justify-content-center flex-wrap">
+      {% if page_obj.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?page=1&reviewer={{ filter_reviewer }}&action={{ filter_action }}&date_from={{ filter_date_from }}&date_to={{ filter_date_to }}">&laquo; First</a>
+        </li>
+
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_obj.previous_page_number }}&reviewer={{ filter_reviewer }}&action={{ filter_action }}&date_from={{ filter_date_from }}&date_to={{ filter_date_to }}">Previous</a>
+        </li>
+      {% endif %}
+
+      <li class="page-item active">
+        <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+      </li>
+
+      {% if page_obj.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_obj.next_page_number }}&reviewer={{ filter_reviewer }}&action={{ filter_action }}&date_from={{ filter_date_from }}&date_to={{ filter_date_to }}">Next</a>
+        </li>
+
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}&reviewer={{ filter_reviewer }}&action={{ filter_action }}&date_from={{ filter_date_from }}&date_to={{ filter_date_to }}">Last &raquo;</a>
+        </li>
+      {% endif %}
+    </ul>
+  </nav>
+  {% endif %}
+
+</div>
 
 {% endblock %}

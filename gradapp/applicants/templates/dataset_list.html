@@ -3,47 +3,666 @@
 
 {% include "partials/breadcrumbs.html" with crumbs=crumbs %}
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <div>
-    <h2 class="mb-0">Datasets</h2>
-    <p class="text-muted mb-0">Each dataset represents a program or application cycle.</p>
-  </div>
-  <div class="d-flex gap-2">
-    <div class="btn-group" role="group">
-      <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-card" onclick="setView('card')" title="Card view">
-        <i class="bi bi-grid-3x3-gap"></i>
-      </button>
-      <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-table" onclick="setView('table')" title="Table view">
-        <i class="bi bi-list-ul"></i>
-      </button>
-    </div>
-    {% if user.profile.role == 'ADMIN' %}
-      <a href="{% url 'dataset_create' %}" class="btn btn-primary btn-sm">
-        <i class="bi bi-plus-lg me-1"></i>New Dataset
-      </a>
-    {% endif %}
-  </div>
-</div>
+<style>
+  :root {
+    --ds-bg: #ffffff;
+    --ds-muted-bg: #f7f8fa;
+    --ds-soft-bg: #f3f5f7;
+    --ds-border: #d9dee5;
+    --ds-border-soft: #e8ebef;
+    --ds-text: #1f2933;
+    --ds-muted: #667085;
+    --ds-hover: #f6f8fa;
+    --ds-primary: #3f5bf6;
+    --ds-primary-soft: rgba(63, 91, 246, 0.08);
+    --ds-success-soft: rgba(25, 135, 84, 0.1);
+    --ds-warning-soft: rgba(255, 193, 7, 0.13);
+    --ds-danger-soft: rgba(220, 53, 69, 0.1);
+    --ds-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  }
 
-<!-- Filters -->
-<div class="card mb-4">
-  <div class="card-body py-2">
+  [data-bs-theme="dark"] {
+    --ds-bg: #212529;
+    --ds-muted-bg: #2b3035;
+    --ds-soft-bg: #252a30;
+    --ds-border: #3a4047;
+    --ds-border-soft: #343a40;
+    --ds-text: #f8f9fa;
+    --ds-muted: #adb5bd;
+    --ds-hover: #262b30;
+    --ds-primary: #6f86ff;
+    --ds-primary-soft: rgba(111, 134, 255, 0.14);
+    --ds-success-soft: rgba(25, 135, 84, 0.16);
+    --ds-warning-soft: rgba(255, 193, 7, 0.16);
+    --ds-danger-soft: rgba(220, 53, 69, 0.16);
+    --ds-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+  }
+
+  .dataset-list-page {
+    max-width: 1380px;
+    margin: 0 auto;
+  }
+
+  .dataset-list-hero {
+    background: var(--ds-bg);
+    border: 1px solid var(--ds-border);
+    border-radius: 14px;
+    box-shadow: var(--ds-shadow);
+    padding: 1.15rem;
+    margin-bottom: 1rem;
+  }
+
+  .dataset-list-hero-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: start;
+  }
+
+  .dataset-kicker {
+    color: var(--ds-muted);
+    font-size: 0.72rem;
+    font-weight: 750;
+    letter-spacing: 0.075em;
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+
+  .dataset-title {
+    color: var(--ds-text);
+    font-size: 1.75rem;
+    line-height: 1.15;
+    font-weight: 780;
+    letter-spacing: -0.025em;
+    margin: 0;
+  }
+
+  .dataset-description {
+    color: var(--ds-muted);
+    max-width: 760px;
+    margin: 0.45rem 0 0;
+    font-size: 0.95rem;
+  }
+
+  .dataset-hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+
+  .dataset-filter-panel,
+  .dataset-section {
+    background: var(--ds-bg);
+    border: 1px solid var(--ds-border);
+    border-radius: 14px;
+    box-shadow: var(--ds-shadow);
+    margin-bottom: 1rem;
+    overflow: hidden;
+  }
+
+  .dataset-filter-panel {
+    padding: 1rem;
+  }
+
+  .filter-label {
+    color: var(--ds-muted);
+    font-size: 0.72rem;
+    font-weight: 750;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    margin-bottom: 0.35rem;
+  }
+
+  .section-header {
+    padding: 0.9rem 1rem;
+    background: var(--ds-bg);
+    border-bottom: 1px solid var(--ds-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin: 0;
+    color: var(--ds-text);
+    font-size: 1.12rem;
+    font-weight: 780;
+  }
+
+  .section-subtitle {
+    color: var(--ds-muted);
+    font-size: 0.84rem;
+  }
+
+  .section-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+  }
+
+  .view-toggle .btn {
+    min-width: 38px;
+  }
+
+  .dataset-table {
+    margin: 0;
+  }
+
+  .dataset-table thead th {
+    background: var(--ds-muted-bg);
+    color: var(--ds-muted);
+    border-top: 0;
+    border-bottom: 1px solid var(--ds-border);
+    font-size: 0.73rem;
+    font-weight: 780;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    padding: 0.8rem 1rem;
+    white-space: nowrap;
+  }
+
+  .dataset-table tbody td {
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--ds-border-soft);
+    vertical-align: middle;
+  }
+
+  .dataset-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .dataset-table tbody tr:hover {
+    background: var(--ds-hover);
+  }
+
+  .dataset-name-link {
+    color: var(--ds-text);
+    font-weight: 760;
+    text-decoration: none;
+  }
+
+  .dataset-name-link:hover {
+    text-decoration: underline;
+  }
+
+  .dataset-muted-line {
+    color: var(--ds-muted);
+    font-size: 0.84rem;
+    margin-top: 0.18rem;
+  }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    min-height: 28px;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 750;
+    white-space: nowrap;
+  }
+
+  .status-pill.live {
+    background: #d1e7dd;
+    border: 1px solid #badbcc;
+    color: #0f5132;
+  }
+
+  .status-pill.offline {
+    background: #e2e3e5;
+    border: 1px solid #d3d6d8;
+    color: #41464b;
+  }
+
+  .status-pill.archived {
+    background: #e2e3e5;
+    border: 1px solid #d3d6d8;
+    color: #41464b;
+  }
+
+  [data-bs-theme="dark"] .status-pill.live {
+    background: rgba(25,135,84,0.16);
+    border-color: rgba(25,135,84,0.3);
+    color: #75b798;
+  }
+
+  [data-bs-theme="dark"] .status-pill.offline,
+  [data-bs-theme="dark"] .status-pill.archived {
+    background: rgba(108,117,125,0.16);
+    border-color: rgba(108,117,125,0.3);
+    color: #ced4da;
+  }
+
+  .dataset-grid {
+    padding: 1rem;
+  }
+
+  .dataset-card {
+    background: var(--ds-bg);
+    border: 1px solid var(--ds-border);
+    border-radius: 13px;
+    box-shadow: var(--ds-shadow);
+    overflow: hidden;
+    height: 100%;
+  }
+
+  .dataset-card-body {
+    padding: 1rem;
+  }
+
+  .dataset-card-title {
+    color: var(--ds-text);
+    font-weight: 760;
+    text-decoration: none;
+    font-size: 1rem;
+  }
+
+  .dataset-card-title:hover {
+    text-decoration: underline;
+  }
+
+  .dataset-card-meta {
+    color: var(--ds-muted);
+    font-size: 0.84rem;
+    margin-top: 0.25rem;
+    line-height: 1.45;
+  }
+
+  .dataset-card-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.65rem;
+    margin-top: 1rem;
+  }
+
+  .dataset-card-stat {
+    background: var(--ds-muted-bg);
+    border: 1px solid var(--ds-border-soft);
+    border-radius: 10px;
+    padding: 0.7rem;
+    min-width: 0;
+  }
+
+  .dataset-card-stat-label {
+    color: var(--ds-muted);
+    font-size: 0.68rem;
+    font-weight: 750;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    margin-bottom: 0.28rem;
+  }
+
+  .dataset-card-stat-value {
+    color: var(--ds-text);
+    font-size: 1.15rem;
+    font-weight: 800;
+    line-height: 1.1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dataset-card-footer {
+    border-top: 1px solid var(--ds-border-soft);
+    padding: 0.8rem 1rem;
+    background: var(--ds-muted-bg);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .candidate-result-table-wrap {
+    margin-top: 1rem;
+    border: 1px solid var(--ds-border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .candidate-avatar {
+    width: 30px;
+    height: 30px;
+    object-fit: cover;
+  }
+
+  .candidate-initials {
+    width: 30px;
+    height: 30px;
+    font-size: 0.68rem;
+    font-weight: 760;
+  }
+
+  .candidate-mobile-list,
+  .dataset-mobile-list {
+    display: none;
+  }
+
+  .mobile-card {
+    padding: 0.95rem 1rem;
+    border-top: 1px solid var(--ds-border-soft);
+  }
+
+  .mobile-card:first-child {
+    border-top: 0;
+  }
+
+  .mobile-card-title {
+    color: var(--ds-primary);
+    font-weight: 750;
+    text-decoration: none;
+  }
+
+  .mobile-card-title:hover {
+    text-decoration: underline;
+  }
+
+  .mobile-card-meta {
+    color: var(--ds-muted);
+    font-size: 0.84rem;
+    margin-top: 0.35rem;
+  }
+
+  .mobile-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-top: 0.65rem;
+  }
+
+  .mobile-meta-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: var(--ds-muted-bg);
+    border: 1px solid var(--ds-border-soft);
+    color: var(--ds-text);
+    border-radius: 999px;
+    padding: 0.28rem 0.6rem;
+    font-size: 0.76rem;
+    font-weight: 700;
+  }
+
+  .mobile-card-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.85rem;
+  }
+
+  .mobile-card-actions .btn {
+    flex: 1;
+  }
+
+  .empty-state {
+    margin: 1rem;
+    border: 1px dashed var(--ds-border);
+    border-radius: 12px;
+    background: var(--ds-muted-bg);
+    color: var(--ds-muted);
+    padding: 2.25rem 1rem;
+    text-align: center;
+  }
+
+  .empty-state i {
+    display: block;
+    font-size: 2rem;
+    opacity: 0.45;
+    margin-bottom: 0.55rem;
+  }
+
+  .archived-wrap {
+    margin-top: 1rem;
+  }
+
+  .archive-toggle {
+    margin-bottom: 0.75rem;
+  }
+
+  .archived-card {
+    opacity: 0.78;
+  }
+
+  .archived-card:hover {
+    opacity: 1;
+  }
+
+  @media (max-width: 991.98px) {
+    .dataset-list-hero-main {
+      grid-template-columns: 1fr;
+    }
+
+    .dataset-hero-actions {
+      justify-content: flex-start;
+    }
+
+    .section-header {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .section-actions {
+      justify-content: flex-start;
+      width: 100%;
+    }
+  }
+
+  @media (max-width: 767.98px) {
+    .dataset-list-page {
+      max-width: none;
+    }
+
+    .dataset-list-hero {
+      padding: 0.95rem;
+      border-radius: 12px;
+    }
+
+    .dataset-kicker {
+      font-size: 0.68rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .dataset-title {
+      font-size: 1.45rem;
+      line-height: 1.16;
+    }
+
+    .dataset-description {
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+
+    .dataset-hero-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      width: 100%;
+      gap: 0.5rem;
+    }
+
+    .dataset-hero-actions .btn,
+    .dataset-hero-actions .btn-group {
+      width: 100%;
+    }
+
+    .dataset-hero-actions .btn-group .btn {
+      width: 50%;
+    }
+
+    .dataset-filter-panel {
+      padding: 0.85rem;
+      border-radius: 12px;
+    }
+
+    .dataset-filter-panel .form-control,
+    .dataset-filter-panel .form-select,
+    .dataset-filter-panel .btn {
+      min-height: 40px;
+    }
+
+    .filter-button-row {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem !important;
+      width: 100%;
+    }
+
+    .filter-button-row .btn {
+      width: 100%;
+    }
+
+    .section-header {
+      padding: 0.9rem;
+    }
+
+    .section-title {
+      font-size: 1.18rem;
+    }
+
+    .section-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.45rem;
+    }
+
+    .section-actions .btn-group,
+    .section-actions .new-dataset-btn {
+      width: 100%;
+    }
+
+    .section-actions .btn-group .btn {
+      width: 50%;
+    }
+
+    .candidate-result-table-wrap,
+    .dataset-table-wrap {
+      display: none;
+    }
+
+    .candidate-mobile-list,
+    .dataset-mobile-list {
+      display: block;
+    }
+
+    .dataset-grid {
+      padding: 0.85rem;
+    }
+
+    .dataset-card-footer {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .dataset-card-footer .btn,
+    .dataset-card-footer form,
+    .dataset-card-footer form button {
+      width: 100%;
+    }
+
+    .dataset-card-footer .d-flex {
+      width: 100%;
+    }
+
+    .dataset-card-footer .d-flex .btn,
+    .dataset-card-footer .d-flex form {
+      flex: 1;
+    }
+
+    .dataset-card-stats {
+      gap: 0.5rem;
+    }
+
+    .dataset-card-stat {
+      padding: 0.65rem;
+    }
+
+    .dataset-card-stat-label {
+      font-size: 0.64rem;
+    }
+
+    .dataset-card-stat-value {
+      font-size: 1.05rem;
+    }
+  }
+
+  @media (max-width: 390px) {
+    .dataset-hero-actions {
+      grid-template-columns: 1fr;
+    }
+
+    .section-actions {
+      grid-template-columns: 1fr;
+    }
+
+    .filter-button-row {
+      grid-template-columns: 1fr;
+    }
+
+    .mobile-card-actions {
+      flex-direction: column;
+    }
+  }
+</style>
+
+<div class="dataset-list-page">
+
+  <div class="dataset-list-hero">
+    <div class="dataset-list-hero-main">
+      <div>
+        <div class="dataset-kicker">Datasets</div>
+        <h2 class="dataset-title">Application Datasets</h2>
+        <p class="dataset-description">
+          View application cycles, search candidates across datasets, and manage program batches.
+        </p>
+      </div>
+
+      <div class="dataset-hero-actions">
+        <div class="btn-group view-toggle" role="group">
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-card" onclick="setView('card')" title="Card view">
+            <i class="bi bi-grid-3x3-gap"></i>
+          </button>
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-table" onclick="setView('table')" title="Table view">
+            <i class="bi bi-list-ul"></i>
+          </button>
+        </div>
+
+        {% if user.profile.role == 'ADMIN' %}
+          <a href="{% url 'dataset_create' %}" class="btn btn-sm btn-primary new-dataset-btn">
+            <i class="bi bi-plus-lg me-1"></i>New Dataset
+          </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="dataset-filter-panel">
     <form method="get">
-      <div class="row g-2 align-items-center flex-wrap">
-        <div class="col-md-3">
+      <div class="row g-2 align-items-end">
+        <div class="col-xl-3 col-lg-4 col-md-6">
+          <label class="filter-label">Search</label>
           <input type="text" name="q" class="form-control form-control-sm"
                  placeholder="Search datasets..." value="{{ search_query }}">
         </div>
-        <div class="col-md-2">
+
+        <div class="col-xl-2 col-lg-3 col-md-6">
+          <label class="filter-label">Status</label>
           <select name="dataset_status" class="form-select form-select-sm">
-            <option value=""       {% if dataset_status == ''       %}selected{% endif %}>Active</option>
-            <option value="live"   {% if dataset_status == 'live'   %}selected{% endif %}>Live</option>
-            <option value="offline"{% if dataset_status == 'offline'%}selected{% endif %}>Offline</option>
-            <option value="archived"{% if dataset_status == 'archived'%}selected{% endif %}>Archived</option>
-            <option value="all"    {% if dataset_status == 'all'    %}selected{% endif %}>All</option>
+            <option value="" {% if dataset_status == '' %}selected{% endif %}>Active</option>
+            <option value="live" {% if dataset_status == 'live' %}selected{% endif %}>Live</option>
+            <option value="offline" {% if dataset_status == 'offline' %}selected{% endif %}>Offline</option>
+            <option value="archived" {% if dataset_status == 'archived' %}selected{% endif %}>Archived</option>
+            <option value="all" {% if dataset_status == 'all' %}selected{% endif %}>All</option>
           </select>
         </div>
-        <div class="col-md-2">
+
+        <div class="col-xl-2 col-lg-3 col-md-6">
+          <label class="filter-label">Program</label>
           <select name="program_type" class="form-select form-select-sm">
             <option value="">All Programs</option>
             {% for val, label in program_type_choices %}
@@ -51,7 +670,9 @@
             {% endfor %}
           </select>
         </div>
-        <div class="col-md-2">
+
+        <div class="col-xl-2 col-lg-3 col-md-6">
+          <label class="filter-label">System</label>
           <select name="application_system" class="form-select form-select-sm">
             <option value="">All Systems</option>
             {% for val, label in application_system_choices %}
@@ -59,325 +680,376 @@
             {% endfor %}
           </select>
         </div>
-        
-        <div class="col-auto d-flex gap-1">
-          <button type="submit" class="btn btn-outline-secondary btn-sm">Filter</button>
-          <a href="{% url 'dataset_list' %}" class="btn btn-outline-danger btn-sm">Clear</a>
+
+        <div class="col-xl-auto col-12 d-flex gap-1 filter-button-row">
+          <button type="submit" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-funnel me-1"></i>Filter
+          </button>
+          <a href="{% url 'dataset_list' %}" class="btn btn-outline-danger btn-sm">
+            Clear
+          </a>
         </div>
       </div>
     </form>
   </div>
-</div>
 
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<!--  Candidate Search (cross-dataset)                                     -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <div class="dataset-section">
+    <div class="section-header">
+      <div>
+        <h4 class="section-title">
+          <i class="bi bi-person-bounding-box"></i>Find Candidate
+        </h4>
+        <div class="section-subtitle">
+          Search by name or ID across all datasets.
+        </div>
+      </div>
 
-<div class="card mb-4">
-  <div class="card-header py-2">
-    <div class="d-flex justify-content-between align-items-center">
-      <span class="fw-semibold"><i class="bi bi-person-bounding-box me-2"></i>Find Candidate Across Datasets</span>
       {% if candidate_search %}
         <a href="{% url 'dataset_list' %}{% if search_query %}?q={{ search_query }}{% endif %}" class="btn btn-outline-danger btn-sm">
           <i class="bi bi-x-lg me-1"></i>Clear Search
         </a>
       {% endif %}
     </div>
-  </div>
-  <div class="card-body py-2">
-    <form method="get">
-      <!-- Preserve dataset filter if active -->
-      
-      <div class="row g-2 align-items-center">
-        <div class="col-md-6">
-          <input type="text" name="candidate" class="form-control form-control-sm"
-                 placeholder="Search by name or ID (e.g. 'John Doe' or '1234567890')..."
-                 value="{{ candidate_search|default:'' }}">
-        </div>
-        <div class="col-auto">
-          <button type="submit" class="btn btn-primary btn-sm">
-            <i class="bi bi-search me-1"></i>Search
-          </button>
-        </div>
-      </div>
-    </form>
 
-    {% if candidate_results is not None %}
-    <div class="mt-3">
-      {% if candidate_results %}
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <small class="text-muted">
-            Found {{ candidate_results|length }} result{{ candidate_results|length|pluralize }}
-            for "<strong>{{ candidate_search }}</strong>"
-          </small>
+    <div class="p-3">
+      <form method="get">
+        <div class="row g-2 align-items-end">
+          <div class="col-lg-7 col-md-8">
+            <label class="filter-label">Candidate</label>
+            <input type="text" name="candidate" class="form-control form-control-sm"
+                   placeholder="Search by name or ID..."
+                   value="{{ candidate_search|default:'' }}">
+          </div>
+
+          <div class="col-lg-auto col-md-4">
+            <button type="submit" class="btn btn-primary btn-sm w-100">
+              <i class="bi bi-search me-1"></i>Search
+            </button>
+          </div>
         </div>
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0" style="font-size:0.88rem;">
-            <thead class="table-light">
-              <tr>
-                <th>Name</th>
-                <th>ID</th>
-                <th>Dataset</th>
-                <th>Batch</th>
-                <th>Status</th>
-                <th class="text-center">Appearances</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for a in candidate_results %}
-              <tr class="{% if a.appearance_count > 1 %}table-warning{% endif %}">
-                <td>
-                  {% if a.profile_picture %}
-                    <img src="{{ a.profile_picture.url }}" class="rounded-circle me-2" style="width:26px; height:26px; object-fit:cover;">
-                  {% else %}
-                    <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light text-secondary me-2"
-                          style="width:26px; height:26px; font-size:0.65rem; font-weight:600;">
-                      {{ a.first_name|first }}{{ a.last_name|first }}
-                    </span>
-                  {% endif %}
-                  <a href="{% url 'applicant_detail' a.pk %}" class="text-decoration-none">
+      </form>
+
+      {% if candidate_results is not None %}
+        {% if candidate_results %}
+          <div class="mt-3 small text-muted">
+            Found <strong>{{ candidate_results|length }}</strong> result{{ candidate_results|length|pluralize }}
+            for <strong>"{{ candidate_search }}"</strong>
+          </div>
+
+          <div class="candidate-result-table-wrap">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle dataset-table" style="font-size:0.9rem;">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>ID</th>
+                    <th>Dataset</th>
+                    <th>Batch</th>
+                    <th>Status</th>
+                    <th class="text-center">Appearances</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for a in candidate_results %}
+                  <tr class="{% if a.appearance_count > 1 %}table-warning{% endif %}">
+                    <td>
+                      {% if a.profile_picture %}
+                        <img src="{{ a.profile_picture.url }}" class="rounded-circle me-2 candidate-avatar">
+                      {% else %}
+                        <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light text-secondary me-2 candidate-initials">
+                          {{ a.first_name|first }}{{ a.last_name|first }}
+                        </span>
+                      {% endif %}
+
+                      <a href="{% url 'applicant_detail' a.pk %}" class="text-decoration-none fw-semibold">
+                        {{ a.last_name }}, {{ a.first_name }}
+                      </a>
+                    </td>
+
+                    <td class="text-muted small">
+                      <code>{{ a.external_id|default:"—" }}</code>
+                    </td>
+
+                    <td>
+                      {% if a.dataset %}
+                        <a href="{% url 'dataset_detail' a.dataset.pk %}" class="text-decoration-none small fw-semibold">
+                          {{ a.dataset.DisplayName }}
+                        </a>
+                      {% else %}
+                        <span class="text-muted small">—</span>
+                      {% endif %}
+                    </td>
+
+                    <td class="small text-muted">
+                      {% if a.round %}
+                        <a href="{% url 'batch_detail' a.round.pk %}" class="text-decoration-none">
+                          {{ a.round.DisplayName }}
+                        </a>
+                      {% else %}
+                        —
+                      {% endif %}
+                    </td>
+
+                    <td>
+                      {% include "partials/status_badge.html" with status=a.status display=a.get_status_display size="0.7rem" %}
+                    </td>
+
+                    <td class="text-center">
+                      {% if a.appearance_count > 1 %}
+                        <span class="badge bg-warning text-dark">
+                          <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ a.appearance_count }} cycles
+                        </span>
+                      {% else %}
+                        <span class="text-muted small">1</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="candidate-mobile-list mt-3">
+            {% for a in candidate_results %}
+            <div class="mobile-card {% if a.appearance_count > 1 %}bg-warning bg-opacity-10{% endif %}">
+              <div class="d-flex align-items-center gap-2">
+                {% if a.profile_picture %}
+                  <img src="{{ a.profile_picture.url }}" class="rounded-circle candidate-avatar">
+                {% else %}
+                  <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light text-secondary candidate-initials">
+                    {{ a.first_name|first }}{{ a.last_name|first }}
+                  </span>
+                {% endif %}
+
+                <div class="min-w-0">
+                  <a href="{% url 'applicant_detail' a.pk %}" class="mobile-card-title">
                     {{ a.last_name }}, {{ a.first_name }}
                   </a>
-                </td>
-                <td class="text-muted small">
-                  <code>{{ a.external_id|default:"—" }}</code>
-                </td>
-                <td>
-                  {% if a.dataset %}
-                    <a href="{% url 'dataset_detail' a.dataset.pk %}" class="text-decoration-none small">
-                      {{ a.dataset.DisplayName }}
-                    </a>
-                  {% else %}
-                    <span class="text-muted small">—</span>
-                  {% endif %}
-                </td>
-                <td class="small text-muted">
-                  {% if a.round %}
-                    <a href="{% url 'batch_detail' a.round.pk %}" class="text-decoration-none">
-                      {{ a.round.DisplayName }}
-                    </a>
-                  {% else %}
-                    —
-                  {% endif %}
-                </td>
-                <td>
-                  {% include "partials/status_badge.html" with status=a.status display=a.get_status_display size="0.7rem" %}
-                </td>
-                <td class="text-center">
-                  {% if a.appearance_count > 1 %}
-                    <span class="badge bg-warning text-dark">
-                      <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ a.appearance_count }} cycles
-                    </span>
-                  {% else %}
-                    <span class="text-muted small">1</span>
-                  {% endif %}
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      {% else %}
-        <div class="text-center text-muted py-3">
-          <i class="bi bi-search fs-4 d-block mb-2 opacity-25"></i>
-          No candidates found matching "<strong>{{ candidate_search }}</strong>".
-        </div>
+                  <div class="mobile-card-meta">
+                    ID: <code>{{ a.external_id|default:"—" }}</code>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mobile-meta-row">
+                {% include "partials/status_badge.html" with status=a.status display=a.get_status_display size="0.7rem" %}
+
+                {% if a.dataset %}
+                  <a href="{% url 'dataset_detail' a.dataset.pk %}" class="mobile-meta-pill text-decoration-none">
+                    <i class="bi bi-stack"></i>{{ a.dataset.DisplayName }}
+                  </a>
+                {% endif %}
+
+                {% if a.round %}
+                  <a href="{% url 'batch_detail' a.round.pk %}" class="mobile-meta-pill text-decoration-none">
+                    <i class="bi bi-collection"></i>{{ a.round.DisplayName }}
+                  </a>
+                {% endif %}
+
+                {% if a.appearance_count > 1 %}
+                  <span class="mobile-meta-pill">
+                    <i class="bi bi-exclamation-triangle"></i>{{ a.appearance_count }} cycles
+                  </span>
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-state">
+            <i class="bi bi-search"></i>
+            <p class="mb-0">No candidates found matching <strong>"{{ candidate_search }}"</strong>.</p>
+          </div>
+        {% endif %}
       {% endif %}
     </div>
-    {% endif %}
   </div>
-</div>
 
-<!-- ── ACTIVE DATASETS ─────────────────────────────────────────── -->
-
-<!-- TABLE VIEW -->
-<div id="table-view">
-  <div class="card mb-4">
-    <div class="card-body p-0">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-dark">
-          <tr>
-            <th>Name</th>
-            <th class="text-center">Applicants</th>
-            <th class="text-center">Batches</th>
-            <th class="text-center">Program ID</th>
-            <th class="text-center">Status</th>
-            {% if user.profile.role == 'ADMIN' %}<th></th>{% endif %}
-          </tr>
-        </thead>
-        <tbody>
-          {% for dataset in page_obj %}
-          <tr>
-            <td>
-              <a href="{% url 'dataset_detail' dataset.pk %}" class="fw-semibold text-decoration-none">
-                {{ dataset.DisplayName }}
-              </a>
-              {% if dataset.Description %}
-                <div class="text-muted small">{{ dataset.Description|truncatewords:10 }}</div>
-              {% endif %}
-            </td>
-            <td class="text-center">{{ dataset.applicant_count }}</td>
-            <td class="text-center">
-              <a href="{% url 'batch_list' %}?dataset={{ dataset.pk }}" class="text-decoration-none">
-                {{ dataset.batch_count }}
-              </a>
-            </td>
-            <td class="text-center text-muted small">{{ dataset.ProgramId|default:"—" }}</td>
-            <td class="text-center">
-              {% if dataset.IsLive %}
-                <span class="badge bg-success">Live</span>
-              {% else %}
-                <span class="badge bg-secondary">Offline</span>
-              {% endif %}
-            </td>
-            {% if user.profile.role == 'ADMIN' %}
-            <td class="text-end">
-              <div class="d-flex gap-1 justify-content-end">
-                <a href="{% url 'dataset_edit' dataset.pk %}" class="btn btn-outline-secondary btn-sm" title="Edit">
-                  <i class="bi bi-pencil"></i>
-                </a>
-                <form method="post" action="{% url 'dataset_archive' dataset.pk %}" class="d-inline">
-                  {% csrf_token %}
-                  <button type="submit" class="btn btn-outline-warning btn-sm" title="Archive">
-                    <i class="bi bi-archive"></i>
-                  </button>
-                </form>
-              </div>
-            </td>
-            {% endif %}
-          </tr>
-          {% empty %}
-          <tr>
-            <td colspan="6" class="text-center text-muted py-4">No datasets found.</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
-<!-- CARD VIEW -->
-<div id="card-view" style="display:none;">
-  <div class="row g-4 mb-4">
-    {% for dataset in page_obj %}
-    <div class="col-md-6 col-lg-4">
-      <div class="card h-100 shadow-sm">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-start mb-2">
-            <h5 class="card-title mb-0">
-              <a href="{% url 'dataset_detail' dataset.pk %}" class="text-decoration-none text-dark">
-                {{ dataset.DisplayName }}
-              </a>
-            </h5>
-            {% if dataset.IsLive %}
-              <span class="badge bg-success">Live</span>
-            {% else %}
-              <span class="badge bg-secondary">Offline</span>
-            {% endif %}
-          </div>
-
-          <p class="text-muted small mb-3">{{ dataset.Description|default:"No description."|truncatewords:15 }}</p>
-
-          <div class="d-flex gap-3 mb-3">
-            <div class="text-center">
-              <div class="fw-bold fs-5">{{ dataset.applicant_count }}</div>
-              <div class="text-muted" style="font-size:0.75rem;">Applicants</div>
-            </div>
-            <div class="vr"></div>
-            <div class="text-center">
-              <div class="fw-bold fs-5">{{ dataset.batch_count }}</div>
-              <div class="text-muted" style="font-size:0.75rem;">Batches</div>
-            </div>
-            <div class="vr"></div>
-            <div class="text-center">
-              <div class="fw-bold fs-5">{{ dataset.ProgramId|default:"—" }}</div>
-              <div class="text-muted" style="font-size:0.75rem;">Program ID</div>
-            </div>
-          </div>
+  <div class="dataset-section">
+    <div class="section-header">
+      <div>
+        <h4 class="section-title">
+          <i class="bi bi-stack"></i>Datasets
+        </h4>
+        <div class="section-subtitle">
+          Application cycles currently matching your filters.
         </div>
-        <div class="card-footer bg-transparent d-flex justify-content-between align-items-center">
-          <a href="{% url 'dataset_detail' dataset.pk %}" class="btn btn-sm btn-outline-primary">
-            <i class="bi bi-eye me-1"></i>View
+      </div>
+
+      <div class="section-actions">
+        <div class="btn-group view-toggle" role="group">
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="section-btn-card" onclick="setView('card')" title="Card view">
+            <i class="bi bi-grid-3x3-gap"></i>
+          </button>
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="section-btn-table" onclick="setView('table')" title="Table view">
+            <i class="bi bi-list-ul"></i>
+          </button>
+        </div>
+
+        {% if user.profile.role == 'ADMIN' %}
+          <a href="{% url 'dataset_create' %}" class="btn btn-sm btn-primary new-dataset-btn">
+            <i class="bi bi-plus-lg me-1"></i>New Dataset
           </a>
-          {% if user.profile.role == 'ADMIN' %}
-            <div class="d-flex gap-1">
-              <a href="{% url 'dataset_edit' dataset.pk %}" class="btn btn-sm btn-outline-secondary">
-                <i class="bi bi-pencil"></i>
-              </a>
-              <form method="post" action="{% url 'dataset_archive' dataset.pk %}">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-sm btn-outline-warning" title="Archive">
-                  <i class="bi bi-archive"></i>
-                </button>
-              </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <div id="card-view">
+      <div class="dataset-grid">
+        <div class="row g-3">
+          {% for dataset in page_obj %}
+          <div class="col-lg-4 col-md-6">
+            <div class="dataset-card">
+              <div class="dataset-card-body">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                  <div class="min-w-0">
+                    <a href="{% url 'dataset_detail' dataset.pk %}" class="dataset-card-title">
+                      {{ dataset.DisplayName }}
+                    </a>
+                    <div class="dataset-card-meta">
+                      {{ dataset.Description|default:"No description."|truncatewords:16 }}
+                    </div>
+                  </div>
+
+                  {% if dataset.IsLive %}
+                    <span class="status-pill live">
+                      <i class="bi bi-broadcast"></i>Live
+                    </span>
+                  {% else %}
+                    <span class="status-pill offline">
+                      <i class="bi bi-pause-circle"></i>Offline
+                    </span>
+                  {% endif %}
+                </div>
+
+                <div class="dataset-card-stats">
+                  <div class="dataset-card-stat">
+                    <div class="dataset-card-stat-label">Applicants</div>
+                    <div class="dataset-card-stat-value">{{ dataset.applicant_count }}</div>
+                  </div>
+
+                  <div class="dataset-card-stat">
+                    <div class="dataset-card-stat-label">Batches</div>
+                    <div class="dataset-card-stat-value">
+                      <a href="{% url 'batch_list' %}?dataset={{ dataset.pk }}" class="text-decoration-none">
+                        {{ dataset.batch_count }}
+                      </a>
+                    </div>
+                  </div>
+
+                  <div class="dataset-card-stat">
+                    <div class="dataset-card-stat-label">Program ID</div>
+                    <div class="dataset-card-stat-value">{{ dataset.ProgramId|default:"—" }}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="dataset-card-footer">
+                <a href="{% url 'dataset_detail' dataset.pk %}" class="btn btn-sm btn-outline-primary">
+                  <i class="bi bi-eye me-1"></i>View Dataset
+                </a>
+
+                {% if user.profile.role == 'ADMIN' %}
+                  <div class="d-flex gap-1">
+                    <a href="{% url 'dataset_edit' dataset.pk %}" class="btn btn-sm btn-outline-secondary">
+                      <i class="bi bi-pencil"></i>
+                    </a>
+
+                    <form method="post" action="{% url 'dataset_archive' dataset.pk %}">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm btn-outline-warning" title="Archive">
+                        <i class="bi bi-archive"></i>
+                      </button>
+                    </form>
+                  </div>
+                {% endif %}
+              </div>
             </div>
-          {% endif %}
+          </div>
+          {% empty %}
+          <div class="col-12">
+            <div class="empty-state">
+              <i class="bi bi-stack"></i>
+              <p class="mb-0">No datasets found.</p>
+            </div>
+          </div>
+          {% endfor %}
         </div>
       </div>
     </div>
-    {% empty %}
-    <div class="col-12">
-      <div class="text-center text-muted py-5">
-        <i class="bi bi-stack fs-1"></i>
-        <p class="mt-2">No datasets found.</p>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-</div>
 
-<!-- ── ARCHIVED DATASETS ───────────────────────────────────────── -->
-{% if archived_datasets %}
-<div class="mt-4">
-  <button class="btn btn-outline-secondary btn-sm mb-3" type="button"
-          data-bs-toggle="collapse" data-bs-target="#archived-section">
-    <i class="bi bi-archive me-1"></i>
-    Archived Datasets ({{ archived_datasets|length }})
-  </button>
-
-  <div class="collapse" id="archived-section">
-
-    <!-- Archived Table -->
-    <div id="archived-table-view">
-      <div class="card">
-        <div class="card-body p-0">
-          <table class="table table-hover align-middle mb-0">
-            <thead class="table-secondary">
+    <div id="table-view" style="display:none;">
+      <div class="dataset-table-wrap">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle dataset-table" style="font-size:0.9rem;">
+            <thead>
               <tr>
                 <th>Name</th>
                 <th class="text-center">Applicants</th>
                 <th class="text-center">Batches</th>
                 <th class="text-center">Program ID</th>
-                {% if user.profile.role == 'ADMIN' %}<th></th>{% endif %}
+                <th class="text-center">Status</th>
+                {% if user.profile.role == 'ADMIN' %}<th class="text-end">Actions</th>{% endif %}
               </tr>
             </thead>
             <tbody>
-              {% for dataset in archived_datasets %}
-              <tr class="text-muted">
+              {% for dataset in page_obj %}
+              <tr>
                 <td>
-                  <a href="{% url 'dataset_detail' dataset.pk %}" class="text-decoration-none text-muted">
+                  <a href="{% url 'dataset_detail' dataset.pk %}" class="dataset-name-link">
                     {{ dataset.DisplayName }}
                   </a>
-                  <span class="badge bg-secondary ms-1">Archived</span>
+                  {% if dataset.Description %}
+                    <div class="dataset-muted-line">{{ dataset.Description|truncatewords:12 }}</div>
+                  {% endif %}
                 </td>
+
                 <td class="text-center">{{ dataset.applicant_count }}</td>
-                <td class="text-center">{{ dataset.batch_count }}</td>
-                <td class="text-center small">{{ dataset.ProgramId|default:"—" }}</td>
+
+                <td class="text-center">
+                  <a href="{% url 'batch_list' %}?dataset={{ dataset.pk }}" class="text-decoration-none fw-semibold">
+                    {{ dataset.batch_count }}
+                  </a>
+                </td>
+
+                <td class="text-center text-muted small">{{ dataset.ProgramId|default:"—" }}</td>
+
+                <td class="text-center">
+                  {% if dataset.IsLive %}
+                    <span class="status-pill live">
+                      <i class="bi bi-broadcast"></i>Live
+                    </span>
+                  {% else %}
+                    <span class="status-pill offline">
+                      <i class="bi bi-pause-circle"></i>Offline
+                    </span>
+                  {% endif %}
+                </td>
+
                 {% if user.profile.role == 'ADMIN' %}
                 <td class="text-end">
                   <div class="d-flex gap-1 justify-content-end">
                     <a href="{% url 'dataset_edit' dataset.pk %}" class="btn btn-outline-secondary btn-sm" title="Edit">
                       <i class="bi bi-pencil"></i>
                     </a>
+
                     <form method="post" action="{% url 'dataset_archive' dataset.pk %}" class="d-inline">
                       {% csrf_token %}
-                      <button type="submit" class="btn btn-outline-success btn-sm" title="Restore">
-                        <i class="bi bi-arrow-counterclockwise"></i>
+                      <button type="submit" class="btn btn-outline-warning btn-sm" title="Archive">
+                        <i class="bi bi-archive"></i>
                       </button>
                     </form>
                   </div>
                 </td>
+                {% endif %}
+              </tr>
+              {% empty %}
+              <tr>
+                {% if user.profile.role == 'ADMIN' %}
+                  <td colspan="6" class="text-center text-muted py-4">No datasets found.</td>
+                {% else %}
+                  <td colspan="5" class="text-center text-muted py-4">No datasets found.</td>
                 {% endif %}
               </tr>
               {% endfor %}
@@ -385,83 +1057,301 @@
           </table>
         </div>
       </div>
-    </div>
 
-    <!-- Archived Cards -->
-    <div id="archived-card-view" style="display:none;">
-      <div class="row g-3">
-        {% for dataset in archived_datasets %}
-        <div class="col-md-6 col-lg-4">
-          <div class="card h-100 shadow-sm opacity-75">
-            <div class="card-body">
-              <div class="d-flex justify-content-between align-items-start mb-2">
-                <h5 class="card-title mb-0 text-muted">
-                  <a href="{% url 'dataset_detail' dataset.pk %}" class="text-decoration-none text-muted">
-                    {{ dataset.DisplayName }}
-                  </a>
-                </h5>
-                <span class="badge bg-secondary">Archived</span>
-              </div>
-              <p class="text-muted small mb-3">{{ dataset.Description|default:"No description."|truncatewords:15 }}</p>
-              <div class="d-flex gap-3">
-                <div class="text-center">
-                  <div class="fw-bold">{{ dataset.applicant_count }}</div>
-                  <div class="text-muted" style="font-size:0.75rem;">Applicants</div>
-                </div>
-                <div class="vr"></div>
-                <div class="text-center">
-                  <div class="fw-bold">{{ dataset.batch_count }}</div>
-                  <div class="text-muted" style="font-size:0.75rem;">Batches</div>
-                </div>
-              </div>
-            </div>
-            <div class="card-footer bg-transparent d-flex justify-content-between">
-              <a href="{% url 'dataset_detail' dataset.pk %}" class="btn btn-sm btn-outline-secondary">
-                <i class="bi bi-eye me-1"></i>View
+      <div class="dataset-mobile-list">
+        {% for dataset in page_obj %}
+        <div class="mobile-card">
+          <div class="d-flex justify-content-between align-items-start gap-2">
+            <div class="min-w-0">
+              <a href="{% url 'dataset_detail' dataset.pk %}" class="mobile-card-title">
+                {{ dataset.DisplayName }}
               </a>
-              {% if user.profile.role == 'ADMIN' %}
-                <form method="post" action="{% url 'dataset_archive' dataset.pk %}">
-                  {% csrf_token %}
-                  <button type="submit" class="btn btn-sm btn-outline-success" title="Restore">
-                    <i class="bi bi-arrow-counterclockwise me-1"></i>Restore
-                  </button>
-                </form>
+              {% if dataset.Description %}
+                <div class="mobile-card-meta">{{ dataset.Description|truncatewords:14 }}</div>
               {% endif %}
             </div>
+
+            {% if dataset.IsLive %}
+              <span class="status-pill live">
+                <i class="bi bi-broadcast"></i>Live
+              </span>
+            {% else %}
+              <span class="status-pill offline">
+                <i class="bi bi-pause-circle"></i>Offline
+              </span>
+            {% endif %}
           </div>
+
+          <div class="mobile-meta-row">
+            <span class="mobile-meta-pill">
+              <i class="bi bi-people"></i>{{ dataset.applicant_count }} applicants
+            </span>
+
+            <a href="{% url 'batch_list' %}?dataset={{ dataset.pk }}" class="mobile-meta-pill text-decoration-none">
+              <i class="bi bi-collection"></i>{{ dataset.batch_count }} batches
+            </a>
+
+            <span class="mobile-meta-pill">
+              <i class="bi bi-tag"></i>{{ dataset.ProgramId|default:"—" }}
+            </span>
+          </div>
+
+          <div class="mobile-card-actions">
+            <a href="{% url 'dataset_detail' dataset.pk %}" class="btn btn-sm btn-outline-primary">
+              View
+            </a>
+
+            {% if user.profile.role == 'ADMIN' %}
+              <a href="{% url 'dataset_edit' dataset.pk %}" class="btn btn-sm btn-outline-secondary">
+                Edit
+              </a>
+            {% endif %}
+          </div>
+        </div>
+        {% empty %}
+        <div class="empty-state">
+          <i class="bi bi-stack"></i>
+          <p class="mb-0">No datasets found.</p>
         </div>
         {% endfor %}
       </div>
     </div>
-
   </div>
+
+  {% if archived_datasets %}
+  <div class="archived-wrap">
+    <button class="btn btn-outline-secondary btn-sm archive-toggle"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#archived-section"
+            aria-expanded="false"
+            aria-controls="archived-section">
+      <i class="bi bi-archive me-1"></i>
+      Archived Datasets
+      <span class="badge bg-secondary ms-1">{{ archived_datasets|length }}</span>
+    </button>
+
+    <div class="collapse" id="archived-section">
+      <div class="dataset-section">
+        <div class="section-header">
+          <div>
+            <h4 class="section-title">
+              <i class="bi bi-archive"></i>Archived
+            </h4>
+            <div class="section-subtitle">
+              Older datasets that are no longer active.
+            </div>
+          </div>
+        </div>
+
+        <div id="archived-card-view">
+          <div class="dataset-grid">
+            <div class="row g-3">
+              {% for dataset in archived_datasets %}
+              <div class="col-lg-4 col-md-6">
+                <div class="dataset-card archived-card">
+                  <div class="dataset-card-body">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                      <div class="min-w-0">
+                        <a href="{% url 'dataset_detail' dataset.pk %}" class="dataset-card-title text-muted">
+                          {{ dataset.DisplayName }}
+                        </a>
+                        <div class="dataset-card-meta">
+                          {{ dataset.Description|default:"No description."|truncatewords:16 }}
+                        </div>
+                      </div>
+
+                      <span class="status-pill archived">
+                        <i class="bi bi-archive"></i>Archived
+                      </span>
+                    </div>
+
+                    <div class="dataset-card-stats">
+                      <div class="dataset-card-stat">
+                        <div class="dataset-card-stat-label">Applicants</div>
+                        <div class="dataset-card-stat-value">{{ dataset.applicant_count }}</div>
+                      </div>
+
+                      <div class="dataset-card-stat">
+                        <div class="dataset-card-stat-label">Batches</div>
+                        <div class="dataset-card-stat-value">{{ dataset.batch_count }}</div>
+                      </div>
+
+                      <div class="dataset-card-stat">
+                        <div class="dataset-card-stat-label">Program ID</div>
+                        <div class="dataset-card-stat-value">{{ dataset.ProgramId|default:"—" }}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="dataset-card-footer">
+                    <a href="{% url 'dataset_detail' dataset.pk %}" class="btn btn-sm btn-outline-secondary">
+                      <i class="bi bi-eye me-1"></i>View
+                    </a>
+
+                    {% if user.profile.role == 'ADMIN' %}
+                      <div class="d-flex gap-1">
+                        <a href="{% url 'dataset_edit' dataset.pk %}" class="btn btn-sm btn-outline-secondary">
+                          <i class="bi bi-pencil"></i>
+                        </a>
+
+                        <form method="post" action="{% url 'dataset_archive' dataset.pk %}">
+                          {% csrf_token %}
+                          <button type="submit" class="btn btn-sm btn-outline-success" title="Restore">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                          </button>
+                        </form>
+                      </div>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <div id="archived-table-view" style="display:none;">
+          <div class="dataset-table-wrap">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle dataset-table" style="font-size:0.9rem;">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th class="text-center">Applicants</th>
+                    <th class="text-center">Batches</th>
+                    <th class="text-center">Program ID</th>
+                    {% if user.profile.role == 'ADMIN' %}<th class="text-end">Actions</th>{% endif %}
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for dataset in archived_datasets %}
+                  <tr class="text-muted">
+                    <td>
+                      <a href="{% url 'dataset_detail' dataset.pk %}" class="dataset-name-link text-muted">
+                        {{ dataset.DisplayName }}
+                      </a>
+                      <span class="status-pill archived ms-1">
+                        <i class="bi bi-archive"></i>Archived
+                      </span>
+                    </td>
+
+                    <td class="text-center">{{ dataset.applicant_count }}</td>
+                    <td class="text-center">{{ dataset.batch_count }}</td>
+                    <td class="text-center small">{{ dataset.ProgramId|default:"—" }}</td>
+
+                    {% if user.profile.role == 'ADMIN' %}
+                    <td class="text-end">
+                      <div class="d-flex gap-1 justify-content-end">
+                        <a href="{% url 'dataset_edit' dataset.pk %}" class="btn btn-outline-secondary btn-sm" title="Edit">
+                          <i class="bi bi-pencil"></i>
+                        </a>
+
+                        <form method="post" action="{% url 'dataset_archive' dataset.pk %}" class="d-inline">
+                          {% csrf_token %}
+                          <button type="submit" class="btn btn-outline-success btn-sm" title="Restore">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                          </button>
+                        </form>
+                      </div>
+                    </td>
+                    {% endif %}
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="dataset-mobile-list">
+            {% for dataset in archived_datasets %}
+            <div class="mobile-card">
+              <div class="d-flex justify-content-between align-items-start gap-2">
+                <div class="min-w-0">
+                  <a href="{% url 'dataset_detail' dataset.pk %}" class="mobile-card-title text-muted">
+                    {{ dataset.DisplayName }}
+                  </a>
+                  <div class="mobile-card-meta">
+                    {{ dataset.Description|default:"No description."|truncatewords:14 }}
+                  </div>
+                </div>
+
+                <span class="status-pill archived">
+                  <i class="bi bi-archive"></i>Archived
+                </span>
+              </div>
+
+              <div class="mobile-meta-row">
+                <span class="mobile-meta-pill">
+                  <i class="bi bi-people"></i>{{ dataset.applicant_count }} applicants
+                </span>
+
+                <span class="mobile-meta-pill">
+                  <i class="bi bi-collection"></i>{{ dataset.batch_count }} batches
+                </span>
+
+                <span class="mobile-meta-pill">
+                  <i class="bi bi-tag"></i>{{ dataset.ProgramId|default:"—" }}
+                </span>
+              </div>
+
+              <div class="mobile-card-actions">
+                <a href="{% url 'dataset_detail' dataset.pk %}" class="btn btn-sm btn-outline-secondary">
+                  View
+                </a>
+
+                {% if user.profile.role == 'ADMIN' %}
+                  <form method="post" action="{% url 'dataset_archive' dataset.pk %}" class="w-100">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-success w-100">
+                      Restore
+                    </button>
+                  </form>
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+  {% endif %}
 </div>
-{% endif %}
 
 <script>
   function setView(view) {
-    const tableView         = document.getElementById('table-view');
-    const cardView          = document.getElementById('card-view');
+    const tableView = document.getElementById('table-view');
+    const cardView = document.getElementById('card-view');
     const archivedTableView = document.getElementById('archived-table-view');
-    const archivedCardView  = document.getElementById('archived-card-view');
-    const btnTable          = document.getElementById('btn-table');
-    const btnCard           = document.getElementById('btn-card');
+    const archivedCardView = document.getElementById('archived-card-view');
 
-    if (view === 'table') {
-      tableView.style.display         = 'block';
-      cardView.style.display          = 'none';
-      if (archivedTableView) archivedTableView.style.display = 'block';
-      if (archivedCardView)  archivedCardView.style.display  = 'none';
-      btnTable.classList.add('active');
-      btnCard.classList.remove('active');
-    } else {
-      tableView.style.display         = 'none';
-      cardView.style.display          = 'block';
-      if (archivedTableView) archivedTableView.style.display = 'none';
-      if (archivedCardView)  archivedCardView.style.display  = 'block';
-      btnCard.classList.add('active');
-      btnTable.classList.remove('active');
-    }
+    const btnTable = document.getElementById('btn-table');
+    const btnCard = document.getElementById('btn-card');
+    const sectionBtnTable = document.getElementById('section-btn-table');
+    const sectionBtnCard = document.getElementById('section-btn-card');
+
+    if (!tableView || !cardView) return;
+
+    const useTable = view === 'table';
+
+    tableView.style.display = useTable ? 'block' : 'none';
+    cardView.style.display = useTable ? 'none' : 'block';
+
+    if (archivedTableView) archivedTableView.style.display = useTable ? 'block' : 'none';
+    if (archivedCardView) archivedCardView.style.display = useTable ? 'none' : 'block';
+
+    [btnTable, sectionBtnTable].forEach(btn => {
+      if (!btn) return;
+      btn.classList.toggle('active', useTable);
+    });
+
+    [btnCard, sectionBtnCard].forEach(btn => {
+      if (!btn) return;
+      btn.classList.toggle('active', !useTable);
+    });
+
     localStorage.setItem('datasetView', view);
   }
 

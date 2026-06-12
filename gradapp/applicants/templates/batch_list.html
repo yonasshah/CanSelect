@@ -3,54 +3,677 @@
 
 {% include "partials/breadcrumbs.html" with crumbs=crumbs %}
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <div>
-    <h2 class="mb-0">Batches</h2>
-    <p class="text-muted mb-0">Review rounds grouped by dataset.</p>
-  </div>
-  <div class="d-flex gap-2 align-items-center flex-wrap">
-    {% if user.profile.role == 'ADMIN' %}
-    <div id="batch-action-container" style="display:none;" class="d-flex gap-1">
-      <select name="action" class="form-select form-select-sm" form="batch-bulk-form">
-        <option value="">Batch Action...</option>
-        <option value="set_status_interview">Set: Interview</option>
-        <option value="set_status_interview_complete">Set: Interview Complete</option>
-        <option value="set_status_accepted">Set: Accepted</option>
-        <option value="set_status_waitlisted">Set: Waitlisted</option>
-        <option value="set_status_rejected">Set: Rejected</option>
-      </select>
-      <button type="submit" class="btn btn-primary btn-sm" form="batch-bulk-form">Apply</button>
-    </div>
-    {% endif %}
-    <div class="btn-group" role="group">
-      <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-table" onclick="setView('table')" title="Table view">
-        <i class="bi bi-list-ul"></i>
-      </button>
-      <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-card" onclick="setView('card')" title="Card view">
-        <i class="bi bi-grid-3x3-gap"></i>
-      </button>
-    </div>
-    {% if user.profile.role == 'ADMIN' %}
-      <a href="{% url 'batch_create' %}" class="btn btn-primary btn-sm">
-        <i class="bi bi-plus-lg me-1"></i>New Batch
-      </a>
-    {% endif %}
-  </div>
-</div>
+<style>
+  :root {
+    --ds-bg: #ffffff;
+    --ds-muted-bg: #f7f8fa;
+    --ds-soft-bg: #f3f5f7;
+    --ds-border: #d9dee5;
+    --ds-border-soft: #e8ebef;
+    --ds-text: #1f2933;
+    --ds-muted: #667085;
+    --ds-hover: #f6f8fa;
+    --ds-primary: #3f5bf6;
+    --ds-primary-soft: rgba(63, 91, 246, 0.08);
+    --ds-success-soft: rgba(25, 135, 84, 0.1);
+    --ds-warning-soft: rgba(255, 193, 7, 0.13);
+    --ds-danger-soft: rgba(220, 53, 69, 0.1);
+    --ds-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  }
 
-<!-- Filters -->
-<!-- Filters -->
-<div class="card mb-4">
-  <div class="card-body py-2">
+  [data-bs-theme="dark"] {
+    --ds-bg: #212529;
+    --ds-muted-bg: #2b3035;
+    --ds-soft-bg: #252a30;
+    --ds-border: #3a4047;
+    --ds-border-soft: #343a40;
+    --ds-text: #f8f9fa;
+    --ds-muted: #adb5bd;
+    --ds-hover: #262b30;
+    --ds-primary: #6f86ff;
+    --ds-primary-soft: rgba(111, 134, 255, 0.14);
+    --ds-success-soft: rgba(25, 135, 84, 0.16);
+    --ds-warning-soft: rgba(255, 193, 7, 0.16);
+    --ds-danger-soft: rgba(220, 53, 69, 0.16);
+    --ds-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+  }
+
+  .batch-list-page {
+    max-width: 1380px;
+    margin: 0 auto;
+  }
+
+  .batch-list-hero {
+    background: var(--ds-bg);
+    border: 1px solid var(--ds-border);
+    border-radius: 14px;
+    box-shadow: var(--ds-shadow);
+    padding: 1.15rem;
+    margin-bottom: 1rem;
+  }
+
+  .batch-list-hero-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: start;
+  }
+
+  .batch-kicker {
+    color: var(--ds-muted);
+    font-size: 0.72rem;
+    font-weight: 750;
+    letter-spacing: 0.075em;
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+
+  .batch-title {
+    color: var(--ds-text);
+    font-size: 1.75rem;
+    line-height: 1.15;
+    font-weight: 780;
+    letter-spacing: -0.025em;
+    margin: 0;
+  }
+
+  .batch-description {
+    color: var(--ds-muted);
+    max-width: 760px;
+    margin: 0.45rem 0 0;
+    font-size: 0.95rem;
+  }
+
+  .batch-hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+
+  .batch-filter-panel,
+  .batch-section {
+    background: var(--ds-bg);
+    border: 1px solid var(--ds-border);
+    border-radius: 14px;
+    box-shadow: var(--ds-shadow);
+    margin-bottom: 1rem;
+    overflow: hidden;
+  }
+
+  .batch-filter-panel {
+    padding: 1rem;
+  }
+
+  .filter-label {
+    color: var(--ds-muted);
+    font-size: 0.72rem;
+    font-weight: 750;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    margin-bottom: 0.35rem;
+  }
+
+  .advanced-filter-box {
+    background: var(--ds-muted-bg);
+    border: 1px solid var(--ds-border-soft);
+    border-radius: 11px;
+    padding: 0.85rem;
+    margin-top: 0.35rem;
+  }
+
+  .section-header {
+    padding: 0.9rem 1rem;
+    background: var(--ds-bg);
+    border-bottom: 1px solid var(--ds-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin: 0;
+    color: var(--ds-text);
+    font-size: 1.12rem;
+    font-weight: 780;
+  }
+
+  .section-subtitle {
+    color: var(--ds-muted);
+    font-size: 0.84rem;
+  }
+
+  .section-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+  }
+
+  .view-toggle .btn {
+    min-width: 38px;
+  }
+
+  .batch-table {
+    margin: 0;
+  }
+
+  .batch-table thead th {
+    background: var(--ds-muted-bg);
+    color: var(--ds-muted);
+    border-top: 0;
+    border-bottom: 1px solid var(--ds-border);
+    font-size: 0.73rem;
+    font-weight: 780;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    padding: 0.8rem 1rem;
+    white-space: nowrap;
+  }
+
+  .batch-table tbody td {
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--ds-border-soft);
+    vertical-align: middle;
+  }
+
+  .batch-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .batch-table tbody tr:hover {
+    background: var(--ds-hover);
+  }
+
+  .batch-name-link {
+    color: var(--ds-text);
+    font-weight: 760;
+    text-decoration: none;
+  }
+
+  .batch-name-link:hover {
+    text-decoration: underline;
+  }
+
+  .batch-muted-link {
+    color: var(--ds-muted);
+    text-decoration: none;
+    font-size: 0.84rem;
+  }
+
+  .batch-muted-link:hover {
+    text-decoration: underline;
+  }
+
+  .sort-link {
+    color: inherit;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+  }
+
+  .sort-link:hover {
+    opacity: 0.8;
+  }
+
+  .sort-icon {
+    font-size: 0.7rem;
+    opacity: 0.5;
+  }
+
+  .sort-icon.active {
+    opacity: 1;
+    color: var(--ds-primary);
+  }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    min-height: 28px;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 750;
+    white-space: nowrap;
+  }
+
+  .status-pill.active {
+    background: #d1e7dd;
+    border: 1px solid #badbcc;
+    color: #0f5132;
+  }
+
+  .status-pill.inactive {
+    background: #e2e3e5;
+    border: 1px solid #d3d6d8;
+    color: #41464b;
+  }
+
+  [data-bs-theme="dark"] .status-pill.active {
+    background: rgba(25,135,84,0.16);
+    border-color: rgba(25,135,84,0.3);
+    color: #75b798;
+  }
+
+  [data-bs-theme="dark"] .status-pill.inactive {
+    background: rgba(108,117,125,0.16);
+    border-color: rgba(108,117,125,0.3);
+    color: #ced4da;
+  }
+
+  .batch-grid {
+    padding: 1rem;
+  }
+
+  .batch-card {
+    background: var(--ds-bg);
+    border: 1px solid var(--ds-border);
+    border-radius: 13px;
+    box-shadow: var(--ds-shadow);
+    overflow: hidden;
+    height: 100%;
+  }
+
+  .batch-card-body {
+    padding: 1rem;
+  }
+
+  .batch-card-title {
+    color: var(--ds-text);
+    font-weight: 760;
+    text-decoration: none;
+    font-size: 1rem;
+  }
+
+  .batch-card-title:hover {
+    text-decoration: underline;
+  }
+
+  .batch-card-meta {
+    color: var(--ds-muted);
+    font-size: 0.84rem;
+    margin-top: 0.25rem;
+    line-height: 1.45;
+  }
+
+  .batch-card-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+    margin-top: 1rem;
+  }
+
+  .batch-card-stat {
+    background: var(--ds-muted-bg);
+    border: 1px solid var(--ds-border-soft);
+    border-radius: 10px;
+    padding: 0.7rem;
+    min-width: 0;
+  }
+
+  .batch-card-stat-label {
+    color: var(--ds-muted);
+    font-size: 0.68rem;
+    font-weight: 750;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    margin-bottom: 0.28rem;
+  }
+
+  .batch-card-stat-value {
+    color: var(--ds-text);
+    font-size: 1.15rem;
+    font-weight: 800;
+    line-height: 1.1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .batch-card-footer {
+    border-top: 1px solid var(--ds-border-soft);
+    padding: 0.8rem 1rem;
+    background: var(--ds-muted-bg);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .batch-mobile-list {
+    display: none;
+  }
+
+  .mobile-card {
+    padding: 0.95rem 1rem;
+    border-top: 1px solid var(--ds-border-soft);
+  }
+
+  .mobile-card:first-child {
+    border-top: 0;
+  }
+
+  .mobile-card-title {
+    color: var(--ds-primary);
+    font-weight: 750;
+    text-decoration: none;
+  }
+
+  .mobile-card-title:hover {
+    text-decoration: underline;
+  }
+
+  .mobile-card-meta {
+    color: var(--ds-muted);
+    font-size: 0.84rem;
+    margin-top: 0.35rem;
+  }
+
+  .mobile-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-top: 0.65rem;
+  }
+
+  .mobile-meta-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: var(--ds-muted-bg);
+    border: 1px solid var(--ds-border-soft);
+    color: var(--ds-text);
+    border-radius: 999px;
+    padding: 0.28rem 0.6rem;
+    font-size: 0.76rem;
+    font-weight: 700;
+  }
+
+  .mobile-card-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.85rem;
+  }
+
+  .mobile-card-actions .btn {
+    flex: 1;
+  }
+
+  .empty-state {
+    margin: 1rem;
+    border: 1px dashed var(--ds-border);
+    border-radius: 12px;
+    background: var(--ds-muted-bg);
+    color: var(--ds-muted);
+    padding: 2.25rem 1rem;
+    text-align: center;
+  }
+
+  .empty-state i {
+    display: block;
+    font-size: 2rem;
+    opacity: 0.45;
+    margin-bottom: 0.55rem;
+  }
+
+  #batch-action-container {
+    display: none;
+  }
+
+  @media (max-width: 991.98px) {
+    .batch-list-hero-main {
+      grid-template-columns: 1fr;
+    }
+
+    .batch-hero-actions {
+      justify-content: flex-start;
+    }
+
+    .section-header {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .section-actions {
+      justify-content: flex-start;
+      width: 100%;
+    }
+  }
+
+  @media (max-width: 767.98px) {
+    .batch-list-page {
+      max-width: none;
+    }
+
+    .batch-list-hero {
+      padding: 0.95rem;
+      border-radius: 12px;
+    }
+
+    .batch-kicker {
+      font-size: 0.68rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .batch-title {
+      font-size: 1.45rem;
+      line-height: 1.16;
+    }
+
+    .batch-description {
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+
+    .batch-hero-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      width: 100%;
+      gap: 0.5rem;
+    }
+
+    .batch-hero-actions .btn,
+    .batch-hero-actions .btn-group {
+      width: 100%;
+    }
+
+    .batch-hero-actions .btn-group .btn {
+      width: 50%;
+    }
+
+    #batch-action-container {
+      grid-column: 1 / -1;
+      width: 100%;
+    }
+
+    #batch-action-container select,
+    #batch-action-container button {
+      min-height: 40px;
+    }
+
+    .batch-filter-panel {
+      padding: 0.85rem;
+      border-radius: 12px;
+    }
+
+    .batch-filter-panel .form-control,
+    .batch-filter-panel .form-select,
+    .batch-filter-panel .btn {
+      min-height: 40px;
+    }
+
+    .filter-button-row {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem !important;
+      width: 100%;
+    }
+
+    .filter-button-row .btn {
+      width: 100%;
+    }
+
+    .archive-check {
+      padding-top: 0.35rem;
+    }
+
+    .advanced-filter-box {
+      padding: 0.8rem;
+    }
+
+    .section-header {
+      padding: 0.9rem;
+    }
+
+    .section-title {
+      font-size: 1.18rem;
+    }
+
+    .section-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.45rem;
+    }
+
+    .section-actions .btn-group,
+    .section-actions .new-batch-btn {
+      width: 100%;
+    }
+
+    .section-actions .btn-group .btn {
+      width: 50%;
+    }
+
+    .batch-table-wrap {
+      display: none;
+    }
+
+    .batch-mobile-list {
+      display: block;
+    }
+
+    .batch-grid {
+      padding: 0.85rem;
+    }
+
+    .batch-card-footer {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .batch-card-footer .btn {
+      width: 100%;
+    }
+
+    .batch-card-footer .d-flex {
+      width: 100%;
+    }
+
+    .batch-card-footer .d-flex .btn {
+      flex: 1;
+    }
+
+    .batch-card-stats {
+      gap: 0.5rem;
+    }
+
+    .batch-card-stat {
+      padding: 0.65rem;
+    }
+
+    .batch-card-stat-label {
+      font-size: 0.64rem;
+    }
+
+    .batch-card-stat-value {
+      font-size: 1.05rem;
+    }
+  }
+
+  @media (max-width: 390px) {
+    .batch-hero-actions {
+      grid-template-columns: 1fr;
+    }
+
+    .section-actions {
+      grid-template-columns: 1fr;
+    }
+
+    .filter-button-row {
+      grid-template-columns: 1fr;
+    }
+
+    .mobile-card-actions {
+      flex-direction: column;
+    }
+  }
+</style>
+
+<div class="batch-list-page">
+
+  <div class="batch-list-hero">
+    <div class="batch-list-hero-main">
+      <div>
+        <div class="batch-kicker">Batches</div>
+        <h2 class="batch-title">Review Batches</h2>
+        <p class="batch-description">
+          Review rounds grouped by dataset, reviewer progress, deadline, and group assignment.
+        </p>
+      </div>
+
+      <div class="batch-hero-actions">
+        {% if user.profile.role == 'ADMIN' %}
+        <div id="batch-action-container" class="d-flex gap-1">
+          <select name="action" class="form-select form-select-sm" form="batch-bulk-form">
+            <option value="">Batch Action...</option>
+            <option value="set_status_interview">Set: Interview</option>
+            <option value="set_status_interview_complete">Set: Interview Complete</option>
+            <option value="set_status_accepted">Set: Accepted</option>
+            <option value="set_status_waitlisted">Set: Waitlisted</option>
+            <option value="set_status_rejected">Set: Rejected</option>
+          </select>
+          <button type="submit" class="btn btn-primary btn-sm" form="batch-bulk-form">Apply</button>
+        </div>
+        {% endif %}
+
+        <div class="btn-group view-toggle" role="group">
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-table" onclick="setView('table')" title="Table view">
+            <i class="bi bi-list-ul"></i>
+          </button>
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-card" onclick="setView('card')" title="Card view">
+            <i class="bi bi-grid-3x3-gap"></i>
+          </button>
+        </div>
+
+        {% if user.profile.role == 'ADMIN' %}
+          <a href="{% url 'batch_create' %}" class="btn btn-primary btn-sm new-batch-btn">
+            <i class="bi bi-plus-lg me-1"></i>New Batch
+          </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="batch-filter-panel">
     <form method="get">
-      <div class="row g-2 align-items-center">
-
-        <!-- Row 1: Basic filters -->
-        <div class="col-md-3">
+      <div class="row g-2 align-items-end">
+        <div class="col-xl-3 col-lg-4 col-md-6">
+          <label class="filter-label">Search</label>
           <input type="text" name="q" class="form-control form-control-sm"
                  placeholder="Search batches..." value="{{ search_query }}">
         </div>
-        <div class="col-md-2">
+
+        <div class="col-xl-2 col-lg-3 col-md-6">
+          <label class="filter-label">Dataset</label>
           <select name="dataset_id" class="form-select form-select-sm">
             <option value="">All Datasets</option>
             {% for ds in all_datasets %}
@@ -60,27 +683,35 @@
             {% endfor %}
           </select>
         </div>
-        <div class="col-md-2">
+
+        <div class="col-xl-2 col-lg-3 col-md-6">
+          <label class="filter-label">Status</label>
           <select name="status" class="form-select form-select-sm">
-            <option value="all"      {% if status_filter == 'all'      %}selected{% endif %}>All Statuses</option>
-            <option value="active"   {% if status_filter == 'active'   %}selected{% endif %}>Active Only</option>
+            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Statuses</option>
+            <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active Only</option>
             <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive Only</option>
           </select>
         </div>
-        <div class="col-md-2">
+
+        <div class="col-xl-2 col-lg-3 col-md-6">
+          <label class="filter-label">Group</label>
           <select name="group" class="form-select form-select-sm">
-            <option value=""     {% if not group_filter         %}selected{% endif %}>All Groups</option>
-            <option value="A"    {% if group_filter == 'A'      %}selected{% endif %}>Group A</option>
-            <option value="B"    {% if group_filter == 'B'      %}selected{% endif %}>Group B</option>
-            <option value="C"    {% if group_filter == 'C'      %}selected{% endif %}>Group C</option>
-            <option value="none" {% if group_filter == 'none'   %}selected{% endif %}>Unassigned</option>
+            <option value="" {% if not group_filter %}selected{% endif %}>All Groups</option>
+            <option value="A" {% if group_filter == 'A' %}selected{% endif %}>Group A</option>
+            <option value="B" {% if group_filter == 'B' %}selected{% endif %}>Group B</option>
+            <option value="C" {% if group_filter == 'C' %}selected{% endif %}>Group C</option>
+            <option value="none" {% if group_filter == 'none' %}selected{% endif %}>Unassigned</option>
           </select>
         </div>
-        <div class="col-auto d-flex gap-1">
-          <button type="submit" class="btn btn-outline-secondary btn-sm">Filter</button>
+
+        <div class="col-xl-auto col-12 d-flex gap-1 filter-button-row">
+          <button type="submit" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-funnel me-1"></i>Filter
+          </button>
           <a href="{% url 'batch_list' %}" class="btn btn-outline-danger btn-sm">Clear</a>
         </div>
-        <div class="col-auto d-flex align-items-center">
+
+        <div class="col-xl-auto col-12 archive-check">
           <div class="form-check mb-0">
             <input class="form-check-input" type="checkbox" name="show_archived" id="show_archived"
                    {% if show_archived %}checked{% endif %} onchange="this.form.submit()">
@@ -88,13 +719,11 @@
           </div>
         </div>
 
-        <!-- Row 2: Advanced filters -->
-         
         <div class="col-12">
-          <div class="border rounded p-3 bg-light mt-1">
+          <div class="advanced-filter-box">
             <div class="row g-2 align-items-end">
-              <div class="col-md-2">
-                <label class="form-label small text-muted mb-1">Program Type</label>
+              <div class="col-lg-2 col-md-4 col-sm-6">
+                <label class="filter-label">Program Type</label>
                 <select name="program_type" class="form-select form-select-sm">
                   <option value="">All Programs</option>
                   {% for val, label in program_type_choices %}
@@ -102,8 +731,9 @@
                   {% endfor %}
                 </select>
               </div>
-              <div class="col-md-2">
-                <label class="form-label small text-muted mb-1">Application System</label>
+
+              <div class="col-lg-2 col-md-4 col-sm-6">
+                <label class="filter-label">Application System</label>
                 <select name="application_system" class="form-select form-select-sm">
                   <option value="">All Systems</option>
                   {% for val, label in application_system_choices %}
@@ -111,23 +741,25 @@
                   {% endfor %}
                 </select>
               </div>
-            
-              <div class="col-md-2">
-                <label class="form-label small text-muted mb-1">Review Progress</label>
+
+              <div class="col-lg-2 col-md-4 col-sm-6">
+                <label class="filter-label">Review Progress</label>
                 <select name="progress" class="form-select form-select-sm">
-                  <option value=""            {% if not progress_filter              %}selected{% endif %}>Any Progress</option>
-                  <option value="complete"    {% if progress_filter == 'complete'    %}selected{% endif %}>Complete</option>
+                  <option value="" {% if not progress_filter %}selected{% endif %}>Any Progress</option>
+                  <option value="complete" {% if progress_filter == 'complete' %}selected{% endif %}>Complete</option>
                   <option value="in_progress" {% if progress_filter == 'in_progress' %}selected{% endif %}>In Progress</option>
                   <option value="not_started" {% if progress_filter == 'not_started' %}selected{% endif %}>Not Started</option>
                 </select>
               </div>
-              <div class="col-md-2">
-                <label class="form-label small text-muted mb-1">Deadline After</label>
+
+              <div class="col-lg-2 col-md-4 col-sm-6">
+                <label class="filter-label">Deadline After</label>
                 <input type="date" name="deadline_after" class="form-control form-control-sm"
                        value="{{ deadline_after }}">
               </div>
-              <div class="col-md-2">
-                <label class="form-label small text-muted mb-1">Deadline Before</label>
+
+              <div class="col-lg-2 col-md-4 col-sm-6">
+                <label class="filter-label">Deadline Before</label>
                 <input type="date" name="deadline_before" class="form-control form-control-sm"
                        value="{{ deadline_before }}">
               </div>
@@ -138,297 +770,486 @@
       </div>
     </form>
   </div>
-</div>
 
-<form id="batch-bulk-form" action="{% url 'batch_bulk_action' %}" method="POST">
-  {% csrf_token %}
-<style>
-  .sort-link {
-    color: inherit;
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    white-space: nowrap;
-  }
-  .sort-link:hover { opacity: 0.8; }
-  .sort-icon { font-size: 0.7rem; opacity: 0.5; }
-  .sort-icon.active { opacity: 1; color: #90caf9; }
-</style>
-  <!-- TABLE VIEW -->
-  <div id="table-view">
-    <div class="card">
-      <div class="card-body p-0">
-        <table class="table table-hover align-middle mb-0">
-          <thead class="table-dark">
-            <tr>
-              {% if user.profile.role == 'ADMIN' %}
-              <th style="width:1%;">
-                <input type="checkbox" class="form-check-input" id="select-all">
-              </th>
-              {% endif %}
-              <th>
-                <a href="?q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort=name&dir={% if sort == 'name' and direction == 'asc' %}desc{% else %}asc{% endif %}"
-                   class="sort-link text-white">
-                  Batch
-                  <i class="bi bi-arrow-{% if sort == 'name' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'name' %}active{% endif %}"></i>
-                </a>
-              </th>
-              <th>
-                <a href="?q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort=dataset&dir={% if sort == 'dataset' and direction == 'asc' %}desc{% else %}asc{% endif %}"
-                   class="sort-link text-white">
-                  Dataset
-                  <i class="bi bi-arrow-{% if sort == 'dataset' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'dataset' %}active{% endif %}"></i>
-                </a>
-              </th>
-              <th style="width:220px;">
-                <a href="?q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort=progress&dir={% if sort == 'progress' and direction == 'asc' %}desc{% else %}asc{% endif %}"
-                   class="sort-link text-white">
-                  Progress
-                  <i class="bi bi-arrow-{% if sort == 'progress' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'progress' %}active{% endif %}"></i>
-                </a>
-              </th>
-              <th class="text-center">
-                <a href="?q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort=candidates&dir={% if sort == 'candidates' and direction == 'asc' %}desc{% else %}asc{% endif %}"
-                   class="sort-link text-white justify-content-center">
-                  Candidates
-                  <i class="bi bi-arrow-{% if sort == 'candidates' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'candidates' %}active{% endif %}"></i>
-                </a>
-              </th>
-              <th class="text-center">
-                <a href="?q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort=deadline&dir={% if sort == 'deadline' and direction == 'asc' %}desc{% else %}asc{% endif %}"
-                   class="sort-link text-white justify-content-center">
-                  Deadline
-                  <i class="bi bi-arrow-{% if sort == 'deadline' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'deadline' %}active{% endif %}"></i>
-                </a>
-              </th>
-              <th class="text-center">
-                <a href="?q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort=group&dir={% if sort == 'group' and direction == 'asc' %}desc{% else %}asc{% endif %}"
-                   class="sort-link text-white justify-content-center">
-                  Group
-                  <i class="bi bi-arrow-{% if sort == 'group' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'group' %}active{% endif %}"></i>
-                </a>
-              </th>
-              <th class="text-center">
-                <a href="?q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort=status&dir={% if sort == 'status' and direction == 'asc' %}desc{% else %}asc{% endif %}"
-                   class="sort-link text-white justify-content-center">
-                  Status
-                  <i class="bi bi-arrow-{% if sort == 'status' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'status' %}active{% endif %}"></i>
-                </a>
-              </th>
-              {% if user.profile.role == 'ADMIN' %}<th></th>{% endif %}
-            </tr>
-          </thead>
-          <tbody>
-            {% for batch in page_obj %}
-            <tr>
-              {% if user.profile.role == 'ADMIN' %}
-              <td>
-                <input type="checkbox" name="ids" value="{{ batch.pk }}" class="form-check-input batch-checkbox">
-              </td>
-              {% endif %}
-              <td>
-                <a href="{% url 'batch_detail' batch.pk %}" class="fw-semibold text-decoration-none">
-                  {{ batch.DisplayName }}
-                </a>
-              </td>
-              <td>
-                <a href="{% url 'dataset_detail' batch.DataSet.pk %}" class="text-muted text-decoration-none small">
-                  <i class="bi bi-stack me-1"></i>{{ batch.DataSet.DisplayName }}
-                </a>
-              </td>
-              <td>
-                <div class="d-flex align-items-center gap-2">
-                  <div class="progress flex-grow-1" style="height:6px;">
-                    {% if batch.potential_votes > 0 %}
-                      {% widthratio batch.voted_count batch.potential_votes 100 as pct %}
-                      <div class="progress-bar bg-success" style="width:{{ pct }}%"></div>
-                    {% else %}
-                      <div class="progress-bar" style="width:0%"></div>
-                    {% endif %}
-                  </div>
-                  <span class="text-muted small" style="white-space:nowrap;">
-                    {{ batch.voted_count }}/{{ batch.potential_votes }}
-                  </span>
-                </div>
-              </td>
-              <td class="text-center">{{ batch.applicant_count }}</td>
-              <td class="text-center">
-                <span class="small text-muted">{{ batch.VoteExpire|date:"M d, Y"|default:"—" }}</span>
-              </td>
-              <td class="text-center">
-                {% if batch.review_group %}
-                  <span class="badge {% if batch.review_group == 'A' %}bg-primary{% elif batch.review_group == 'B' %}bg-success{% elif batch.review_group == 'C' %}bg-warning text-dark{% endif %}">
-                    Group {{ batch.review_group }}
-                  </span>
-                {% else %}
-                  <span class="text-muted small">—</span>
-                {% endif %}
-              </td>
-              <td class="text-center">
-                {% if batch.Active %}
-                  <span class="badge bg-success">Active</span>
-                {% else %}
-                  <span class="badge bg-secondary">Inactive</span>
-                {% endif %}
-              </td>
-              {% if user.profile.role == 'ADMIN' %}
-              <td>
-                <a href="{% url 'batch_edit' batch.pk %}" class="btn btn-sm btn-outline-secondary">
-                  <i class="bi bi-pencil"></i>
-                </a>
-              </td>
-              {% endif %}
-            </tr>
-            {% empty %}
-            <tr>
-              <td colspan="8" class="text-center text-muted py-4">No batches found.</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+  <form id="batch-bulk-form" action="{% url 'batch_bulk_action' %}" method="POST">
+    {% csrf_token %}
+
+    <div class="batch-section">
+      <div class="section-header">
+        <div>
+          <h4 class="section-title">
+            <i class="bi bi-collection"></i>Batches
+          </h4>
+          <div class="section-subtitle">
+            Review rounds currently matching your filters.
+          </div>
+        </div>
+
+        <div class="section-actions">
+          <div class="btn-group view-toggle" role="group">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="section-btn-table" onclick="setView('table')" title="Table view">
+              <i class="bi bi-list-ul"></i>
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="section-btn-card" onclick="setView('card')" title="Card view">
+              <i class="bi bi-grid-3x3-gap"></i>
+            </button>
+          </div>
+
+          {% if user.profile.role == 'ADMIN' %}
+            <a href="{% url 'batch_create' %}" class="btn btn-sm btn-primary new-batch-btn">
+              <i class="bi bi-plus-lg me-1"></i>New Batch
+            </a>
+          {% endif %}
+        </div>
       </div>
-    </div>
-  </div>
 
-  <!-- CARD VIEW -->
-  <div id="card-view" style="display:none;">
-    <div class="row g-3">
-      {% for batch in page_obj %}
-      <div class="col-md-6 col-lg-4">
-        <div class="card h-100 shadow-sm">
-          <div class="card-body">
+      <div id="table-view">
+        <div class="batch-table-wrap">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle batch-table" style="font-size:0.9rem;">
+              <thead>
+                <tr>
+                  {% if user.profile.role == 'ADMIN' %}
+                  <th style="width:1%;">
+                    <input type="checkbox" class="form-check-input" id="select-all">
+                  </th>
+                  {% endif %}
+
+                  <th>
+                    <a href="?q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort=name&dir={% if sort == 'name' and direction == 'asc' %}desc{% else %}asc{% endif %}"
+                       class="sort-link">
+                      Batch
+                      <i class="bi bi-arrow-{% if sort == 'name' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'name' %}active{% endif %}"></i>
+                    </a>
+                  </th>
+
+                  <th>
+                    <a href="?q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort=dataset&dir={% if sort == 'dataset' and direction == 'asc' %}desc{% else %}asc{% endif %}"
+                       class="sort-link">
+                      Dataset
+                      <i class="bi bi-arrow-{% if sort == 'dataset' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'dataset' %}active{% endif %}"></i>
+                    </a>
+                  </th>
+
+                  <th style="width:220px;">
+                    <a href="?q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort=progress&dir={% if sort == 'progress' and direction == 'asc' %}desc{% else %}asc{% endif %}"
+                       class="sort-link">
+                      Progress
+                      <i class="bi bi-arrow-{% if sort == 'progress' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'progress' %}active{% endif %}"></i>
+                    </a>
+                  </th>
+
+                  <th class="text-center">
+                    <a href="?q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort=candidates&dir={% if sort == 'candidates' and direction == 'asc' %}desc{% else %}asc{% endif %}"
+                       class="sort-link justify-content-center">
+                      Candidates
+                      <i class="bi bi-arrow-{% if sort == 'candidates' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'candidates' %}active{% endif %}"></i>
+                    </a>
+                  </th>
+
+                  <th class="text-center">
+                    <a href="?q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort=deadline&dir={% if sort == 'deadline' and direction == 'asc' %}desc{% else %}asc{% endif %}"
+                       class="sort-link justify-content-center">
+                      Deadline
+                      <i class="bi bi-arrow-{% if sort == 'deadline' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'deadline' %}active{% endif %}"></i>
+                    </a>
+                  </th>
+
+                  <th class="text-center">
+                    <a href="?q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort=group&dir={% if sort == 'group' and direction == 'asc' %}desc{% else %}asc{% endif %}"
+                       class="sort-link justify-content-center">
+                      Group
+                      <i class="bi bi-arrow-{% if sort == 'group' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'group' %}active{% endif %}"></i>
+                    </a>
+                  </th>
+
+                  <th class="text-center">
+                    <a href="?q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort=status&dir={% if sort == 'status' and direction == 'asc' %}desc{% else %}asc{% endif %}"
+                       class="sort-link justify-content-center">
+                      Status
+                      <i class="bi bi-arrow-{% if sort == 'status' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'status' %}active{% endif %}"></i>
+                    </a>
+                  </th>
+
+                  {% if user.profile.role == 'ADMIN' %}<th class="text-end">Actions</th>{% endif %}
+                </tr>
+              </thead>
+
+              <tbody>
+                {% for batch in page_obj %}
+                <tr>
+                  {% if user.profile.role == 'ADMIN' %}
+                  <td>
+                    <input type="checkbox" name="ids" value="{{ batch.pk }}" class="form-check-input batch-checkbox">
+                  </td>
+                  {% endif %}
+
+                  <td>
+                    <a href="{% url 'batch_detail' batch.pk %}" class="batch-name-link">
+                      {{ batch.DisplayName }}
+                    </a>
+                  </td>
+
+                  <td>
+                    <a href="{% url 'dataset_detail' batch.DataSet.pk %}" class="batch-muted-link">
+                      <i class="bi bi-stack me-1"></i>{{ batch.DataSet.DisplayName }}
+                    </a>
+                  </td>
+
+                  <td>
+                    <div class="d-flex align-items-center gap-2">
+                      <div class="progress flex-grow-1" style="height:6px;">
+                        {% if batch.potential_votes > 0 %}
+                          {% widthratio batch.voted_count batch.potential_votes 100 as pct %}
+                          <div class="progress-bar bg-success" style="width:{{ pct }}%"></div>
+                        {% else %}
+                          <div class="progress-bar" style="width:0%"></div>
+                        {% endif %}
+                      </div>
+                      <span class="text-muted small" style="white-space:nowrap;">
+                        {{ batch.voted_count }}/{{ batch.potential_votes }}
+                      </span>
+                    </div>
+                  </td>
+
+                  <td class="text-center">{{ batch.applicant_count }}</td>
+
+                  <td class="text-center">
+                    <span class="small text-muted">{{ batch.VoteExpire|date:"M d, Y"|default:"—" }}</span>
+                  </td>
+
+                  <td class="text-center">
+                    {% if batch.review_group %}
+                      <span class="badge {% if batch.review_group == 'A' %}bg-primary{% elif batch.review_group == 'B' %}bg-success{% elif batch.review_group == 'C' %}bg-warning text-dark{% endif %}">
+                        Group {{ batch.review_group }}
+                      </span>
+                    {% else %}
+                      <span class="text-muted small">—</span>
+                    {% endif %}
+                  </td>
+
+                  <td class="text-center">
+                    {% if batch.Active %}
+                      <span class="status-pill active">
+                        <i class="bi bi-check-circle"></i>Active
+                      </span>
+                    {% else %}
+                      <span class="status-pill inactive">
+                        <i class="bi bi-pause-circle"></i>Inactive
+                      </span>
+                    {% endif %}
+                  </td>
+
+                  {% if user.profile.role == 'ADMIN' %}
+                  <td class="text-end">
+                    <div class="d-flex gap-1 justify-content-end">
+                      <a href="{% url 'batch_edit' batch.pk %}" class="btn btn-sm btn-outline-secondary" title="Edit">
+                        <i class="bi bi-pencil"></i>
+                      </a>
+                      <a href="{% url 'batch_assign_reviewers' batch.pk %}" class="btn btn-sm btn-outline-warning" title="Reviewers">
+                        <i class="bi bi-people"></i>
+                      </a>
+                    </div>
+                  </td>
+                  {% endif %}
+                </tr>
+                {% empty %}
+                <tr>
+                  {% if user.profile.role == 'ADMIN' %}
+                    <td colspan="9" class="text-center text-muted py-4">No batches found.</td>
+                  {% else %}
+                    <td colspan="8" class="text-center text-muted py-4">No batches found.</td>
+                  {% endif %}
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="batch-mobile-list">
+          {% for batch in page_obj %}
+          <div class="mobile-card">
             {% if user.profile.role == 'ADMIN' %}
             <div class="form-check mb-2">
               <input type="checkbox" name="ids" value="{{ batch.pk }}" class="form-check-input batch-checkbox">
               <label class="form-check-label small text-muted">Select</label>
             </div>
             {% endif %}
-            <div class="d-flex justify-content-between align-items-start mb-1">
-              <h5 class="card-title mb-0">
-                <a href="{% url 'batch_detail' batch.pk %}" class="text-decoration-none text-dark">
+
+            <div class="d-flex justify-content-between align-items-start gap-2">
+              <div class="min-w-0">
+                <a href="{% url 'batch_detail' batch.pk %}" class="mobile-card-title">
                   {{ batch.DisplayName }}
                 </a>
-              </h5>
+
+                <div class="mobile-card-meta">
+                  <a href="{% url 'dataset_detail' batch.DataSet.pk %}" class="text-decoration-none">
+                    <i class="bi bi-stack me-1"></i>{{ batch.DataSet.DisplayName }}
+                  </a>
+                </div>
+              </div>
+
               {% if batch.Active %}
-                <span class="badge bg-success">Active</span>
+                <span class="status-pill active">
+                  <i class="bi bi-check-circle"></i>Active
+                </span>
               {% else %}
-                <span class="badge bg-secondary">Inactive</span>
-              {% endif %}
-              {% if batch.review_group %}
-                <span class="badge {% if batch.review_group == 'A' %}bg-primary{% elif batch.review_group == 'B' %}bg-success{% elif batch.review_group == 'C' %}bg-warning text-dark{% endif %}">
-                  Group {{ batch.review_group }}
+                <span class="status-pill inactive">
+                  <i class="bi bi-pause-circle"></i>Inactive
                 </span>
               {% endif %}
             </div>
-            <p class="text-muted small mb-3">
-              <a href="{% url 'dataset_detail' batch.DataSet.pk %}" class="text-decoration-none">
-                <i class="bi bi-stack me-1"></i>{{ batch.DataSet.DisplayName }}
-              </a>
-            </p>
-            <div class="mb-3">
-              <div class="d-flex justify-content-between mb-1" style="font-size:0.8rem;">
-                <span class="text-muted">Candidates reviewed</span>
-                <span class="fw-semibold">{{ batch.voted_count }} / {{ batch.applicant_count }}</span>
+
+            <div class="mt-3">
+              <div class="d-flex justify-content-between mb-1 small">
+                <span class="text-muted">Review Progress</span>
+                <span class="text-muted">{{ batch.voted_count }}/{{ batch.potential_votes }}</span>
               </div>
-              <div class="progress" style="height:8px;">
-                {% if batch.applicant_count > 0 %}
-                  {% widthratio batch.voted_count batch.applicant_count 100 as pct %}
+
+              <div class="progress" style="height:6px;">
+                {% if batch.potential_votes > 0 %}
+                  {% widthratio batch.voted_count batch.potential_votes 100 as pct %}
                   <div class="progress-bar bg-success" style="width:{{ pct }}%"></div>
                 {% else %}
                   <div class="progress-bar" style="width:0%"></div>
                 {% endif %}
               </div>
             </div>
-            {% if batch.VoteExpire %}
-              <small class="text-muted"><i class="bi bi-clock me-1"></i>{{ batch.VoteExpire|date:"M d, Y" }}</small>
-            {% endif %}
-          </div>
-          <div class="card-footer bg-transparent d-flex justify-content-between align-items-center">
-            <a href="{% url 'batch_detail' batch.pk %}" class="btn btn-sm btn-outline-primary">
-              <i class="bi bi-eye me-1"></i>View
-            </a>
-            {% if user.profile.role == 'ADMIN' %}
-              <div class="d-flex gap-1">
+
+            <div class="mobile-meta-row">
+              <span class="mobile-meta-pill">
+                <i class="bi bi-people"></i>{{ batch.applicant_count }} candidates
+              </span>
+
+              <span class="mobile-meta-pill">
+                <i class="bi bi-clock"></i>{{ batch.VoteExpire|date:"M d, Y"|default:"No deadline" }}
+              </span>
+
+              {% if batch.review_group %}
+                <span class="mobile-meta-pill">
+                  <i class="bi bi-diagram-3"></i>Group {{ batch.review_group }}
+                </span>
+              {% endif %}
+            </div>
+
+            <div class="mobile-card-actions">
+              <a href="{% url 'batch_detail' batch.pk %}" class="btn btn-sm btn-outline-primary">
+                View
+              </a>
+
+              {% if user.profile.role == 'ADMIN' %}
                 <a href="{% url 'batch_edit' batch.pk %}" class="btn btn-sm btn-outline-secondary">
-                  <i class="bi bi-pencil"></i>
+                  Edit
                 </a>
-                <a href="{% url 'batch_assign_reviewers' batch.pk %}" class="btn btn-sm btn-outline-warning">
-                  <i class="bi bi-people"></i>
-                </a>
+              {% endif %}
+            </div>
+          </div>
+          {% empty %}
+          <div class="empty-state">
+            <i class="bi bi-collection"></i>
+            <p class="mb-0">No batches found.</p>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div id="card-view" style="display:none;">
+        <div class="batch-grid">
+          <div class="row g-3">
+            {% for batch in page_obj %}
+            <div class="col-lg-4 col-md-6">
+              <div class="batch-card">
+                <div class="batch-card-body">
+                  {% if user.profile.role == 'ADMIN' %}
+                  <div class="form-check mb-2">
+                    <input type="checkbox" name="ids" value="{{ batch.pk }}" class="form-check-input batch-checkbox">
+                    <label class="form-check-label small text-muted">Select</label>
+                  </div>
+                  {% endif %}
+
+                  <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div class="min-w-0">
+                      <a href="{% url 'batch_detail' batch.pk %}" class="batch-card-title">
+                        {{ batch.DisplayName }}
+                      </a>
+                      <div class="batch-card-meta">
+                        <a href="{% url 'dataset_detail' batch.DataSet.pk %}" class="text-decoration-none">
+                          <i class="bi bi-stack me-1"></i>{{ batch.DataSet.DisplayName }}
+                        </a>
+                      </div>
+                    </div>
+
+                    {% if batch.Active %}
+                      <span class="status-pill active">
+                        <i class="bi bi-check-circle"></i>Active
+                      </span>
+                    {% else %}
+                      <span class="status-pill inactive">
+                        <i class="bi bi-pause-circle"></i>Inactive
+                      </span>
+                    {% endif %}
+                  </div>
+
+                  <div class="batch-card-stats">
+                    <div class="batch-card-stat">
+                      <div class="batch-card-stat-label">Candidates</div>
+                      <div class="batch-card-stat-value">{{ batch.applicant_count }}</div>
+                    </div>
+
+                    <div class="batch-card-stat">
+                      <div class="batch-card-stat-label">Deadline</div>
+                      <div class="batch-card-stat-value">{{ batch.VoteExpire|date:"M d"|default:"—" }}</div>
+                    </div>
+                  </div>
+
+                  <div class="mt-3">
+                    <div class="d-flex justify-content-between mb-1 small">
+                      <span class="text-muted">Review Progress</span>
+                      <span class="text-muted">{{ batch.voted_count }}/{{ batch.potential_votes }}</span>
+                    </div>
+
+                    <div class="progress" style="height:6px;">
+                      {% if batch.potential_votes > 0 %}
+                        {% widthratio batch.voted_count batch.potential_votes 100 as pct %}
+                        <div class="progress-bar bg-success" style="width:{{ pct }}%"></div>
+                      {% else %}
+                        <div class="progress-bar" style="width:0%"></div>
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  <div class="mobile-meta-row">
+                    {% if batch.review_group %}
+                      <span class="mobile-meta-pill">
+                        <i class="bi bi-diagram-3"></i>Group {{ batch.review_group }}
+                      </span>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <div class="batch-card-footer">
+                  <a href="{% url 'batch_detail' batch.pk %}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-eye me-1"></i>View Batch
+                  </a>
+
+                  {% if user.profile.role == 'ADMIN' %}
+                    <div class="d-flex gap-1">
+                      <a href="{% url 'batch_edit' batch.pk %}" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-pencil"></i>
+                      </a>
+
+                      <a href="{% url 'batch_assign_reviewers' batch.pk %}" class="btn btn-sm btn-outline-warning">
+                        <i class="bi bi-people"></i>
+                      </a>
+                    </div>
+                  {% endif %}
+                </div>
               </div>
-            {% endif %}
+            </div>
+            {% empty %}
+            <div class="col-12">
+              <div class="empty-state">
+                <i class="bi bi-collection"></i>
+                <p class="mb-0">No batches found.</p>
+              </div>
+            </div>
+            {% endfor %}
           </div>
         </div>
       </div>
-      {% empty %}
-      <div class="col-12">
-        <div class="text-center text-muted py-5">
-          <i class="bi bi-collection fs-1"></i>
-          <p class="mt-2">No batches found.</p>
-        </div>
-      </div>
-      {% endfor %}
+
     </div>
-  </div>
+  </form>
 
-</form>
+  {% if page_obj.has_other_pages %}
+  <nav class="mt-4">
+    <ul class="pagination justify-content-center flex-wrap">
+      {% if page_obj.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?page=1&q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort={{ sort }}&dir={{ direction }}">&laquo; First</a>
+        </li>
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort={{ sort }}&dir={{ direction }}">Previous</a>
+        </li>
+      {% endif %}
 
-{% if page_obj.has_other_pages %}
-<nav class="mt-4">
-  <ul class="pagination justify-content-center">
-    {% if page_obj.has_previous %}
-      <li class="page-item"><a class="page-link" href="?page=1&q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort={{ sort }}&dir={{ direction }}">&laquo; First</a></li>
-      <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort={{ sort }}&dir={{ direction }}">Previous</a></li>
-    {% endif %}
-    <li class="page-item active">
-      <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-    </li>
-    {% if page_obj.has_next %}
-      <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort={{ sort }}&dir={{ direction }}">Next</a></li>
-      <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}&q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort={{ sort }}&dir={{ direction }}">Last &raquo;</a></li>
-    {% endif %}
-  </ul>
-</nav>
-{% endif %}
+      <li class="page-item active">
+        <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+      </li>
+
+      {% if page_obj.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort={{ sort }}&dir={{ direction }}">Next</a>
+        </li>
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}&q={{ search_query }}&status={{ status_filter }}&group={{ group_filter }}&dataset_id={{ dataset_id }}&application_system={{ application_system }}&program_type={{ program_type }}&deadline_before={{ deadline_before }}&deadline_after={{ deadline_after }}&progress={{ progress_filter }}&show_archived={{ show_archived }}&sort={{ sort }}&dir={{ direction }}">Last &raquo;</a>
+        </li>
+      {% endif %}
+    </ul>
+  </nav>
+  {% endif %}
+
+</div>
 
 <script>
   function setView(view) {
     const tableView = document.getElementById('table-view');
-    const cardView  = document.getElementById('card-view');
-    const btnTable  = document.getElementById('btn-table');
-    const btnCard   = document.getElementById('btn-card');
-    if (view === 'table') {
-      tableView.style.display = 'block';
-      cardView.style.display  = 'none';
-      btnTable.classList.add('active');
-      btnCard.classList.remove('active');
-    } else {
-      tableView.style.display = 'none';
-      cardView.style.display  = 'block';
-      btnCard.classList.add('active');
-      btnTable.classList.remove('active');
-    }
+    const cardView = document.getElementById('card-view');
+
+    const btnTable = document.getElementById('btn-table');
+    const btnCard = document.getElementById('btn-card');
+    const sectionBtnTable = document.getElementById('section-btn-table');
+    const sectionBtnCard = document.getElementById('section-btn-card');
+
+    if (!tableView || !cardView) return;
+
+    const useTable = view === 'table';
+
+    tableView.style.display = useTable ? 'block' : 'none';
+    cardView.style.display = useTable ? 'none' : 'block';
+
+    [btnTable, sectionBtnTable].forEach(btn => {
+      if (!btn) return;
+      btn.classList.toggle('active', useTable);
+    });
+
+    [btnCard, sectionBtnCard].forEach(btn => {
+      if (!btn) return;
+      btn.classList.toggle('active', !useTable);
+    });
+
     localStorage.setItem('batchView', view);
   }
+
   document.addEventListener('DOMContentLoaded', () => {
-    setView(localStorage.getItem('batchView') || 'table');
+    const saved = localStorage.getItem('batchView') || 'table';
+    setView(saved);
+    toggleActionBar();
   });
 
   const selectAll = document.getElementById('select-all');
+
   if (selectAll) {
     selectAll.addEventListener('change', function() {
       document.querySelectorAll('.batch-checkbox').forEach(cb => cb.checked = this.checked);
       toggleActionBar();
     });
   }
+
   function toggleActionBar() {
     const checked = document.querySelectorAll('.batch-checkbox:checked').length;
     const container = document.getElementById('batch-action-container');
-    if (container) container.style.display = checked >= 1 ? 'inline-flex' : 'none';
+
+    if (container) {
+      container.style.display = checked >= 1 ? 'flex' : 'none';
+    }
   }
+
   document.addEventListener('change', function(e) {
-    if (e.target.classList.contains('batch-checkbox')) toggleActionBar();
+    if (e.target.classList.contains('batch-checkbox')) {
+      toggleActionBar();
+    }
   });
 </script>
 

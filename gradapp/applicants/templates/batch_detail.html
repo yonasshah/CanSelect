@@ -3,113 +3,649 @@
 
 {% include "partials/breadcrumbs.html" with crumbs=crumbs %}
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <div>
-    <div class="d-flex align-items-center gap-2">
-      <h2 class="mb-0">{{ batch.DisplayName }}</h2>
-      {% if batch.Active %}
-        <span class="badge bg-success fs-6">Active</span>
-      {% else %}
-        <span class="badge bg-secondary fs-6">Inactive</span>
-      {% endif %}
-      {% if batch.review_group %}
-        <span class="badge fs-6 {% if batch.review_group == 'A' %}bg-primary{% elif batch.review_group == 'B' %}bg-success{% elif batch.review_group == 'C' %}bg-warning text-dark{% endif %}">
-          Group {{ batch.review_group }}
-        </span>
-      {% endif %}
-    </div>
-    <p class="text-muted mb-0 mt-1">
-      <a href="{% url 'dataset_detail' batch.DataSet.pk %}" class="text-decoration-none">
-        <i class="bi bi-stack me-1"></i>{{ batch.DataSet.DisplayName }}
-      </a>
-    </p>
-  </div>
-  {% if user.profile.role == 'ADMIN' %}
-    <div class="d-flex gap-2">
-      <a href="{% url 'export_applicants_csv' %}?batch={{ batch.pk }}" class="btn btn-outline-success btn-sm">
-        <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV
-      </a>
-      <a href="{% url 'batch_assign_reviewers' batch.pk %}" class="btn btn-outline-warning btn-sm">
-        <i class="bi bi-people me-1"></i>Reviewers
-      </a>
-      <a href="{% url 'batch_edit' batch.pk %}" class="btn btn-outline-primary btn-sm">
-        <i class="bi bi-pencil me-1"></i>Edit
-      </a>
-    </div>
-  {% endif %}
-</div>
+<style>
+  :root {
+    --ds-bg: #ffffff;
+    --ds-muted-bg: #f7f8fa;
+    --ds-soft-bg: #f3f5f7;
+    --ds-border: #d9dee5;
+    --ds-border-soft: #e8ebef;
+    --ds-text: #1f2933;
+    --ds-muted: #667085;
+    --ds-hover: #f6f8fa;
+    --ds-primary: #3f5bf6;
+    --ds-primary-soft: rgba(63, 91, 246, 0.08);
+    --ds-success-soft: rgba(25, 135, 84, 0.1);
+    --ds-warning-soft: rgba(255, 193, 7, 0.13);
+    --ds-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  }
 
-<!-- Progress & Stats -->
-<div class="d-flex justify-content-between mb-1" style="font-size:0.8rem;">
-  <span class="text-muted">Review Progress</span>
-  <span class="fw-bold">{{ progress_pct }}%</span>
-</div>
-<div class="progress mb-3" style="height:10px;">
-  <div class="progress-bar bg-success" style="width:{{ progress_pct }}%"></div>
-</div>
-<div class="d-flex justify-content-between text-center mb-4">
-  <div>
-    <div class="fw-bold fs-5">{{ total }}</div>
-    <div class="text-muted" style="font-size:0.75rem;">Candidates</div>
-  </div>
-  <div>
-    <div class="fw-bold fs-5">{{ reviewer_count }}</div>
-    <div class="text-muted" style="font-size:0.75rem;">Reviewers</div>
-  </div>
-  <div>
-    <div class="fw-bold fs-5 text-success">{{ actual_votes }}</div>
-    <div class="text-muted" style="font-size:0.75rem;">Votes Cast</div>
-  </div>
-  <div>
-    <div class="fw-bold fs-5 text-warning">{{ pending }}</div>
-    <div class="text-muted" style="font-size:0.75rem;">Remaining</div>
-  </div>
-</div>
+  [data-bs-theme="dark"] {
+    --ds-bg: #212529;
+    --ds-muted-bg: #2b3035;
+    --ds-soft-bg: #252a30;
+    --ds-border: #3a4047;
+    --ds-border-soft: #343a40;
+    --ds-text: #f8f9fa;
+    --ds-muted: #adb5bd;
+    --ds-hover: #262b30;
+    --ds-primary: #6f86ff;
+    --ds-primary-soft: rgba(111, 134, 255, 0.14);
+    --ds-success-soft: rgba(25, 135, 84, 0.16);
+    --ds-warning-soft: rgba(255, 193, 7, 0.16);
+    --ds-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+  }
 
-{% if user.profile.role == 'ADMIN' and reviewer_progress %}
-<div class="card mb-4">
-  <div class="card-header fw-semibold py-2">
-    <i class="bi bi-people-fill me-2"></i>Reviewer Progress
-  </div>
-  <div class="card-body py-2">
-    {% for r in reviewer_progress %}
-    <div class="d-flex align-items-center gap-3 {% if not forloop.last %}mb-2{% endif %}">
-      <div style="width:140px;" class="text-truncate">
-        <i class="bi bi-person-circle text-secondary me-1"></i>
-        <span class="small fw-semibold">{{ r.user.username }}</span>
+  .batch-detail-page {
+    max-width: 1380px;
+    margin: 0 auto;
+  }
+
+  .batch-hero {
+    background: var(--ds-bg);
+    border: 1px solid var(--ds-border);
+    border-radius: 14px;
+    box-shadow: var(--ds-shadow);
+    padding: 1.15rem;
+    margin-bottom: 1rem;
+  }
+
+  .batch-hero-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: start;
+  }
+
+  .batch-kicker {
+    color: var(--ds-muted);
+    font-size: 0.72rem;
+    font-weight: 750;
+    letter-spacing: 0.075em;
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+
+  .batch-title-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+  }
+
+  .batch-title {
+    color: var(--ds-text);
+    font-size: 1.75rem;
+    line-height: 1.15;
+    font-weight: 780;
+    letter-spacing: -0.025em;
+    margin: 0;
+  }
+
+  .batch-dataset-link {
+    color: var(--ds-muted);
+    text-decoration: none;
+    font-size: 0.92rem;
+    display: inline-flex;
+    align-items: center;
+    margin-top: 0.45rem;
+  }
+
+  .batch-dataset-link:hover {
+    text-decoration: underline;
+  }
+
+  .batch-hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    min-height: 28px;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 750;
+    white-space: nowrap;
+  }
+
+  .status-pill.active {
+    background: #d1e7dd;
+    border: 1px solid #badbcc;
+    color: #0f5132;
+  }
+
+  .status-pill.inactive {
+    background: #e2e3e5;
+    border: 1px solid #d3d6d8;
+    color: #41464b;
+  }
+
+  [data-bs-theme="dark"] .status-pill.active {
+    background: rgba(25,135,84,0.16);
+    border-color: rgba(25,135,84,0.3);
+    color: #75b798;
+  }
+
+  [data-bs-theme="dark"] .status-pill.inactive {
+    background: rgba(108,117,125,0.16);
+    border-color: rgba(108,117,125,0.3);
+    color: #ced4da;
+  }
+
+  .batch-progress-block {
+    margin-top: 1.1rem;
+  }
+
+  .batch-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.8rem;
+    margin-top: 1rem;
+  }
+
+  .batch-stat {
+    background: var(--ds-muted-bg);
+    border: 1px solid var(--ds-border-soft);
+    border-radius: 11px;
+    padding: 0.85rem 0.9rem;
+    min-width: 0;
+  }
+
+  .batch-stat-label {
+    color: var(--ds-muted);
+    font-size: 0.7rem;
+    font-weight: 750;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 0.35rem;
+  }
+
+  .batch-stat-value {
+    color: var(--ds-text);
+    font-size: 1.55rem;
+    font-weight: 800;
+    line-height: 1.1;
+    word-break: break-word;
+  }
+
+  .batch-section,
+  .batch-filter-panel,
+  .batch-note {
+    background: var(--ds-bg);
+    border: 1px solid var(--ds-border);
+    border-radius: 14px;
+    box-shadow: var(--ds-shadow);
+    margin-bottom: 1rem;
+    overflow: hidden;
+  }
+
+  .batch-note {
+    padding: 1rem;
+    background: var(--ds-muted-bg);
+  }
+
+  .section-header {
+    padding: 0.9rem 1rem;
+    background: var(--ds-bg);
+    border-bottom: 1px solid var(--ds-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin: 0;
+    color: var(--ds-text);
+    font-size: 1.12rem;
+    font-weight: 780;
+  }
+
+  .section-subtitle {
+    color: var(--ds-muted);
+    font-size: 0.84rem;
+  }
+
+  .batch-filter-panel {
+    padding: 1rem;
+  }
+
+  .filter-label {
+    color: var(--ds-muted);
+    font-size: 0.72rem;
+    font-weight: 750;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    margin-bottom: 0.35rem;
+  }
+
+  .advanced-filter-box {
+    background: var(--ds-muted-bg);
+    border: 1px solid var(--ds-border-soft);
+    border-radius: 11px;
+    padding: 0.85rem;
+  }
+
+  .reviewer-row {
+    display: grid;
+    grid-template-columns: 150px minmax(0, 1fr) 80px 45px;
+    gap: 0.75rem;
+    align-items: center;
+    padding: 0.45rem 0;
+  }
+
+  .reviewer-row + .reviewer-row {
+    border-top: 1px solid var(--ds-border-soft);
+  }
+
+  .reviewer-name {
+    min-width: 0;
+    color: var(--ds-text);
+    font-size: 0.88rem;
+    font-weight: 700;
+  }
+
+  .candidate-table {
+    margin: 0;
+  }
+
+  .candidate-table thead th {
+    background: var(--ds-muted-bg);
+    color: var(--ds-muted);
+    border-top: 0;
+    border-bottom: 1px solid var(--ds-border);
+    font-size: 0.73rem;
+    font-weight: 780;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    padding: 0.8rem 1rem;
+    white-space: nowrap;
+  }
+
+  .candidate-table tbody td {
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--ds-border-soft);
+    vertical-align: middle;
+  }
+
+  .candidate-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .candidate-table tbody tr:hover {
+    background: var(--ds-hover);
+  }
+
+  .candidate-avatar {
+    width: 32px;
+    height: 32px;
+    object-fit: cover;
+  }
+
+  .candidate-name-link {
+    color: var(--ds-primary);
+    font-weight: 750;
+    text-decoration: none;
+  }
+
+  .candidate-name-link:hover {
+    text-decoration: underline;
+  }
+
+  .candidate-mobile-list {
+    display: none;
+  }
+
+  .candidate-mobile-card {
+    padding: 0.95rem 1rem;
+    border-top: 1px solid var(--ds-border-soft);
+  }
+
+  .candidate-mobile-card:first-child {
+    border-top: 0;
+  }
+
+  .candidate-mobile-name {
+    color: var(--ds-primary);
+    font-weight: 750;
+    text-decoration: none;
+  }
+
+  .candidate-mobile-name:hover {
+    text-decoration: underline;
+  }
+
+  .candidate-mobile-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-top: 0.65rem;
+  }
+
+  .mobile-meta-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: var(--ds-muted-bg);
+    border: 1px solid var(--ds-border-soft);
+    color: var(--ds-text);
+    border-radius: 999px;
+    padding: 0.28rem 0.6rem;
+    font-size: 0.76rem;
+    font-weight: 700;
+  }
+
+  .folder-row {
+    background: var(--ds-muted-bg);
+  }
+
+  .empty-state {
+    margin: 1rem;
+    border: 1px dashed var(--ds-border);
+    border-radius: 12px;
+    background: var(--ds-muted-bg);
+    color: var(--ds-muted);
+    padding: 2.25rem 1rem;
+    text-align: center;
+  }
+
+  .empty-state i {
+    display: block;
+    font-size: 2rem;
+    opacity: 0.45;
+    margin-bottom: 0.55rem;
+  }
+
+  @media (max-width: 991.98px) {
+    .batch-hero-main {
+      grid-template-columns: 1fr;
+    }
+
+    .batch-hero-actions {
+      justify-content: flex-start;
+    }
+
+    .batch-stats {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .reviewer-row {
+      grid-template-columns: 135px minmax(0, 1fr) 70px 42px;
+    }
+
+    .section-header {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+  }
+
+  @media (max-width: 575.98px) {
+    .batch-detail-page {
+      max-width: none;
+    }
+
+    .batch-hero {
+      padding: 0.95rem;
+      border-radius: 12px;
+    }
+
+    .batch-kicker {
+      font-size: 0.68rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .batch-title {
+      font-size: 1.45rem;
+      line-height: 1.16;
+    }
+
+    .batch-hero-actions {
+      display: grid;
+      grid-template-columns: 1fr;
+      width: 100%;
+      gap: 0.5rem;
+    }
+
+    .batch-hero-actions .btn {
+      width: 100%;
+    }
+
+    .batch-stats {
+      gap: 0.65rem;
+      margin-top: 0.9rem;
+    }
+
+    .batch-stat {
+      padding: 0.8rem;
+      border-radius: 10px;
+    }
+
+    .batch-stat-label {
+      font-size: 0.64rem;
+      letter-spacing: 0.05em;
+    }
+
+    .batch-stat-value {
+      font-size: 1.3rem;
+    }
+
+    .batch-filter-panel {
+      padding: 0.85rem;
+      border-radius: 12px;
+    }
+
+    .batch-filter-panel .form-control,
+    .batch-filter-panel .form-select,
+    .batch-filter-panel .btn {
+      min-height: 40px;
+    }
+
+    .filter-button-row {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem !important;
+      width: 100%;
+    }
+
+    .filter-button-row .btn {
+      width: 100%;
+    }
+
+    .filter-button-row .advanced-btn {
+      grid-column: 1 / -1;
+    }
+
+    .advanced-filter-box {
+      padding: 0.8rem;
+    }
+
+    .advanced-filter-box .d-flex {
+      align-items: flex-start !important;
+      flex-direction: column;
+      gap: 0.65rem !important;
+    }
+
+    .reviewer-row {
+      grid-template-columns: 1fr;
+      gap: 0.35rem;
+      padding: 0.75rem 0;
+    }
+
+    .reviewer-row .progress {
+      width: 100%;
+    }
+
+    .section-header {
+      padding: 0.9rem;
+    }
+
+    .section-title {
+      font-size: 1.18rem;
+    }
+
+    .candidate-table-wrap {
+      display: none;
+    }
+
+    .candidate-mobile-list {
+      display: block;
+    }
+  }
+
+  @media (max-width: 390px) {
+    .batch-stats {
+      grid-template-columns: 1fr;
+    }
+
+    .filter-button-row {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<div class="batch-detail-page">
+
+  <div class="batch-hero">
+    <div class="batch-hero-main">
+      <div>
+        <div class="batch-kicker">Batch</div>
+
+        <div class="batch-title-row">
+          <h2 class="batch-title">{{ batch.DisplayName }}</h2>
+
+          {% if batch.Active %}
+            <span class="status-pill active">
+              <i class="bi bi-check-circle"></i>Active
+            </span>
+          {% else %}
+            <span class="status-pill inactive">
+              <i class="bi bi-pause-circle"></i>Inactive
+            </span>
+          {% endif %}
+
+          {% if batch.review_group %}
+            <span class="badge {% if batch.review_group == 'A' %}bg-primary{% elif batch.review_group == 'B' %}bg-success{% elif batch.review_group == 'C' %}bg-warning text-dark{% endif %}">
+              Group {{ batch.review_group }}
+            </span>
+          {% endif %}
+        </div>
+
+        <a href="{% url 'dataset_detail' batch.DataSet.pk %}" class="batch-dataset-link">
+          <i class="bi bi-stack me-1"></i>{{ batch.DataSet.DisplayName }}
+        </a>
       </div>
-      <div class="flex-grow-1">
-        <div class="progress" style="height:8px;">
-          <div class="progress-bar {% if r.pct == 100 %}bg-success{% elif r.pct >= 50 %}bg-primary{% elif r.pct > 0 %}bg-warning{% else %}bg-secondary{% endif %}"
-               style="width:{{ r.pct }}%"></div>
+
+      {% if user.profile.role == 'ADMIN' %}
+      <div class="batch-hero-actions">
+        <a href="{% url 'export_applicants_csv' %}?batch={{ batch.pk }}" class="btn btn-outline-success btn-sm">
+          <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV
+        </a>
+        <a href="{% url 'batch_assign_reviewers' batch.pk %}" class="btn btn-outline-warning btn-sm">
+          <i class="bi bi-people me-1"></i>Reviewers
+        </a>
+        <a href="{% url 'batch_edit' batch.pk %}" class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-pencil me-1"></i>Edit
+        </a>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="batch-progress-block">
+      <div class="d-flex justify-content-between mb-1 small">
+        <span class="text-muted">Review Progress</span>
+        <span class="fw-bold">{{ progress_pct }}%</span>
+      </div>
+
+      <div class="progress" style="height:10px;">
+        <div class="progress-bar bg-success" style="width:{{ progress_pct }}%"></div>
+      </div>
+    </div>
+
+    <div class="batch-stats">
+      <div class="batch-stat">
+        <div class="batch-stat-label">Candidates</div>
+        <div class="batch-stat-value">{{ total }}</div>
+      </div>
+
+      <div class="batch-stat">
+        <div class="batch-stat-label">Reviewers</div>
+        <div class="batch-stat-value">{{ reviewer_count }}</div>
+      </div>
+
+      <div class="batch-stat">
+        <div class="batch-stat-label">Votes Cast</div>
+        <div class="batch-stat-value text-success">{{ actual_votes }}</div>
+      </div>
+
+      <div class="batch-stat">
+        <div class="batch-stat-label">Remaining</div>
+        <div class="batch-stat-value text-warning">{{ pending }}</div>
+      </div>
+    </div>
+  </div>
+
+  {% if user.profile.role == 'ADMIN' and reviewer_progress %}
+  <div class="batch-section">
+    <div class="section-header">
+      <div>
+        <h4 class="section-title">
+          <i class="bi bi-people-fill"></i>Reviewer Progress
+        </h4>
+        <div class="section-subtitle">Progress by assigned reviewer.</div>
+      </div>
+    </div>
+
+    <div class="p-3">
+      {% for r in reviewer_progress %}
+      <div class="reviewer-row">
+        <div class="reviewer-name text-truncate">
+          <i class="bi bi-person-circle text-secondary me-1"></i>{{ r.user.username }}
+        </div>
+
+        <div>
+          <div class="progress" style="height:8px;">
+            <div class="progress-bar {% if r.pct == 100 %}bg-success{% elif r.pct >= 50 %}bg-primary{% elif r.pct > 0 %}bg-warning{% else %}bg-secondary{% endif %}"
+                 style="width:{{ r.pct }}%"></div>
+          </div>
+        </div>
+
+        <div class="text-end">
+          <span class="small {% if r.pct == 100 %}text-success fw-semibold{% else %}text-muted{% endif %}">
+            {{ r.votes_cast }}/{{ r.total }}
+          </span>
+        </div>
+
+        <div class="text-end">
+          {% if r.pct == 100 %}
+            <i class="bi bi-check-circle-fill text-success"></i>
+          {% else %}
+            <span class="small text-muted">{{ r.pct }}%</span>
+          {% endif %}
         </div>
       </div>
-      <div style="width:80px;" class="text-end">
-        <span class="small {% if r.pct == 100 %}text-success fw-semibold{% else %}text-muted{% endif %}">
-          {{ r.votes_cast }}/{{ r.total }}
-        </span>
-      </div>
-      <div style="width:45px;" class="text-end">
-        {% if r.pct == 100 %}
-          <i class="bi bi-check-circle-fill text-success"></i>
-        {% else %}
-          <span class="small text-muted">{{ r.pct }}%</span>
-        {% endif %}
-      </div>
+      {% endfor %}
     </div>
-    {% endfor %}
   </div>
-</div>
-{% endif %}
+  {% endif %}
 
-{% if batch.Description or batch.VoteExpire or batch.AdminNotes %}
-<div class="card border-0 bg-light mb-4">
-  <div class="card-body">
+  {% if batch.Description or batch.VoteExpire or batch.AdminNotes %}
+  <div class="batch-note">
     <div class="row g-3">
       <div class="col-md-6">
         <p class="mb-1 small"><strong>Description:</strong> {{ batch.Description|default:"—" }}</p>
         <p class="mb-0 small"><strong>Vote Deadline:</strong> {{ batch.VoteExpire|date:"M d, Y H:i"|default:"—" }}</p>
       </div>
+
       {% if user.profile.role == 'ADMIN' and batch.AdminNotes %}
       <div class="col-md-6">
         <p class="mb-0 small"><strong>Admin Notes:</strong> {{ batch.AdminNotes }}</p>
@@ -117,238 +653,353 @@
       {% endif %}
     </div>
   </div>
-</div>
-{% endif %}
+  {% endif %}
 
-<!-- Candidate Table -->
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h4 class="mb-0">
-    Candidates
-    <span class="text-muted fs-6 fw-normal">({{ total }}{% if has_filters %} filtered{% endif %})</span>
-  </h4>
-</div>
-
-<!-- Batch candidate filters -->
-<div class="card mb-3">
-  <div class="card-body py-2">
-    <form method="get">
-      <div class="row g-2 align-items-end">
-        <div class="col-md-3">
-          <input type="text" name="q" class="form-control form-control-sm"
-                 placeholder="Search by name or ID..." value="{{ search_query|default:'' }}">
-        </div>
-        <div class="col-md-2">
-          <select name="status" class="form-select form-select-sm">
-            <option value="">All Statuses</option>
-            <option value="INTERVIEW"           {% if status_filter == 'INTERVIEW'           %}selected{% endif %}>Interview</option>
-            <option value="INTERVIEW_COMPLETE"  {% if status_filter == 'INTERVIEW_COMPLETE'  %}selected{% endif %}>Interview Complete</option>
-            <option value="ACCEPTED"            {% if status_filter == 'ACCEPTED'            %}selected{% endif %}>Accepted</option>
-            <option value="ACCEPTED_MAILED"     {% if status_filter == 'ACCEPTED_MAILED'     %}selected{% endif %}>Accepted – Mailed</option>
-            <option value="ACCEPTED_NOT_MAILED" {% if status_filter == 'ACCEPTED_NOT_MAILED' %}selected{% endif %}>Accepted – Not Mailed</option>
-            <option value="WAITLISTED"          {% if status_filter == 'WAITLISTED'          %}selected{% endif %}>Waitlisted</option>
-            <option value="REJECTED"            {% if status_filter == 'REJECTED'            %}selected{% endif %}>Rejected</option>
-            <option value="DECLINED"            {% if status_filter == 'DECLINED'            %}selected{% endif %}>Candidate Declined</option>
-          </select>
-        </div>
-        <div class="col-md-2">
-          <select name="voted" class="form-select form-select-sm">
-            <option value=""         {% if not voted_filter              %}selected{% endif %}>All</option>
-            <option value="voted"    {% if voted_filter == 'voted'       %}selected{% endif %}>Voted</option>
-            <option value="not_voted"{% if voted_filter == 'not_voted'   %}selected{% endif %}>Not Yet Voted</option>
-          </select>
-        </div>
-        <div class="col-auto d-flex align-items-center">
-          <div class="form-check mb-0">
-            <input class="form-check-input" type="checkbox" name="flagged_only" id="bd_flagged"
-                   {% if flagged_only %}checked{% endif %} onchange="this.form.submit()">
-            <label class="form-check-label small" for="bd_flagged">Flagged only</label>
-          </div>
-        </div>
-        <div class="col-auto d-flex gap-1">
-          <button type="submit" class="btn btn-outline-secondary btn-sm">Filter</button>
-          <a href="{% url 'batch_detail' batch.pk %}" class="btn btn-outline-danger btn-sm">Clear</a>
-          <button type="button" class="btn btn-outline-secondary btn-sm"
-                  data-bs-toggle="collapse" data-bs-target="#bd-advanced">
-            <i class="bi bi-sliders me-1"></i>Advanced
-            {% if has_advanced %}<span class="badge bg-primary ms-1">ON</span>{% endif %}
-          </button>
+  <div class="batch-section">
+    <div class="section-header">
+      <div>
+        <h4 class="section-title">
+          <i class="bi bi-people"></i>Candidates
+        </h4>
+        <div class="section-subtitle">
+          {{ total }} candidate{{ total|pluralize }}{% if has_filters %} matching your filters{% endif %}.
         </div>
       </div>
+    </div>
 
-      <!-- Advanced -->
-      <div class="collapse {% if has_advanced %}show{% endif %} mt-2" id="bd-advanced">
-        <div class="border rounded p-2 bg-light">
-          <div class="d-flex flex-wrap gap-3">
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" name="first_gen" id="bd_fg"
-                     {% if filter_first_gen %}checked{% endif %}>
-              <label class="form-check-label small" for="bd_fg">First Generation</label>
+    <div class="batch-filter-panel border-0 rounded-0 shadow-none mb-0">
+      <form method="get">
+        <div class="row g-2 align-items-end">
+          <div class="col-lg-3 col-md-6">
+            <label class="filter-label">Search</label>
+            <input type="text" name="q" class="form-control form-control-sm"
+                   placeholder="Search by name or ID..." value="{{ search_query|default:'' }}">
+          </div>
+
+          <div class="col-lg-2 col-md-6">
+            <label class="filter-label">Status</label>
+            <select name="status" class="form-select form-select-sm">
+              <option value="">All Statuses</option>
+              <option value="INTERVIEW" {% if status_filter == 'INTERVIEW' %}selected{% endif %}>Interview</option>
+              <option value="INTERVIEW_COMPLETE" {% if status_filter == 'INTERVIEW_COMPLETE' %}selected{% endif %}>Interview Complete</option>
+              <option value="ACCEPTED" {% if status_filter == 'ACCEPTED' %}selected{% endif %}>Accepted</option>
+              <option value="ACCEPTED_MAILED" {% if status_filter == 'ACCEPTED_MAILED' %}selected{% endif %}>Accepted – Mailed</option>
+              <option value="ACCEPTED_NOT_MAILED" {% if status_filter == 'ACCEPTED_NOT_MAILED' %}selected{% endif %}>Accepted – Not Mailed</option>
+              <option value="WAITLISTED" {% if status_filter == 'WAITLISTED' %}selected{% endif %}>Waitlisted</option>
+              <option value="REJECTED" {% if status_filter == 'REJECTED' %}selected{% endif %}>Rejected</option>
+              <option value="DECLINED" {% if status_filter == 'DECLINED' %}selected{% endif %}>Candidate Declined</option>
+            </select>
+          </div>
+
+          <div class="col-lg-2 col-md-6">
+            <label class="filter-label">Reviewed</label>
+            <select name="voted" class="form-select form-select-sm">
+              <option value="" {% if not voted_filter %}selected{% endif %}>All</option>
+              <option value="voted" {% if voted_filter == 'voted' %}selected{% endif %}>Voted</option>
+              <option value="not_voted" {% if voted_filter == 'not_voted' %}selected{% endif %}>Not Yet Voted</option>
+            </select>
+          </div>
+
+          <div class="col-lg-auto col-md-6">
+            <div class="form-check mb-1">
+              <input class="form-check-input" type="checkbox" name="flagged_only" id="bd_flagged"
+                     {% if flagged_only %}checked{% endif %} onchange="this.form.submit()">
+              <label class="form-check-label small" for="bd_flagged">Flagged only</label>
             </div>
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" name="re_applicant" id="bd_ra"
-                     {% if filter_re_applicant %}checked{% endif %}>
-              <label class="form-check-label small" for="bd_ra">Re-Applicant</label>
-            </div>
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" name="pb_to_dmd" id="bd_pb"
-                     {% if filter_pb_to_dmd %}checked{% endif %}>
-              <label class="form-check-label small" for="bd_pb">PB to DMD</label>
-            </div>
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" name="former_post_bacc" id="bd_fpb"
-                     {% if filter_former_pb %}checked{% endif %}>
-              <label class="form-check-label small" for="bd_fpb">Former Post Bacc</label>
-            </div>
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" name="three_plus_four" id="bd_3p4"
-                     {% if filter_3p4 %}checked{% endif %}>
-              <label class="form-check-label small" for="bd_3p4">3+4</label>
-            </div>
-            <button type="submit" class="btn btn-primary btn-sm ms-2">Apply</button>
+          </div>
+
+          <div class="col-lg-auto col-12 d-flex gap-1 filter-button-row">
+            <button type="submit" class="btn btn-outline-secondary btn-sm">
+              <i class="bi bi-funnel me-1"></i>Filter
+            </button>
+            <a href="{% url 'batch_detail' batch.pk %}" class="btn btn-outline-danger btn-sm">Clear</a>
+            <button type="button" class="btn btn-outline-secondary btn-sm advanced-btn"
+                    data-bs-toggle="collapse" data-bs-target="#bd-advanced">
+              <i class="bi bi-sliders me-1"></i>Advanced
+              {% if has_advanced %}<span class="badge bg-primary ms-1">ON</span>{% endif %}
+            </button>
           </div>
         </div>
-      </div>
-    </form>
-  </div>
-</div>
 
-<!-- No results -->
-{% if has_filters and total == 0 %}
-<div class="text-center text-muted py-5 border rounded mb-3">
-  <i class="bi bi-search fs-1 d-block mb-2 opacity-25"></i>
-  <p class="mb-0">No candidates match your filters.</p>
-  <a href="{% url 'batch_detail' batch.pk %}" class="btn btn-sm btn-outline-secondary mt-2">Clear Filters</a>
-</div>
-{% endif %}
+        <div class="collapse {% if has_advanced %}show{% endif %} mt-3" id="bd-advanced">
+          <div class="advanced-filter-box">
+            <div class="d-flex flex-wrap gap-3 align-items-center">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="first_gen" id="bd_fg"
+                       {% if filter_first_gen %}checked{% endif %}>
+                <label class="form-check-label small" for="bd_fg">First Generation</label>
+              </div>
 
-<div class="card">
-  <div class="card-body p-0">
-    <table class="table table-hover align-middle mb-0">
-      <thead class="table-dark">
-        <tr>
-          <th>Name</th>
-          <th>Status</th>
-          <th class="text-center">Votes</th>
-          <th class="text-center">Avg Score</th>
-          <th class="text-center">Reviewed</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% if has_multiple_groups %}
-          {# ── Grouped by source folder ── #}
-          {% for folder_name, group in grouped_applicants.items %}
-            <tr class="table-light">
-              <td colspan="5" class="py-2">
-                <i class="bi bi-folder-fill me-2 text-primary"></i>
-                <strong>{{ folder_name|default:"Other" }}</strong>
-                <span class="text-muted ms-2 small">({{ group|length }} candidate{{ group|length|pluralize }})</span>
-              </td>
-            </tr>
-            {% for a in group %}
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="re_applicant" id="bd_ra"
+                       {% if filter_re_applicant %}checked{% endif %}>
+                <label class="form-check-label small" for="bd_ra">Re-Applicant</label>
+              </div>
+
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="pb_to_dmd" id="bd_pb"
+                       {% if filter_pb_to_dmd %}checked{% endif %}>
+                <label class="form-check-label small" for="bd_pb">PB to DMD</label>
+              </div>
+
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="former_post_bacc" id="bd_fpb"
+                       {% if filter_former_pb %}checked{% endif %}>
+                <label class="form-check-label small" for="bd_fpb">Former Post Bacc</label>
+              </div>
+
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="three_plus_four" id="bd_3p4"
+                       {% if filter_3p4 %}checked{% endif %}>
+                <label class="form-check-label small" for="bd_3p4">3+4</label>
+              </div>
+
+              <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    {% if has_filters and total == 0 %}
+    <div class="empty-state">
+      <i class="bi bi-search"></i>
+      <p class="mb-0">No candidates match your filters.</p>
+      <a href="{% url 'batch_detail' batch.pk %}" class="btn btn-sm btn-outline-secondary mt-2">Clear Filters</a>
+    </div>
+    {% endif %}
+
+    <div class="candidate-table-wrap">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle candidate-table" style="font-size:0.9rem;">
+          <thead>
             <tr>
-              <td class="ps-4">
-                {% if a.profile_picture %}
-                  <img src="{{ a.profile_picture.url }}" class="rounded-circle me-2" style="width:32px; height:32px; object-fit:cover;">
-                {% else %}
-                  <i class="bi bi-person-circle fs-5 text-secondary me-2"></i>
-                {% endif %}
-                <a href="{% url 'applicant_detail' a.pk %}?from=batch&batch_pk={{ batch.pk }}&q={{ search_query|default:'' }}">
-                  {{ a.last_name }}, {{ a.first_name }}
-                </a>
-              </td>
-              <td>
-                {% include "partials/status_badge.html" with applicant=a %}
-              </td>
-              <td class="text-center">
-                {% with votes=a.votes_summary %}
-                  <span class="badge bg-success" title="Accept">{{ votes.accept }}</span>
-                  <span class="badge bg-danger" title="Deny">{{ votes.deny }}</span>
-                  <span class="badge bg-warning text-dark" title="Waitlist">{{ votes.waitlist }}</span>
-                {% endwith %}
-              </td>
-              <td class="text-center">
-                {% if a.avg_score %}
-                  <span class="badge bg-primary">{{ a.avg_score|floatformat:1 }} / 5.0</span>
-                {% else %}
-                  <span class="text-muted small">—</span>
-                {% endif %}
-              </td>
-              <td class="text-center" style="min-width:100px;">
-                <div class="d-flex align-items-center gap-2">
-                  <div class="progress flex-grow-1" style="height:6px;">
-                    {% if reviewer_count > 0 %}
-                      {% widthratio a.vote_count reviewer_count 100 as review_pct %}
-                      <div class="progress-bar {% if review_pct == '100' %}bg-success{% else %}bg-primary{% endif %}" style="width:{{ review_pct }}%"></div>
-                    {% else %}
-                      <div class="progress-bar" style="width:0%"></div>
-                    {% endif %}
-                  </div>
-                  <span class="text-muted" style="font-size:0.75rem; white-space:nowrap;">{{ a.vote_count }}/{{ reviewer_count }}</span>
-                </div>
-              </td>
+              <th>Name</th>
+              <th>Status</th>
+              <th class="text-center">Votes</th>
+              <th class="text-center">Avg Score</th>
+              <th class="text-center">Reviewed</th>
             </tr>
-            {% endfor %}
-          {% endfor %}
+          </thead>
 
-        {% else %}
-          {# ── Flat list (single source or no source_folder data) ── #}
-          {% for a in applicants %}
-          <tr>
-            <td>
+          <tbody>
+            {% if has_multiple_groups %}
+              {% for folder_name, group in grouped_applicants.items %}
+                <tr class="folder-row">
+                  <td colspan="5" class="py-2">
+                    <i class="bi bi-folder-fill me-2 text-primary"></i>
+                    <strong>{{ folder_name|default:"Other" }}</strong>
+                    <span class="text-muted ms-2 small">({{ group|length }} candidate{{ group|length|pluralize }})</span>
+                  </td>
+                </tr>
+
+                {% for a in group %}
+                <tr>
+                  <td class="ps-4">
+                    {% if a.profile_picture %}
+                      <img src="{{ a.profile_picture.url }}" class="rounded-circle me-2 candidate-avatar">
+                    {% else %}
+                      <i class="bi bi-person-circle fs-5 text-secondary me-2"></i>
+                    {% endif %}
+
+                    <a href="{% url 'applicant_detail' a.pk %}?from=batch&batch_pk={{ batch.pk }}&q={{ search_query|default:'' }}" class="candidate-name-link">
+                      {{ a.last_name }}, {{ a.first_name }}
+                    </a>
+                  </td>
+
+                  <td>
+                    {% include "partials/status_badge.html" with applicant=a %}
+                  </td>
+
+                  <td class="text-center">
+                    {% with votes=a.votes_summary %}
+                      <span class="badge bg-success" title="Accept">{{ votes.accept }}</span>
+                      <span class="badge bg-danger" title="Deny">{{ votes.deny }}</span>
+                      <span class="badge bg-warning text-dark" title="Waitlist">{{ votes.waitlist }}</span>
+                    {% endwith %}
+                  </td>
+
+                  <td class="text-center">
+                    {% if a.avg_score %}
+                      <span class="badge bg-primary">{{ a.avg_score|floatformat:1 }} / 5.0</span>
+                    {% else %}
+                      <span class="text-muted small">—</span>
+                    {% endif %}
+                  </td>
+
+                  <td class="text-center" style="min-width:100px;">
+                    <div class="d-flex align-items-center gap-2">
+                      <div class="progress flex-grow-1" style="height:6px;">
+                        {% if reviewer_count > 0 %}
+                          {% widthratio a.vote_count reviewer_count 100 as review_pct %}
+                          <div class="progress-bar {% if review_pct == '100' %}bg-success{% else %}bg-primary{% endif %}" style="width:{{ review_pct }}%"></div>
+                        {% else %}
+                          <div class="progress-bar" style="width:0%"></div>
+                        {% endif %}
+                      </div>
+                      <span class="text-muted" style="font-size:0.75rem; white-space:nowrap;">{{ a.vote_count }}/{{ reviewer_count }}</span>
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              {% endfor %}
+            {% else %}
+              {% for a in applicants %}
+              <tr>
+                <td>
+                  {% if a.profile_picture %}
+                    <img src="{{ a.profile_picture.url }}" class="rounded-circle me-2 candidate-avatar">
+                  {% else %}
+                    <i class="bi bi-person-circle fs-5 text-secondary me-2"></i>
+                  {% endif %}
+
+                  <a href="{% url 'applicant_detail' a.pk %}?from=batch&batch_pk={{ batch.pk }}&q={{ search_query|default:'' }}" class="candidate-name-link">
+                    {{ a.last_name }}, {{ a.first_name }}
+                  </a>
+                </td>
+
+                <td>
+                  {% include "partials/status_badge.html" with applicant=a %}
+                </td>
+
+                <td class="text-center">
+                  {% with votes=a.votes_summary %}
+                    <span class="badge bg-success" title="Accept">{{ votes.accept }}</span>
+                    <span class="badge bg-danger" title="Deny">{{ votes.deny }}</span>
+                    <span class="badge bg-warning text-dark" title="Waitlist">{{ votes.waitlist }}</span>
+                  {% endwith %}
+                </td>
+
+                <td class="text-center">
+                  {% if a.avg_score %}
+                    <span class="badge bg-primary">{{ a.avg_score|floatformat:1 }} / 5.0</span>
+                  {% else %}
+                    <span class="text-muted small">—</span>
+                  {% endif %}
+                </td>
+
+                <td class="text-center" style="min-width:100px;">
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="progress flex-grow-1" style="height:6px;">
+                      {% if reviewer_count > 0 %}
+                        {% widthratio a.vote_count reviewer_count 100 as review_pct %}
+                        <div class="progress-bar {% if review_pct == '100' %}bg-success{% else %}bg-primary{% endif %}" style="width:{{ review_pct }}%"></div>
+                      {% else %}
+                        <div class="progress-bar" style="width:0%"></div>
+                      {% endif %}
+                    </div>
+                    <span class="text-muted" style="font-size:0.75rem; white-space:nowrap;">{{ a.vote_count }}/{{ reviewer_count }}</span>
+                  </div>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="5" class="text-center text-muted py-4">
+                  {% if search_query %}
+                    No candidates matching "{{ search_query }}".
+                  {% else %}
+                    No candidates assigned to this batch yet.
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="candidate-mobile-list">
+      {% if has_multiple_groups %}
+        {% for folder_name, group in grouped_applicants.items %}
+          <div class="px-3 py-2 bg-light border-top">
+            <i class="bi bi-folder-fill me-2 text-primary"></i>
+            <strong>{{ folder_name|default:"Other" }}</strong>
+            <span class="text-muted ms-1 small">({{ group|length }})</span>
+          </div>
+
+          {% for a in group %}
+          <div class="candidate-mobile-card">
+            <div class="d-flex align-items-center gap-2">
               {% if a.profile_picture %}
-                <img src="{{ a.profile_picture.url }}" class="rounded-circle me-2" style="width:32px; height:32px; object-fit:cover;">
+                <img src="{{ a.profile_picture.url }}" class="rounded-circle candidate-avatar">
               {% else %}
-                <i class="bi bi-person-circle fs-5 text-secondary me-2"></i>
+                <i class="bi bi-person-circle fs-5 text-secondary"></i>
               {% endif %}
-              <a href="{% url 'applicant_detail' a.pk %}?from=batch&batch_pk={{ batch.pk }}&q={{ search_query|default:'' }}">
+
+              <a href="{% url 'applicant_detail' a.pk %}?from=batch&batch_pk={{ batch.pk }}&q={{ search_query|default:'' }}" class="candidate-mobile-name">
                 {{ a.last_name }}, {{ a.first_name }}
               </a>
-            </td>
-            <td>
+            </div>
+
+            <div class="candidate-mobile-meta">
               {% include "partials/status_badge.html" with applicant=a %}
-            </td>
-            <td class="text-center">
-              {% with votes=a.votes_summary %}
-                <span class="badge bg-success" title="Accept">{{ votes.accept }}</span>
-                <span class="badge bg-danger" title="Deny">{{ votes.deny }}</span>
-                <span class="badge bg-warning text-dark" title="Waitlist">{{ votes.waitlist }}</span>
-              {% endwith %}
-            </td>
-            <td class="text-center">
+
               {% if a.avg_score %}
-                <span class="badge bg-primary">{{ a.avg_score|floatformat:1 }} / 5.0</span>
+                <span class="mobile-meta-pill">Score {{ a.avg_score|floatformat:1 }}</span>
               {% else %}
-                <span class="text-muted small">—</span>
+                <span class="mobile-meta-pill">Score —</span>
               {% endif %}
-            </td>
-            <td class="text-center" style="min-width:100px;">
-              <div class="d-flex align-items-center gap-2">
-                <div class="progress flex-grow-1" style="height:6px;">
-                  {% if reviewer_count > 0 %}
-                    {% widthratio a.vote_count reviewer_count 100 as review_pct %}
-                    <div class="progress-bar {% if review_pct == '100' %}bg-success{% else %}bg-primary{% endif %}" style="width:{{ review_pct }}%"></div>
-                  {% else %}
-                    <div class="progress-bar" style="width:0%"></div>
-                  {% endif %}
-                </div>
-                <span class="text-muted" style="font-size:0.75rem; white-space:nowrap;">{{ a.vote_count }}/{{ reviewer_count }}</span>
-              </div>
-            </td>
-          </tr>
-          {% empty %}
-          <tr>
-            <td colspan="5" class="text-center text-muted py-4">
-              {% if search_query %}
-                No candidates matching "{{ search_query }}".
-              {% else %}
-                No candidates assigned to this batch yet.
-              {% endif %}
-            </td>
-          </tr>
+
+              <span class="mobile-meta-pill">{{ a.vote_count }}/{{ reviewer_count }} reviewed</span>
+
+              {% with votes=a.votes_summary %}
+                <span class="badge bg-success">{{ votes.accept }}</span>
+                <span class="badge bg-danger">{{ votes.deny }}</span>
+                <span class="badge bg-warning text-dark">{{ votes.waitlist }}</span>
+              {% endwith %}
+            </div>
+          </div>
           {% endfor %}
-        {% endif %}
-      </tbody>
-    </table>
+        {% endfor %}
+      {% else %}
+        {% for a in applicants %}
+        <div class="candidate-mobile-card">
+          <div class="d-flex align-items-center gap-2">
+            {% if a.profile_picture %}
+              <img src="{{ a.profile_picture.url }}" class="rounded-circle candidate-avatar">
+            {% else %}
+              <i class="bi bi-person-circle fs-5 text-secondary"></i>
+            {% endif %}
+
+            <a href="{% url 'applicant_detail' a.pk %}?from=batch&batch_pk={{ batch.pk }}&q={{ search_query|default:'' }}" class="candidate-mobile-name">
+              {{ a.last_name }}, {{ a.first_name }}
+            </a>
+          </div>
+
+          <div class="candidate-mobile-meta">
+            {% include "partials/status_badge.html" with applicant=a %}
+
+            {% if a.avg_score %}
+              <span class="mobile-meta-pill">Score {{ a.avg_score|floatformat:1 }}</span>
+            {% else %}
+              <span class="mobile-meta-pill">Score —</span>
+            {% endif %}
+
+            <span class="mobile-meta-pill">{{ a.vote_count }}/{{ reviewer_count }} reviewed</span>
+
+            {% with votes=a.votes_summary %}
+              <span class="badge bg-success">{{ votes.accept }}</span>
+              <span class="badge bg-danger">{{ votes.deny }}</span>
+              <span class="badge bg-warning text-dark">{{ votes.waitlist }}</span>
+            {% endwith %}
+          </div>
+        </div>
+        {% empty %}
+        <div class="empty-state">
+          <i class="bi bi-people"></i>
+          <p class="mb-0">
+            {% if search_query %}
+              No candidates matching "{{ search_query }}".
+            {% else %}
+              No candidates assigned to this batch yet.
+            {% endif %}
+          </p>
+        </div>
+        {% endfor %}
+      {% endif %}
+    </div>
+
   </div>
 </div>
 
