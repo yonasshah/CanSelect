@@ -1,132 +1,483 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <div>
-    <h2 class="mb-0">Send Notification</h2>
-    <p class="text-muted mb-0">Send a message to reviewers by dataset, group, batch, or individually.</p>
+<style>
+  :root {
+    --ds-bg: #ffffff;
+    --ds-muted-bg: #f7f8fa;
+    --ds-soft-bg: #f3f5f7;
+    --ds-border: #d9dee5;
+    --ds-border-soft: #e8ebef;
+    --ds-text: #1f2933;
+    --ds-muted: #667085;
+    --ds-hover: #f6f8fa;
+    --ds-primary: #3f5bf6;
+    --ds-primary-soft: rgba(63, 91, 246, 0.08);
+    --ds-success-soft: rgba(25, 135, 84, 0.1);
+    --ds-warning-soft: rgba(255, 193, 7, 0.13);
+    --ds-danger-soft: rgba(220, 53, 69, 0.1);
+    --ds-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  }
+
+  [data-bs-theme="dark"] {
+    --ds-bg: #212529;
+    --ds-muted-bg: #2b3035;
+    --ds-soft-bg: #252a30;
+    --ds-border: #3a4047;
+    --ds-border-soft: #343a40;
+    --ds-text: #f8f9fa;
+    --ds-muted: #adb5bd;
+    --ds-hover: #262b30;
+    --ds-primary: #6f86ff;
+    --ds-primary-soft: rgba(111, 134, 255, 0.14);
+    --ds-success-soft: rgba(25, 135, 84, 0.16);
+    --ds-warning-soft: rgba(255, 193, 7, 0.16);
+    --ds-danger-soft: rgba(220, 53, 69, 0.16);
+    --ds-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+  }
+
+  .notification-page {
+    max-width: 1180px;
+    margin: 0 auto;
+  }
+
+  .notification-hero,
+  .notification-card {
+    background: var(--ds-bg);
+    border: 1px solid var(--ds-border);
+    border-radius: 14px;
+    box-shadow: var(--ds-shadow);
+    margin-bottom: 1rem;
+    overflow: hidden;
+  }
+
+  .notification-hero {
+    padding: 1.15rem;
+  }
+
+  .notification-hero-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: start;
+  }
+
+  .notification-kicker {
+    color: var(--ds-muted);
+    font-size: 0.72rem;
+    font-weight: 750;
+    letter-spacing: 0.075em;
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+
+  .notification-title {
+    color: var(--ds-text);
+    font-size: 1.75rem;
+    line-height: 1.15;
+    font-weight: 780;
+    letter-spacing: -0.025em;
+    margin: 0;
+  }
+
+  .notification-description {
+    color: var(--ds-muted);
+    max-width: 760px;
+    margin: 0.45rem 0 0;
+    font-size: 0.95rem;
+  }
+
+  .notification-hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+
+  .notification-card-header {
+    padding: 0.9rem 1rem;
+    background: var(--ds-bg);
+    border-bottom: 1px solid var(--ds-border);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .notification-card-title {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin: 0;
+    color: var(--ds-text);
+    font-size: 1.08rem;
+    font-weight: 780;
+  }
+
+  .notification-card-title i {
+    color: var(--ds-primary);
+  }
+
+  .notification-card-subtitle {
+    color: var(--ds-muted);
+    font-size: 0.82rem;
+    margin-top: 0.12rem;
+  }
+
+  .notification-card-body {
+    padding: 1rem;
+  }
+
+  .field-label {
+    color: var(--ds-muted);
+    font-size: 0.72rem;
+    font-weight: 750;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    margin-bottom: 0.35rem;
+  }
+
+  .recipient-choice-shell {
+    background: var(--ds-muted-bg);
+    border: 1px solid var(--ds-border-soft);
+    border-radius: 12px;
+    padding: 0.9rem;
+  }
+
+  .recipient-option {
+    margin-top: 0.9rem;
+  }
+
+  .recipient-option-card {
+    background: var(--ds-bg);
+    border: 1px solid var(--ds-border-soft);
+    border-radius: 11px;
+    padding: 0.85rem;
+  }
+
+  .reviewer-list-box {
+    background: var(--ds-bg);
+    border: 1px solid var(--ds-border-soft);
+    border-radius: 11px;
+    max-height: 280px;
+    overflow-y: auto;
+    padding: 0.85rem;
+  }
+
+  .reviewer-check-card {
+    background: var(--ds-muted-bg);
+    border: 1px solid var(--ds-border-soft);
+    border-radius: 9px;
+    padding: 0.55rem 0.65rem;
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+  }
+
+  .reviewer-check-card:hover {
+    background: var(--ds-hover);
+  }
+
+  .message-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+  }
+
+  .message-field-box {
+    background: var(--ds-muted-bg);
+    border: 1px solid var(--ds-border-soft);
+    border-radius: 12px;
+    padding: 0.9rem;
+  }
+
+  .helper-text {
+    color: var(--ds-muted);
+    font-size: 0.8rem;
+    margin-top: 0.35rem;
+  }
+
+  .send-footer {
+    background: var(--ds-bg);
+    border: 1px solid var(--ds-border);
+    border-radius: 14px;
+    box-shadow: var(--ds-shadow);
+    padding: 1rem;
+    margin-bottom: 2rem;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    position: sticky;
+    bottom: 1rem;
+    z-index: 5;
+  }
+
+  @media (max-width: 991.98px) {
+    .notification-hero-main {
+      grid-template-columns: 1fr;
+    }
+
+    .notification-hero-actions {
+      justify-content: flex-start;
+    }
+  }
+
+  @media (max-width: 767.98px) {
+    .notification-page {
+      max-width: none;
+    }
+
+    .notification-hero {
+      padding: 0.95rem;
+      border-radius: 12px;
+    }
+
+    .notification-kicker {
+      font-size: 0.68rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .notification-title {
+      font-size: 1.45rem;
+      line-height: 1.16;
+    }
+
+    .notification-description {
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+
+    .notification-hero-actions {
+      display: grid;
+      grid-template-columns: 1fr;
+      width: 100%;
+    }
+
+    .notification-hero-actions .btn {
+      width: 100%;
+    }
+
+    .notification-card-header {
+      flex-direction: column;
+      padding: 0.9rem;
+    }
+
+    .notification-card-body {
+      padding: 0.9rem;
+    }
+
+    .send-footer {
+      position: static;
+      display: grid;
+      grid-template-columns: 1fr;
+    }
+
+    .send-footer .btn {
+      width: 100%;
+    }
+  }
+</style>
+
+<div class="notification-page">
+
+  <div class="notification-hero">
+    <div class="notification-hero-main">
+      <div>
+        <div class="notification-kicker">Notifications</div>
+        <h2 class="notification-title">Send Notification</h2>
+        <p class="notification-description">
+          Send a message to reviewers by dataset, panel, group, batch, or individual reviewer.
+        </p>
+      </div>
+
+      <div class="notification-hero-actions">
+        <a href="{% url 'notification_list' %}" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-bell me-1"></i>View All Notifications
+        </a>
+      </div>
+    </div>
   </div>
-  <a href="{% url 'notification_list' %}" class="btn btn-outline-secondary btn-sm">
-    <i class="bi bi-bell me-1"></i>View All Notifications
-  </a>
-</div>
 
-<form method="post" enctype="multipart/form-data">
-  {% csrf_token %}
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
 
-  <div class="card mb-4">
-    <div class="card-header fw-semibold">Recipients</div>
-    <div class="card-body">
-      <div class="row g-3">
-        <div class="col-md-6">
-          <label class="form-label">Send to <span class="text-danger">*</span></label>
-          {{ form.recipient_type }}
+    <div class="notification-card">
+      <div class="notification-card-header">
+        <div>
+          <h4 class="notification-card-title">
+            <i class="bi bi-people"></i>Recipients
+          </h4>
+          <div class="notification-card-subtitle">
+            Choose who should receive this notification.
+          </div>
         </div>
       </div>
 
-      <!-- Dataset selector -->
-      <div class="row g-3 mt-1 recipient-option" id="option-dataset" style="display:none;">
-        <div class="col-md-6">
-          <label class="form-label">Dataset</label>
-          {{ form.dataset }}
-        </div>
-      </div>
+      <div class="notification-card-body">
+        <div class="recipient-choice-shell">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="field-label">Send To <span class="text-danger">*</span></label>
+              {{ form.recipient_type }}
+            </div>
+          </div>
 
-      <!-- Panel selector -->
-      <div class="row g-3 mt-1 recipient-option" id="option-panel" style="display:none;">
-        <div class="col-md-6">
-          <label class="form-label">Panel</label>
-          {{ form.panel }}
-        </div>
-      </div>
-
-      <!-- Group selector -->
-      <div class="row g-3 mt-1 recipient-option" id="option-group" style="display:none;">
-        <div class="col-md-6">
-          <label class="form-label">Group</label>
-          {{ form.group }}
-        </div>
-      </div>
-
-      <!-- Batch selector -->
-      <div class="row g-3 mt-1 recipient-option" id="option-batch" style="display:none;">
-        <div class="col-md-6">
-          <label class="form-label">Batch</label>
-          {{ form.batch }}
-        </div>
-      </div>
-
-      <!-- Individual reviewers -->
-      <div class="row g-3 mt-1 recipient-option" id="option-individual" style="display:none;">
-        <div class="col-12">
-          <label class="form-label">Select reviewers</label>
-          <div class="card">
-            <div class="card-body" style="max-height:250px; overflow-y:auto;">
-              <div class="row row-cols-1 row-cols-md-3 g-2">
-                {% for checkbox in form.individual_reviewers %}
-                <div class="col">
-                  <div class="form-check">
-                    {{ checkbox.tag }}
-                    <label class="form-check-label small" for="{{ checkbox.id_for_label }}">
-                      {{ checkbox.choice_label }}
-                    </label>
-                  </div>
-                </div>
-                {% endfor %}
+          <div class="row g-3 recipient-option" id="option-dataset" style="display:none;">
+            <div class="col-md-6">
+              <div class="recipient-option-card">
+                <label class="field-label">Dataset</label>
+                {{ form.dataset }}
               </div>
             </div>
           </div>
+
+          <div class="row g-3 recipient-option" id="option-panel" style="display:none;">
+            <div class="col-md-6">
+              <div class="recipient-option-card">
+                <label class="field-label">Panel</label>
+                {{ form.panel }}
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-3 recipient-option" id="option-group" style="display:none;">
+            <div class="col-md-6">
+              <div class="recipient-option-card">
+                <label class="field-label">Group</label>
+                {{ form.group }}
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-3 recipient-option" id="option-batch" style="display:none;">
+            <div class="col-md-6">
+              <div class="recipient-option-card">
+                <label class="field-label">Batch</label>
+                {{ form.batch }}
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-3 recipient-option" id="option-individual" style="display:none;">
+            <div class="col-12">
+              <div class="recipient-option-card">
+                <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                  <div>
+                    <label class="field-label mb-1">Select Reviewers</label>
+                    <div class="helper-text mt-0">Choose one or more reviewers to receive the message.</div>
+                  </div>
+                </div>
+
+                <div class="reviewer-list-box">
+                  <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-2">
+                    {% for checkbox in form.individual_reviewers %}
+                    <div class="col">
+                      <div class="reviewer-check-card">
+                        <div class="form-check mb-0">
+                          {{ checkbox.tag }}
+                          <label class="form-check-label small" for="{{ checkbox.id_for_label }}">
+                            {{ checkbox.choice_label }}
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
-  </div>
 
-  <div class="card mb-4">
-    <div class="card-header fw-semibold">Message</div>
-    <div class="card-body">
-      <div class="mb-3">
-        <label class="form-label">Subject <span class="text-danger">*</span></label>
-        {{ form.subject }}
-      </div>
-      <div class="mb-3">
-        <label class="form-label">Message <span class="text-danger">*</span></label>
-        {{ form.message }}
-      </div>
-      <div class="mb-0">
-        <label class="form-label">Deadline</label>
-        {{ form.deadline }}
-        <div class="form-text">Optional. Notifications with deadlines stay pinned at the top.</div>
-      </div>
-      <div class="mt-3">
-            <label class="form-label">Attachments</label>
-            <input type="file" name="attachments" multiple class="form-control">
-            <div class="form-text">Optional. You can select multiple files.</div>
+    <div class="notification-card">
+      <div class="notification-card-header">
+        <div>
+          <h4 class="notification-card-title">
+            <i class="bi bi-envelope-paper"></i>Message
+          </h4>
+          <div class="notification-card-subtitle">
+            Add the subject, message, optional deadline, and attachments.
           </div>
-    </div>
-  </div>
+        </div>
+      </div>
 
-  <div class="d-flex justify-content-end gap-2 mb-5">
-    <a href="{% url 'notification_list' %}" class="btn btn-outline-secondary">Cancel</a>
-    <button type="submit" class="btn btn-primary">
-      <i class="bi bi-send me-1"></i>Send Notification
-    </button>
-  </div>
-</form>
+      <div class="notification-card-body">
+        <div class="message-grid">
+
+          <div class="message-field-box">
+            <label class="field-label">Subject <span class="text-danger">*</span></label>
+            {{ form.subject }}
+          </div>
+
+          <div class="message-field-box">
+            <label class="field-label">Message <span class="text-danger">*</span></label>
+            {{ form.message }}
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="message-field-box h-100">
+                <label class="field-label">Deadline</label>
+                {{ form.deadline }}
+                <div class="helper-text">
+                  Optional. Notifications with deadlines stay pinned until the deadline passes.
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <div class="message-field-box h-100">
+                <label class="field-label">Attachments</label>
+                <input type="file" name="attachments" multiple class="form-control">
+                <div class="helper-text">
+                  Optional. You can select multiple files.
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="send-footer">
+      <a href="{% url 'notification_list' %}" class="btn btn-outline-secondary">
+        Cancel
+      </a>
+
+      <button type="submit" class="btn btn-primary">
+        <i class="bi bi-send me-1"></i>Send Notification
+      </button>
+    </div>
+  </form>
+
+</div>
 
 <script>
   const recipientType = document.getElementById('id_recipient_type');
 
   function updateRecipientOptions() {
-    document.querySelectorAll('.recipient-option').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.recipient-option').forEach(el => {
+      el.style.display = 'none';
+    });
+
+    if (!recipientType) return;
+
     const selected = recipientType.value;
+
     if (selected) {
       const target = document.getElementById('option-' + selected);
       if (target) target.style.display = 'flex';
     }
   }
 
-  recipientType.addEventListener('change', updateRecipientOptions);
-  updateRecipientOptions();
+  if (recipientType) {
+    recipientType.addEventListener('change', updateRecipientOptions);
+    updateRecipientOptions();
+  }
 </script>
 
 {% endblock %}

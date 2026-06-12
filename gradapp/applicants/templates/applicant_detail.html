@@ -42,6 +42,161 @@
     font-family: monospace;
     font-size: 0.8rem;
   }
+
+
+  .application-doc-card .card-body {
+    padding: 1rem;
+  }
+
+  .application-shortcuts {
+    background: var(--ds-muted-bg);
+    border: 1px solid var(--ds-border-soft);
+    border-radius: 12px;
+    padding: 0.9rem;
+    margin-bottom: 1rem;
+  }
+  [data-bs-theme="dark"] .application-shortcuts {
+    background: rgba(111, 134, 255, 0.14);
+    border-color: rgba(111, 134, 255, 0.24);
+  }
+
+  .application-shortcuts-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .application-shortcuts-title {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: var(--bs-body-color);
+    font-size: 0.92rem;
+    font-weight: 780;
+  }
+
+  .application-shortcuts-title i {
+    color: #3f5bf6;
+  }
+
+  [data-bs-theme="dark"] .application-shortcuts-title i {
+    color: #6f86ff;
+  }
+
+  .application-shortcuts-subtitle {
+    color: var(--bs-secondary-color);
+    font-size: 0.8rem;
+    margin-top: 0.15rem;
+  }
+
+  .application-shortcut-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.55rem;
+  }
+
+  .application-shortcut-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    min-height: 38px;
+    border-radius: 10px;
+    font-weight: 700;
+  }
+
+  .application-doc-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  .application-doc-row {
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color-translucent);
+    border-radius: 11px;
+    padding: 0.8rem;
+  }
+
+  .application-doc-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .application-doc-title {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    min-width: 0;
+  }
+
+  .application-doc-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: var(--bs-tertiary-bg);
+    border: 1px solid var(--bs-border-color-translucent);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .application-doc-name {
+    color: var(--bs-body-color);
+    font-size: 0.86rem;
+    font-weight: 750;
+    word-break: break-word;
+  }
+
+  .application-doc-date {
+    color: var(--bs-secondary-color);
+    font-size: 0.74rem;
+    margin-top: 0.15rem;
+  }
+
+  .application-doc-actions {
+    display: flex;
+    gap: 0.45rem;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 767.98px) {
+    .application-shortcuts-header {
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .application-shortcut-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .application-doc-main {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .application-doc-actions {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .application-doc-actions .btn {
+      width: 100%;
+    }
+  }
+
+  @media (max-width: 390px) {
+    .application-shortcut-grid,
+    .application-doc-actions {
+      grid-template-columns: 1fr;
+    }
+  }
 </style>
 
 {% if applicant.is_incomplete and user.profile.role == 'ADMIN' %}
@@ -229,7 +384,11 @@
           </div>
         </div>
 
+        
+
         {% if applicant.candidate_info_imported %}
+
+        {% if user.profile.role == 'ADMIN' %}
 
         <!-- ── GPA ── -->
         <hr class="my-3">
@@ -309,6 +468,7 @@
           </div>
         </div>
         {% endif %}
+        {% endif %}{# end admin-only GPA + DAT #}
 
         <!-- ── AADSAS / Experience ── -->
         <hr class="my-3">
@@ -329,6 +489,7 @@
             <div class="text-muted small mb-1">Z-Score</div>
             <div class="fw-semibold">{{ applicant.z_score|default:"—" }}</div>
           </div>
+          {% if user.profile.role == 'ADMIN' %}
           <div class="col-md-3">
             <div class="text-muted small mb-1">Dental Exp. Hours</div>
             <div class="fw-semibold">{{ applicant.dental_experience_hours|default:"—" }}</div>
@@ -337,6 +498,7 @@
             <div class="text-muted small mb-1">Shadowing Hours</div>
             <div class="fw-semibold">{{ applicant.shadowing_hours|default:"—" }}</div>
           </div>
+          {% endif %}
           <div class="col-md-3">
             <div class="text-muted small mb-1">First Generation</div>
             <div>{% if applicant.first_gen %}<span class="badge bg-success">Yes</span>{% else %}<span class="text-muted">No</span>{% endif %}</div>
@@ -404,55 +566,134 @@
       </div>
     </div>
     {% endif %}
-
+    
     <!-- Application Documents -->
     {% if application_docs %}
-    <div class="card mb-4">
+    <div class="card mb-4 application-doc-card">
       <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
         <span><i class="bi bi-file-earmark-text me-2"></i>Application Documents</span>
         <span class="badge bg-secondary">{{ application_docs|length }}</span>
       </div>
+
       <div class="card-body">
-        <div class="list-group list-group-flush">
+        {% if user.profile.role != 'ADMIN' %}
+        <div class="application-shortcuts">
+          <div class="application-shortcuts-header">
+            <div>
+              <div class="application-shortcuts-title">
+                <i class="bi bi-bookmark-star-fill"></i>
+                Application Sections
+              </div>
+              <div class="application-shortcuts-subtitle">
+                Jump to key areas of the application PDF.
+              </div>
+            </div>
+
+            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">
+              Shortcuts
+            </span>
+          </div>
+
+          <div class="application-shortcut-grid">
+            <button type="button"
+                    class="btn btn-outline-primary btn-sm application-shortcut-btn pdf-jump-btn"
+                    data-pdf-target="#pdf-viewer-{{ application_docs.0.pk }}"
+                    data-pdf-anchor="undergraduate">
+              <i class="bi bi-mortarboard"></i>
+              GPA
+            </button>
+
+            <button type="button"
+                    class="btn btn-outline-primary btn-sm application-shortcut-btn pdf-jump-btn"
+                    data-pdf-target="#pdf-viewer-{{ application_docs.0.pk }}"
+                    data-pdf-anchor="officialdat">
+              <i class="bi bi-bar-chart-fill"></i>
+              DAT Scores
+            </button>
+
+            <button type="button"
+                    class="btn btn-outline-primary btn-sm application-shortcut-btn pdf-jump-btn"
+                    data-pdf-target="#pdf-viewer-{{ application_docs.0.pk }}"
+                    data-pdf-anchor="dentalrelatedexperience">
+              <i class="bi bi-clipboard2-pulse"></i>
+              Dental Experience
+            </button>
+
+            <button type="button"
+                    class="btn btn-outline-primary btn-sm application-shortcut-btn pdf-jump-btn"
+                    data-pdf-target="#pdf-viewer-{{ application_docs.0.pk }}"
+                    data-pdf-anchor="shadowingexperience">
+              <i class="bi bi-eye"></i>
+              Shadowing
+            </button>
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="application-doc-list">
           {% for doc in application_docs %}
-          <div class="list-group-item px-0">
-            <div class="d-flex justify-content-between align-items-center">
-              <div class="d-flex align-items-center gap-2">
-                <i class="bi bi-file-earmark-pdf-fill text-danger fs-5"></i>
+          <div class="application-doc-row">
+            <div class="application-doc-main">
+              <div class="application-doc-title">
+                <span class="application-doc-icon">
+                  <i class="bi bi-file-earmark-pdf-fill text-danger fs-5"></i>
+                </span>
+
                 <div>
-                  <div class="small fw-semibold">{{ doc.file.name|cut:"applicants/" }}</div>
-                  <div class="text-muted" style="font-size:0.75rem;">{{ doc.uploaded_at|date:"M d, Y" }}</div>
+                  <div class="application-doc-name">
+                    {{ doc.file.name|cut:"applicants/" }}
+                  </div>
+                  <div class="application-doc-date">
+                    Uploaded {{ doc.uploaded_at|date:"M d, Y" }}
+                  </div>
                 </div>
               </div>
-              <div class="d-flex gap-2">
-                <button class="btn btn-outline-primary btn-sm pdf-toggle-btn" data-pdf-target="#pdf-viewer-{{ doc.pk }}" data-pdf-url="{{ doc.file.url }}">
-                  <i class="bi bi-eye me-1"></i><span class="pdf-toggle-label">Preview</span>
+
+              <div class="application-doc-actions">
+                <button class="btn btn-outline-primary btn-sm pdf-toggle-btn"
+                        type="button"
+                        data-pdf-target="#pdf-viewer-{{ doc.pk }}"
+                        data-pdf-url="{{ doc.file.url }}">
+                  <i class="bi bi-eye me-1"></i>
+                  <span class="pdf-toggle-label">Preview</span>
                 </button>
+
                 <a href="{{ doc.file.url }}" target="_blank" class="btn btn-outline-secondary btn-sm">
-                  <i class="bi bi-box-arrow-up-right me-1"></i>Open
+                  <i class="bi bi-box-arrow-up-right me-1"></i>
+                  Open
                 </a>
               </div>
             </div>
+
             <div id="pdf-viewer-{{ doc.pk }}" class="pdf-viewer-container" style="display:none;">
               <div class="pdf-controls d-flex justify-content-between align-items-center">
                 <div class="d-flex align-items-center gap-2">
-                  <button class="btn btn-sm btn-outline-secondary pdf-prev" disabled>&laquo;</button>
+                  <button class="btn btn-sm btn-outline-secondary pdf-prev" type="button" disabled>&laquo;</button>
+
                   <span class="small text-muted pdf-page-info">
                     <span class="pdf-current-page">1</span> / <span class="pdf-total-pages">?</span>
                   </span>
-                  <button class="btn btn-sm btn-outline-secondary pdf-next">&raquo;</button>
+
+                  <button class="btn btn-sm btn-outline-secondary pdf-next" type="button">&raquo;</button>
                 </div>
+
                 <div class="d-flex align-items-center gap-1">
-                  <button class="btn btn-sm btn-outline-secondary pdf-zoom-out" title="Zoom out">
+                  <button class="btn btn-sm btn-outline-secondary pdf-zoom-out" type="button" title="Zoom out">
                     <i class="bi bi-zoom-out"></i>
                   </button>
+
                   <span class="pdf-zoom-label">100%</span>
-                  <button class="btn btn-sm btn-outline-secondary pdf-zoom-in" title="Zoom in">
+
+                  <button class="btn btn-sm btn-outline-secondary pdf-zoom-in" type="button" title="Zoom in">
                     <i class="bi bi-zoom-in"></i>
                   </button>
-                  <button class="btn btn-sm btn-outline-secondary pdf-zoom-fit" title="Fit to width">Fit</button>
+
+                  <button class="btn btn-sm btn-outline-secondary pdf-zoom-fit" type="button" title="Fit to width">
+                    Fit
+                  </button>
                 </div>
               </div>
+
               <div class="pdf-scroll-area">
                 <canvas></canvas>
               </div>
@@ -927,18 +1168,17 @@
   });
 
   document.querySelectorAll('.pdf-toggle-btn').forEach(btn => {
-    let pdfDoc = null;
-    let currentPage = 1;
-    let currentScale = 1.0;
-    let fitScale = 1.0;
+    const container = document.querySelector(btn.getAttribute('data-pdf-target'));
+    if (!container) return;
 
-    function renderPage(container) {
+    const state = { pdfDoc: null, currentPage: 1, currentScale: 1.0, fitScale: 1.0, loading: false };
+
+    function renderPage() {
       const canvas = container.querySelector('canvas');
       const ctx = canvas.getContext('2d');
-      pdfDoc.getPage(currentPage).then(page => {
+      state.pdfDoc.getPage(state.currentPage).then(page => {
         const dpr = window.devicePixelRatio || 1;
-        const viewport = page.getViewport({ scale: currentScale });
-        // Back the canvas with device pixels for crisp, correctly-proportioned output
+        const viewport = page.getViewport({ scale: state.currentScale });
         canvas.width = Math.floor(viewport.width * dpr);
         canvas.height = Math.floor(viewport.height * dpr);
         canvas.style.width = Math.floor(viewport.width) + 'px';
@@ -949,93 +1189,157 @@
           transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null,
         });
         const pageInput = container.querySelector('.pdf-page-input');
-        if (pageInput) pageInput.value = currentPage;
-        container.querySelector('.pdf-prev').disabled = (currentPage <= 1);
-        container.querySelector('.pdf-next').disabled = (currentPage >= pdfDoc.numPages);
-        const pct = Math.round((currentScale / fitScale) * 100);
+        if (pageInput) pageInput.value = state.currentPage;
+        container.querySelector('.pdf-prev').disabled = (state.currentPage <= 1);
+        container.querySelector('.pdf-next').disabled = (state.currentPage >= state.pdfDoc.numPages);
+        const pct = Math.round((state.currentScale / state.fitScale) * 100);
         container.querySelector('.pdf-zoom-label').textContent = pct + '%';
       });
     }
 
-    function calcFitScale(container) {
+    function calcFitScale() {
       const scrollArea = container.querySelector('.pdf-scroll-area');
-      return pdfDoc.getPage(currentPage).then(page => {
+      return state.pdfDoc.getPage(state.currentPage).then(page => {
         const unscaled = page.getViewport({ scale: 1 });
         const availableWidth = scrollArea.clientWidth - 32;
-        fitScale = availableWidth / unscaled.width;
-        currentScale = Math.min(fitScale, 1.5);
-        fitScale = currentScale;
+        state.fitScale = availableWidth / unscaled.width;
+        state.currentScale = Math.min(state.fitScale, 1.5);
+        state.fitScale = state.currentScale;
       });
     }
 
-    function buildPageInput(container) {
+    function buildPageInput() {
       const info = container.querySelector('.pdf-page-info');
       if (!info || info.querySelector('.pdf-page-input')) return;
       info.innerHTML =
         '<input type="number" class="pdf-page-input form-control form-control-sm d-inline-block" ' +
         'min="1" value="1" style="width:56px;"> / ' +
-        '<span class="pdf-total-pages">' + pdfDoc.numPages + '</span>';
+        '<span class="pdf-total-pages">' + state.pdfDoc.numPages + '</span>';
       const pageInput = info.querySelector('.pdf-page-input');
-      pageInput.max = pdfDoc.numPages;
+      pageInput.max = state.pdfDoc.numPages;
       pageInput.addEventListener('change', () => {
         let n = parseInt(pageInput.value, 10);
-        if (isNaN(n)) n = currentPage;
-        currentPage = Math.max(1, Math.min(pdfDoc.numPages, n));
-        renderPage(container);
+        if (isNaN(n)) n = state.currentPage;
+        state.currentPage = Math.max(1, Math.min(state.pdfDoc.numPages, n));
+        renderPage();
       });
     }
 
-    btn.addEventListener('click', () => {
-      const targetId = btn.getAttribute('data-pdf-target');
-      const container = document.querySelector(targetId);
-      const label = btn.querySelector('.pdf-toggle-label');
-      const isOpen = container.style.display !== 'none';
-
-      if (isOpen) {
-        container.style.display = 'none';
-        label.textContent = 'Preview';
-        btn.classList.remove('active');
-        pdfDoc = null;
-        currentPage = 1;
-        currentScale = 1.0;
-      } else {
-        container.style.display = 'block';
-        label.textContent = 'Hide';
-        btn.classList.add('active');
-        if (!pdfDoc) {
-          pdfjsLib.getDocument(btn.getAttribute('data-pdf-url')).promise.then(doc => {
-            pdfDoc = doc;
-            const totalEl = container.querySelector('.pdf-total-pages');
-            if (totalEl) totalEl.textContent = doc.numPages;
-            buildPageInput(container);
-            setTimeout(() => {
-              calcFitScale(container).then(() => renderPage(container));
-            }, 50);
-          }).catch(() => {
-            const scrollArea = container.querySelector('.pdf-scroll-area');
-            scrollArea.innerHTML = '<p class="text-center p-3"><a href="' + btn.getAttribute('data-pdf-url') + '" target="_blank" class="btn btn-outline-light btn-sm"><i class="bi bi-box-arrow-up-right me-1"></i>Open in new tab instead</a></p>';
-          });
+    function loadDoc() {
+      return new Promise((resolve, reject) => {
+        if (state.pdfDoc) { resolve(); return; }
+        if (state.loading) {
+          const t = setInterval(() => { if (state.pdfDoc) { clearInterval(t); resolve(); } }, 60);
+          return;
         }
-      }
+        state.loading = true;
+        pdfjsLib.getDocument(btn.getAttribute('data-pdf-url')).promise.then(doc => {
+          state.pdfDoc = doc;
+          state.loading = false;
+          const totalEl = container.querySelector('.pdf-total-pages');
+          if (totalEl) totalEl.textContent = doc.numPages;
+          buildPageInput();
+          setTimeout(() => { calcFitScale().then(() => { renderPage(); resolve(); }); }, 50);
+        }).catch(err => {
+          state.loading = false;
+          const scrollArea = container.querySelector('.pdf-scroll-area');
+          scrollArea.innerHTML = '<p class="text-center p-3"><a href="' + btn.getAttribute('data-pdf-url') + '" target="_blank" class="btn btn-outline-light btn-sm"><i class="bi bi-box-arrow-up-right me-1"></i>Open in new tab instead</a></p>';
+          reject(err);
+        });
+      });
+    }
 
-      container.querySelector('.pdf-prev').onclick = () => {
-        if (currentPage > 1) { currentPage--; renderPage(container); }
-      };
-      container.querySelector('.pdf-next').onclick = () => {
-        if (pdfDoc && currentPage < pdfDoc.numPages) { currentPage++; renderPage(container); }
-      };
-      container.querySelector('.pdf-zoom-in').onclick = () => {
-        currentScale *= 1.25; renderPage(container);
-      };
-      container.querySelector('.pdf-zoom-out').onclick = () => {
-        currentScale *= 0.8;
-        if (currentScale < fitScale * 0.25) currentScale = fitScale * 0.25;
-        renderPage(container);
-      };
-      container.querySelector('.pdf-zoom-fit').onclick = () => {
-        calcFitScale(container).then(() => renderPage(container));
-      };
+    function openViewer() {
+      const label = btn.querySelector('.pdf-toggle-label');
+      if (container.style.display === 'none' || container.style.display === '') {
+        container.style.display = 'block';
+        if (label) label.textContent = 'Hide';
+        btn.classList.add('active');
+      }
+      return loadDoc();
+    }
+
+    function closeViewer() {
+      const label = btn.querySelector('.pdf-toggle-label');
+      container.style.display = 'none';
+      if (label) label.textContent = 'Preview';
+      btn.classList.remove('active');
+    }
+
+    // Scan each page's text for a whitespace-stripped anchor; jump to first hit.
+    function goToAnchor(anchorNorm) {
+      return openViewer().then(() => {
+        const total = state.pdfDoc.numPages;
+        const searchPage = (n) => {
+          if (n > total) return false;
+          return state.pdfDoc.getPage(n).then(page => page.getTextContent()).then(tc => {
+            const text = tc.items.map(i => i.str).join('').replace(/\s+/g, '').toLowerCase();
+            if (text.indexOf(anchorNorm) !== -1) {
+              state.currentPage = n;
+              renderPage();
+              container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              return true;
+            }
+            return searchPage(n + 1);
+          });
+        };
+        return searchPage(1);
+      });
+    }
+
+    container.__pdfApi = { openViewer, goToAnchor };
+
+    btn.addEventListener('click', () => {
+      const isOpen = container.style.display !== 'none' && container.style.display !== '';
+      if (isOpen) { closeViewer(); return; }
+      openViewer();
     });
+
+    container.querySelector('.pdf-prev').onclick = () => {
+      if (state.currentPage > 1) { state.currentPage--; renderPage(); }
+    };
+    container.querySelector('.pdf-next').onclick = () => {
+      if (state.pdfDoc && state.currentPage < state.pdfDoc.numPages) { state.currentPage++; renderPage(); }
+    };
+    container.querySelector('.pdf-zoom-in').onclick = () => { state.currentScale *= 1.25; renderPage(); };
+    container.querySelector('.pdf-zoom-out').onclick = () => {
+      state.currentScale *= 0.8;
+      if (state.currentScale < state.fitScale * 0.25) state.currentScale = state.fitScale * 0.25;
+      renderPage();
+    };
+    container.querySelector('.pdf-zoom-fit').onclick = () => { calcFitScale().then(() => renderPage()); };
+  });
+
+  // Quick-jump tabs (committee view)
+  document.querySelectorAll('.pdf-jump-btn').forEach(jbtn => {
+    jbtn.addEventListener('click', () => {
+      const container = document.querySelector(jbtn.getAttribute('data-pdf-target'));
+      if (!container || !container.__pdfApi) return;
+      const anchor = (jbtn.getAttribute('data-pdf-anchor') || '').replace(/\s+/g, '').toLowerCase();
+      const original = jbtn.innerHTML;
+      jbtn.disabled = true;
+      jbtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Opening…';
+      container.__pdfApi.goToAnchor(anchor).then(found => {
+        jbtn.disabled = false;
+        jbtn.innerHTML = original;
+        if (!found) {
+          jbtn.classList.replace('btn-outline-primary', 'btn-outline-secondary');
+          jbtn.title = 'Section not found in this PDF — opened at page 1';
+        }
+      }).catch(() => { jbtn.disabled = false; jbtn.innerHTML = original; });
+    });
+  });
+
+  // Arrow keys drive the currently-visible PDF viewer
+  document.addEventListener('keydown', function (e) {
+    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    const open = Array.from(document.querySelectorAll('.pdf-viewer-container'))
+      .find(c => c.style.display !== 'none' && c.style.display !== '' && c.offsetParent !== null);
+    if (!open) return;
+    e.preventDefault();
+    if (e.key === 'ArrowLeft') open.querySelector('.pdf-prev').click();
+    else open.querySelector('.pdf-next').click();
   });
 
   // Arrow-key navigation for whichever PDF viewer is currently open

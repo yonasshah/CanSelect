@@ -504,7 +504,7 @@
       </div>
 
       <div class="applicant-hero-actions">
-        {% if user.profile.role == 'ADMIN' %}
+        {% if user.profile.role == 'ADMIN' and is_applicant_page %}
           <div id="batch-action-container" class="d-flex gap-1">
             <select name="action" class="form-select form-select-sm" form="batch-form">
               <option value="">Batch Action...</option>

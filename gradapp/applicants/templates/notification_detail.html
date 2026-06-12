@@ -1,148 +1,609 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="mb-4">
-  <a href="{% url 'notification_list' %}" class="text-decoration-none text-muted">
-    <i class="bi bi-arrow-left me-1"></i>Back to Notifications
-  </a>
-</div>
+<style>
+  :root {
+    --ds-bg: #ffffff;
+    --ds-muted-bg: #f7f8fa;
+    --ds-border: #d9dee5;
+    --ds-border-soft: #e8ebef;
+    --ds-text: #1f2933;
+    --ds-muted: #667085;
+    --ds-hover: #f6f8fa;
+    --ds-primary: #3f5bf6;
+    --ds-primary-soft: rgba(63, 91, 246, 0.08);
+    --ds-danger-soft: rgba(220, 53, 69, 0.1);
+    --ds-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  }
 
-<div class="card">
-  <div class="card-header d-flex justify-content-between align-items-center">
-    <h4 class="mb-0">{{ notification.subject }}</h4>
-    <span class="text-muted small">{{ notification.created_at|date:"M d, Y H:i" }}</span>
-  </div>
-  <div class="card-body">
-    <div class="mb-3 pb-3 border-bottom">
-      <span class="text-muted small">
-        <i class="bi bi-person me-1"></i>From <strong>{{ notification.sender.username|default:"System" }}</strong>
+  [data-bs-theme="dark"] {
+    --ds-bg: #212529;
+    --ds-muted-bg: #2b3035;
+    --ds-border: #3a4047;
+    --ds-border-soft: #343a40;
+    --ds-text: #f8f9fa;
+    --ds-muted: #adb5bd;
+    --ds-hover: #262b30;
+    --ds-primary: #6f86ff;
+    --ds-primary-soft: rgba(111, 134, 255, 0.14);
+    --ds-danger-soft: rgba(220, 53, 69, 0.16);
+    --ds-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+  }
+
+  .notification-detail-page {
+    max-width: 1050px;
+    margin: 0 auto;
+  }
+
+  .back-link {
+    color: var(--ds-muted);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-bottom: 1rem;
+  }
+
+  .back-link:hover {
+    color: var(--ds-primary);
+  }
+
+  .notification-detail-card,
+  .attachment-card {
+    background: var(--ds-bg);
+    border: 1px solid var(--ds-border);
+    border-radius: 14px;
+    box-shadow: var(--ds-shadow);
+    margin-bottom: 1rem;
+    overflow: hidden;
+  }
+
+  .notification-detail-header {
+    padding: 1.15rem;
+    border-bottom: 1px solid var(--ds-border);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: start;
+  }
+
+  .notification-kicker {
+    color: var(--ds-muted);
+    font-size: 0.72rem;
+    font-weight: 750;
+    letter-spacing: 0.075em;
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+
+  .notification-title {
+    color: var(--ds-text);
+    font-size: 1.65rem;
+    line-height: 1.16;
+    font-weight: 780;
+    letter-spacing: -0.025em;
+    margin: 0;
+  }
+
+  .notification-date {
+    color: var(--ds-muted);
+    font-size: 0.82rem;
+    white-space: nowrap;
+  }
+
+  .notification-meta-bar {
+    padding: 0.85rem 1.15rem;
+    background: var(--ds-muted-bg);
+    border-bottom: 1px solid var(--ds-border-soft);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+  }
+
+  .notification-meta-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: var(--ds-bg);
+    border: 1px solid var(--ds-border-soft);
+    color: var(--ds-muted);
+    border-radius: 999px;
+    padding: 0.3rem 0.65rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+
+  .notification-message {
+    color: var(--ds-text);
+    font-size: 0.95rem;
+    line-height: 1.65;
+    padding: 1.15rem;
+    white-space: pre-wrap;
+  }
+
+  .attachment-header {
+    padding: 0.9rem 1rem;
+    background: var(--ds-bg);
+    border-bottom: 1px solid var(--ds-border);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .attachment-title {
+    color: var(--ds-text);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.08rem;
+    font-weight: 780;
+    margin: 0;
+  }
+
+  .attachment-title i {
+    color: var(--ds-primary);
+  }
+
+  .attachment-subtitle {
+    color: var(--ds-muted);
+    font-size: 0.82rem;
+    margin-top: 0.12rem;
+  }
+
+  .attachment-body {
+    padding: 1rem;
+  }
+
+  .attachment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .attachment-row {
+    background: var(--ds-bg);
+    border: 1px solid var(--ds-border-soft);
+    border-radius: 12px;
+    padding: 0.85rem;
+  }
+
+  .attachment-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .attachment-name-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    min-width: 0;
+  }
+
+  .attachment-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+    background: var(--ds-muted-bg);
+    border: 1px solid var(--ds-border-soft);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .attachment-name {
+    color: var(--ds-text);
+    font-size: 0.9rem;
+    font-weight: 780;
+    word-break: break-word;
+  }
+
+  .attachment-action {
+    flex-shrink: 0;
+  }
+
+  .image-preview {
+    margin-top: 0.85rem;
+    border-top: 1px solid var(--ds-border-soft);
+    padding-top: 0.85rem;
+  }
+
+  .image-preview img {
+    max-width: 100%;
+    max-height: 520px;
+    border-radius: 10px;
+    border: 1px solid var(--ds-border-soft);
+    background: var(--ds-muted-bg);
+  }
+
+  .pdf-viewer-container {
+    border: 1px solid var(--ds-border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 0.85rem;
+  }
+
+  .pdf-controls {
+    background: var(--ds-muted-bg);
+    border-bottom: 1px solid var(--ds-border);
+    padding: 0.45rem 0.65rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .pdf-scroll-area {
+    background: #525659;
+    max-height: 620px;
+    overflow: auto;
+    display: flex;
+    justify-content: center;
+    padding: 16px;
+  }
+
+  .pdf-scroll-area canvas {
+    display: block;
+    box-shadow: 0 1px 8px rgba(0,0,0,0.3);
+    max-width: none;
+  }
+
+  .pdf-zoom-label {
+    min-width: 45px;
+    text-align: center;
+    font-family: monospace;
+    font-size: 0.78rem;
+  }
+
+  .pdf-fallback {
+    color: #fff;
+    text-align: center;
+    padding: 1.5rem;
+  }
+
+  @media (max-width: 767.98px) {
+    .notification-detail-page {
+      max-width: none;
+    }
+
+    .notification-detail-header {
+      grid-template-columns: 1fr;
+      padding: 0.95rem;
+    }
+
+    .notification-title {
+      font-size: 1.35rem;
+    }
+
+    .notification-date {
+      white-space: normal;
+    }
+
+    .notification-meta-bar,
+    .notification-message {
+      padding: 0.95rem;
+    }
+
+    .attachment-header {
+      flex-direction: column;
+      padding: 0.9rem;
+    }
+
+    .attachment-body {
+      padding: 0.9rem;
+    }
+
+    .attachment-main {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .attachment-action {
+      width: 100%;
+    }
+
+    .attachment-action .btn {
+      width: 100%;
+    }
+
+    .pdf-controls {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .pdf-controls > div {
+      justify-content: center;
+    }
+  }
+</style>
+
+<div class="notification-detail-page">
+
+  <a href="{% url 'notification_list' %}" class="back-link">
+    <i class="bi bi-arrow-left"></i>Back to Notifications
+  </a>
+
+  <div class="notification-detail-card">
+    <div class="notification-detail-header">
+      <div>
+        <div class="notification-kicker">Notification</div>
+        <h2 class="notification-title">{{ notification.subject }}</h2>
+      </div>
+
+      <div class="notification-date">
+        {{ notification.created_at|date:"M d, Y H:i" }}
+      </div>
+    </div>
+
+    <div class="notification-meta-bar">
+      <span class="notification-meta-pill">
+        <i class="bi bi-person"></i>
+        From <strong>{{ notification.sender.username|default:"System" }}</strong>
       </span>
-     {% if notification.deadline %}
-      <span class="text-danger small ms-3">
-        <i class="bi bi-alarm me-1"></i>Due {{ notification.deadline|date:"M d, Y H:i" }}
+
+      {% if notification.deadline %}
+      <span class="notification-meta-pill text-danger">
+        <i class="bi bi-alarm"></i>
+        Due {{ notification.deadline|date:"M d, Y H:i" }}
       </span>
       {% endif %}
+
       {% if notification.read_at %}
-      <span class="text-muted small ms-3">
-        <i class="bi bi-check2 me-1"></i>Read {{ notification.read_at|timesince }} ago
+      <span class="notification-meta-pill">
+        <i class="bi bi-check2"></i>
+        Read {{ notification.read_at|timesince }} ago
       </span>
       {% endif %}
     </div>
-    <div class="py-2" style="white-space: pre-wrap;">{{ notification.message }}</div>
-    {% if notification.attachments.exists %}
-    <div class="mt-3 pt-3 border-top">
-      <div class="small text-muted mb-2"><i class="bi bi-paperclip me-1"></i>Attachments</div>
-      {% for att in notification.attachments.all %}
-      <div class="mb-3">
-        <div class="d-flex align-items-center justify-content-between mb-2">
-          <div class="d-flex align-items-center gap-2">
-            {% with att.filename|lower as fname %}
-              {% if '.pdf' in fname %}
-                <i class="bi bi-file-earmark-pdf-fill text-danger fs-5"></i>
-              {% elif '.jpg' in fname or '.jpeg' in fname or '.png' in fname or '.gif' in fname or '.webp' in fname %}
-                <i class="bi bi-file-earmark-image-fill text-success fs-5"></i>
-              {% elif '.doc' in fname or '.docx' in fname %}
-                <i class="bi bi-file-earmark-word-fill text-primary fs-5"></i>
-              {% elif '.xls' in fname or '.xlsx' in fname %}
-                <i class="bi bi-file-earmark-excel-fill text-success fs-5"></i>
-              {% else %}
-                <i class="bi bi-file-earmark-fill text-secondary fs-5"></i>
-              {% endif %}
-            {% endwith %}
-            <a href="{{ att.file.url }}" target="_blank" class="text-decoration-none fw-semibold small">
-              {{ att.filename }}
-            </a>
-          </div>
-          <a href="{{ att.file.url }}" target="_blank" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-download me-1"></i>Download
-          </a>
-        </div>
 
-        {% with att.filename|lower as fname %}
-          {% if '.jpg' in fname or '.jpeg' in fname or '.png' in fname or '.gif' in fname or '.webp' in fname %}
-            <img src="{{ att.file.url }}" class="rounded border" style="max-width:100%; max-height:500px;">
-          {% elif '.pdf' in fname %}
-            <div class="border rounded mt-2" style="max-height:500px; overflow-y:auto;">
-              <div class="d-flex justify-content-between align-items-center p-2 bg-light">
+    <div class="notification-message">{{ notification.message }}</div>
+  </div>
+
+  {% if notification.attachments.exists %}
+  <div class="attachment-card">
+    <div class="attachment-header">
+      <div>
+        <h4 class="attachment-title">
+          <i class="bi bi-paperclip"></i>Attachments
+          <span class="badge bg-secondary">{{ notification.attachments.count }}</span>
+        </h4>
+        <div class="attachment-subtitle">
+          Files included with this notification.
+        </div>
+      </div>
+    </div>
+
+    <div class="attachment-body">
+      <div class="attachment-list">
+        {% for att in notification.attachments.all %}
+        <div class="attachment-row">
+          <div class="attachment-main">
+            <div class="attachment-name-wrap">
+              <span class="attachment-icon">
+                {% with att.filename|lower as fname %}
+                  {% if '.pdf' in fname %}
+                    <i class="bi bi-file-earmark-pdf-fill text-danger fs-5"></i>
+                  {% elif '.jpg' in fname or '.jpeg' in fname or '.png' in fname or '.gif' in fname or '.webp' in fname %}
+                    <i class="bi bi-file-earmark-image-fill text-success fs-5"></i>
+                  {% elif '.doc' in fname or '.docx' in fname %}
+                    <i class="bi bi-file-earmark-word-fill text-primary fs-5"></i>
+                  {% elif '.xls' in fname or '.xlsx' in fname %}
+                    <i class="bi bi-file-earmark-excel-fill text-success fs-5"></i>
+                  {% else %}
+                    <i class="bi bi-file-earmark-fill text-secondary fs-5"></i>
+                  {% endif %}
+                {% endwith %}
+              </span>
+
+              <div>
+                <a href="{{ att.file.url }}" target="_blank" class="attachment-name text-decoration-none">
+                  {{ att.filename }}
+                </a>
+              </div>
+            </div>
+
+            <div class="attachment-action">
+              <a href="{{ att.file.url }}" target="_blank" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-download me-1"></i>Download
+              </a>
+            </div>
+          </div>
+
+          {% with att.filename|lower as fname %}
+            {% if '.jpg' in fname or '.jpeg' in fname or '.png' in fname or '.gif' in fname or '.webp' in fname %}
+            <div class="image-preview">
+              <img src="{{ att.file.url }}" alt="{{ att.filename }}">
+            </div>
+            {% elif '.pdf' in fname %}
+            <div class="pdf-viewer-container" data-pdf-url="{{ att.file.url }}">
+              <div class="pdf-controls">
                 <div class="d-flex align-items-center gap-2">
-                  <button class="btn btn-sm btn-outline-secondary pdf-prev-{{ forloop.counter }}" disabled>&laquo; Prev</button>
-                  <span class="small text-muted">Page <span class="pdf-current-{{ forloop.counter }}">1</span> of <span class="pdf-total-{{ forloop.counter }}">?</span></span>
-                  <button class="btn btn-sm btn-outline-secondary pdf-next-{{ forloop.counter }}">Next &raquo;</button>
+                  <button class="btn btn-sm btn-outline-secondary pdf-prev" type="button" disabled>&laquo;</button>
+
+                  <span class="small text-muted">
+                    Page <span class="pdf-current-page">1</span> of <span class="pdf-total-pages">?</span>
+                  </span>
+
+                  <button class="btn btn-sm btn-outline-secondary pdf-next" type="button">&raquo;</button>
                 </div>
+
                 <div class="d-flex align-items-center gap-1">
-                  <button class="btn btn-sm btn-outline-secondary pdf-zoom-out-{{ forloop.counter }}" title="Zoom out"><i class="bi bi-zoom-out"></i></button>
-                  <span class="small text-muted pdf-zoom-level-{{ forloop.counter }}">100%</span>
-                  <button class="btn btn-sm btn-outline-secondary pdf-zoom-in-{{ forloop.counter }}" title="Zoom in"><i class="bi bi-zoom-in"></i></button>
-                  <button class="btn btn-sm btn-outline-secondary pdf-zoom-fit-{{ forloop.counter }}" title="Fit to width">Fit</button>
+                  <button class="btn btn-sm btn-outline-secondary pdf-zoom-out" type="button" title="Zoom out">
+                    <i class="bi bi-zoom-out"></i>
+                  </button>
+
+                  <span class="pdf-zoom-label">100%</span>
+
+                  <button class="btn btn-sm btn-outline-secondary pdf-zoom-in" type="button" title="Zoom in">
+                    <i class="bi bi-zoom-in"></i>
+                  </button>
+
+                  <button class="btn btn-sm btn-outline-secondary pdf-zoom-fit" type="button" title="Fit to width">
+                    Fit
+                  </button>
                 </div>
               </div>
-              <canvas id="pdf-canvas-{{ forloop.counter }}" style="display:block;"></canvas>
+
+              <div class="pdf-scroll-area">
+                <canvas></canvas>
+              </div>
             </div>
-            <script>
-              (function() {
-                const idx = '{{ forloop.counter }}';
-                const url = '{{ att.file.url }}';
-                let pdfDoc = null;
-                let currentPage = 1;
-                let zoomScale = 1.0;
-                let fitScale = 1.0;
-                const canvas = document.getElementById('pdf-canvas-' + idx);
-                const ctx = canvas.getContext('2d');
-
-                pdfjsLib.getDocument(url).promise.then(doc => {
-                  pdfDoc = doc;
-                  document.querySelector('.pdf-total-' + idx).textContent = doc.numPages;
-                  // Calculate fit-to-width scale on first load
-                  pdfDoc.getPage(1).then(page => {
-                    const containerWidth = canvas.parentElement.offsetWidth;
-                    const unscaled = page.getViewport({ scale: 1 });
-                    fitScale = containerWidth / unscaled.width;
-                    zoomScale = fitScale;
-                    renderPage();
-                  });
-                });
-
-                function renderPage() {
-                  pdfDoc.getPage(currentPage).then(page => {
-                    const viewport = page.getViewport({ scale: zoomScale });
-                    canvas.height = viewport.height;
-                    canvas.width = viewport.width;
-                    page.render({ canvasContext: ctx, viewport: viewport });
-                    document.querySelector('.pdf-current-' + idx).textContent = currentPage;
-                    document.querySelector('.pdf-prev-' + idx).disabled = (currentPage <= 1);
-                    document.querySelector('.pdf-next-' + idx).disabled = (currentPage >= pdfDoc.numPages);
-                    document.querySelector('.pdf-zoom-level-' + idx).textContent = Math.round((zoomScale / fitScale) * 100) + '%';
-                  });
-                }
-
-                document.querySelector('.pdf-prev-' + idx).addEventListener('click', () => {
-                  if (currentPage > 1) { currentPage--; renderPage(); }
-                });
-                document.querySelector('.pdf-next-' + idx).addEventListener('click', () => {
-                  if (pdfDoc && currentPage < pdfDoc.numPages) { currentPage++; renderPage(); }
-                });
-                document.querySelector('.pdf-zoom-in-' + idx).addEventListener('click', () => {
-                  zoomScale *= 1.25;
-                  renderPage();
-                });
-                document.querySelector('.pdf-zoom-out-' + idx).addEventListener('click', () => {
-                  zoomScale *= 0.8;
-                  if (zoomScale < fitScale * 0.25) zoomScale = fitScale * 0.25;
-                  renderPage();
-                });
-                document.querySelector('.pdf-zoom-fit-' + idx).addEventListener('click', () => {
-                  zoomScale = fitScale;
-                  renderPage();
-                });
-              })();
-            </script>
-          {% endif %}
-        {% endwith %}
+            {% endif %}
+          {% endwith %}
+        </div>
+        {% endfor %}
       </div>
-      {% endfor %}
     </div>
-    {% endif %}
   </div>
+  {% endif %}
+
 </div>
+
+<script>
+(function () {
+  function showPdfFallback(container, url) {
+    const scrollArea = container.querySelector('.pdf-scroll-area');
+    if (!scrollArea) return;
+
+    scrollArea.innerHTML = `
+      <div class="pdf-fallback">
+        <p class="mb-3">PDF preview could not load.</p>
+        <a href="${url}" target="_blank" class="btn btn-outline-light btn-sm">
+          <i class="bi bi-box-arrow-up-right me-1"></i>Open PDF in new tab
+        </a>
+      </div>
+    `;
+  }
+
+  function loadPdf(container) {
+    const url = container.getAttribute('data-pdf-url');
+
+    if (!url) return;
+
+    if (typeof pdfjsLib === 'undefined') {
+      showPdfFallback(container, url);
+      return;
+    }
+
+    let pdfDoc = null;
+    let currentPage = 1;
+    let currentScale = 1.0;
+    let fitScale = 1.0;
+
+    const canvas = container.querySelector('canvas');
+    const scrollArea = container.querySelector('.pdf-scroll-area');
+    const prevBtn = container.querySelector('.pdf-prev');
+    const nextBtn = container.querySelector('.pdf-next');
+    const zoomInBtn = container.querySelector('.pdf-zoom-in');
+    const zoomOutBtn = container.querySelector('.pdf-zoom-out');
+    const fitBtn = container.querySelector('.pdf-zoom-fit');
+    const currentPageEl = container.querySelector('.pdf-current-page');
+    const totalPagesEl = container.querySelector('.pdf-total-pages');
+    const zoomLabel = container.querySelector('.pdf-zoom-label');
+
+    if (!canvas || !scrollArea) return;
+
+    const ctx = canvas.getContext('2d');
+
+    function renderPage() {
+      if (!pdfDoc) return;
+
+      pdfDoc.getPage(currentPage).then(page => {
+        const viewport = page.getViewport({ scale: currentScale });
+
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        page.render({
+          canvasContext: ctx,
+          viewport: viewport
+        });
+
+        if (currentPageEl) currentPageEl.textContent = currentPage;
+        if (prevBtn) prevBtn.disabled = currentPage <= 1;
+        if (nextBtn) nextBtn.disabled = currentPage >= pdfDoc.numPages;
+
+        if (zoomLabel) {
+          const pct = Math.round((currentScale / fitScale) * 100);
+          zoomLabel.textContent = pct + '%';
+        }
+      });
+    }
+
+    function calcFitScale() {
+      return pdfDoc.getPage(currentPage).then(page => {
+        const unscaled = page.getViewport({ scale: 1 });
+        const availableWidth = Math.max(scrollArea.clientWidth - 32, 280);
+
+        fitScale = availableWidth / unscaled.width;
+        currentScale = fitScale;
+      });
+    }
+
+    pdfjsLib.getDocument(url).promise.then(doc => {
+      pdfDoc = doc;
+
+      if (totalPagesEl) totalPagesEl.textContent = doc.numPages;
+
+      setTimeout(() => {
+        calcFitScale().then(renderPage);
+      }, 100);
+    }).catch(() => {
+      showPdfFallback(container, url);
+    });
+
+    if (prevBtn) {
+      prevBtn.addEventListener('click', function () {
+        if (currentPage > 1) {
+          currentPage--;
+          renderPage();
+        }
+      });
+    }
+
+    if (nextBtn) {
+      nextBtn.addEventListener('click', function () {
+        if (pdfDoc && currentPage < pdfDoc.numPages) {
+          currentPage++;
+          renderPage();
+        }
+      });
+    }
+
+    if (zoomInBtn) {
+      zoomInBtn.addEventListener('click', function () {
+        currentScale *= 1.25;
+        renderPage();
+      });
+    }
+
+    if (zoomOutBtn) {
+      zoomOutBtn.addEventListener('click', function () {
+        currentScale *= 0.8;
+
+        if (currentScale < fitScale * 0.35) {
+          currentScale = fitScale * 0.35;
+        }
+
+        renderPage();
+      });
+    }
+
+    if (fitBtn) {
+      fitBtn.addEventListener('click', function () {
+        calcFitScale().then(renderPage);
+      });
+    }
+  }
+
+  document.querySelectorAll('.pdf-viewer-container').forEach(loadPdf);
+})();
+</script>
 
 {% endblock %}

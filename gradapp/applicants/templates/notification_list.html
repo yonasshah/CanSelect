@@ -1,89 +1,456 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <div>
-    <h2 class="mb-0">Notifications</h2>
-    <p class="text-muted mb-0">
-      {% if unread_count %}{{ unread_count }} unread{% else %}No unread notifications{% endif %}
-    </p>
-  </div>
-  <div class="d-flex gap-2">
-    {% if notifications %}
-    <form method="post" action="{% url 'mark_all_notifications_read' %}">
-      {% csrf_token %}
-      <button type="submit" class="btn btn-outline-secondary btn-sm">
-        <i class="bi bi-check2-all me-1"></i>Clear All
-      </button>
-    </form>
-    {% endif %}
-    {% if user.profile.role == 'ADMIN' %}
-    <a href="{% url 'send_notification' %}" class="btn btn-primary btn-sm">
-      <i class="bi bi-send me-1"></i>Send Notification
-    </a>
-    {% endif %}
-  </div>
-</div>
+<style>
+  :root {
+    --ds-bg: #ffffff;
+    --ds-muted-bg: #f7f8fa;
+    --ds-border: #d9dee5;
+    --ds-border-soft: #e8ebef;
+    --ds-text: #1f2933;
+    --ds-muted: #667085;
+    --ds-hover: #f6f8fa;
+    --ds-primary: #3f5bf6;
+    --ds-primary-soft: rgba(63, 91, 246, 0.08);
+    --ds-danger-soft: rgba(220, 53, 69, 0.1);
+    --ds-warning-soft: rgba(255, 193, 7, 0.13);
+    --ds-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  }
 
-<div class="card">
-  <div class="card-body p-0">
-    <div class="list-group list-group-flush">
+  [data-bs-theme="dark"] {
+    --ds-bg: #212529;
+    --ds-muted-bg: #2b3035;
+    --ds-border: #3a4047;
+    --ds-border-soft: #343a40;
+    --ds-text: #f8f9fa;
+    --ds-muted: #adb5bd;
+    --ds-hover: #262b30;
+    --ds-primary: #6f86ff;
+    --ds-primary-soft: rgba(111, 134, 255, 0.14);
+    --ds-danger-soft: rgba(220, 53, 69, 0.16);
+    --ds-warning-soft: rgba(255, 193, 7, 0.16);
+    --ds-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+  }
+
+  .notification-page {
+    max-width: 1180px;
+    margin: 0 auto;
+  }
+
+  .notification-hero,
+  .notification-list-card {
+    background: var(--ds-bg);
+    border: 1px solid var(--ds-border);
+    border-radius: 14px;
+    box-shadow: var(--ds-shadow);
+    margin-bottom: 1rem;
+    overflow: hidden;
+  }
+
+  .notification-hero {
+    padding: 1.15rem;
+  }
+
+  .notification-hero-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: start;
+  }
+
+  .notification-kicker {
+    color: var(--ds-muted);
+    font-size: 0.72rem;
+    font-weight: 750;
+    letter-spacing: 0.075em;
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+
+  .notification-title {
+    color: var(--ds-text);
+    font-size: 1.75rem;
+    line-height: 1.15;
+    font-weight: 780;
+    letter-spacing: -0.025em;
+    margin: 0;
+  }
+
+  .notification-description {
+    color: var(--ds-muted);
+    max-width: 760px;
+    margin: 0.45rem 0 0;
+    font-size: 0.95rem;
+  }
+
+  .notification-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+
+  .notification-summary-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-top: 0.7rem;
+  }
+
+  .notification-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: var(--ds-muted-bg);
+    border: 1px solid var(--ds-border-soft);
+    color: var(--ds-muted);
+    border-radius: 999px;
+    padding: 0.28rem 0.6rem;
+    font-size: 0.76rem;
+    font-weight: 700;
+  }
+
+  .notification-list-header {
+    padding: 0.9rem 1rem;
+    background: var(--ds-bg);
+    border-bottom: 1px solid var(--ds-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .notification-list-title {
+    color: var(--ds-text);
+    font-size: 1.08rem;
+    font-weight: 780;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .notification-list-title i {
+    color: var(--ds-primary);
+  }
+
+  .notification-list-subtitle {
+    color: var(--ds-muted);
+    font-size: 0.82rem;
+    margin-top: 0.12rem;
+  }
+
+  .notification-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .notification-row {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    padding: 1rem;
+    border-bottom: 1px solid var(--ds-border-soft);
+    color: inherit;
+    text-decoration: none;
+    align-items: start;
+  }
+
+  .notification-row:last-child {
+    border-bottom: 0;
+  }
+
+  .notification-row:hover {
+    background: var(--ds-hover);
+  }
+
+  .notification-row.is-unread {
+    background: var(--ds-primary-soft);
+  }
+
+  .notification-row.is-deadline {
+    background: var(--ds-danger-soft);
+  }
+
+  .notification-status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: var(--ds-primary);
+    margin-top: 0.42rem;
+  }
+
+  .notification-status-placeholder {
+    width: 10px;
+    height: 10px;
+    margin-top: 0.42rem;
+  }
+
+  .notification-row-title {
+    color: var(--ds-text);
+    font-size: 0.96rem;
+    font-weight: 780;
+    line-height: 1.35;
+  }
+
+  .notification-row.is-unread .notification-row-title {
+    color: var(--ds-primary);
+  }
+
+  .notification-preview {
+    color: var(--ds-muted);
+    font-size: 0.86rem;
+    line-height: 1.45;
+    margin-top: 0.3rem;
+  }
+
+  .notification-meta {
+    color: var(--ds-muted);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    font-size: 0.78rem;
+    margin-top: 0.45rem;
+  }
+
+  .notification-meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .notification-side {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.35rem;
+    white-space: nowrap;
+  }
+
+  .notification-time {
+    color: var(--ds-muted);
+    font-size: 0.78rem;
+  }
+
+  .empty-state {
+    margin: 1rem;
+    border: 1px dashed var(--ds-border);
+    border-radius: 12px;
+    background: var(--ds-muted-bg);
+    color: var(--ds-muted);
+    padding: 2.5rem 1rem;
+    text-align: center;
+  }
+
+  .empty-state i {
+    display: block;
+    font-size: 2.2rem;
+    opacity: 0.4;
+    margin-bottom: 0.6rem;
+  }
+
+  @media (max-width: 991.98px) {
+    .notification-hero-main {
+      grid-template-columns: 1fr;
+    }
+
+    .notification-actions {
+      justify-content: flex-start;
+    }
+  }
+
+  @media (max-width: 767.98px) {
+    .notification-page {
+      max-width: none;
+    }
+
+    .notification-hero {
+      padding: 0.95rem;
+      border-radius: 12px;
+    }
+
+    .notification-kicker {
+      font-size: 0.68rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .notification-title {
+      font-size: 1.45rem;
+      line-height: 1.16;
+    }
+
+    .notification-description {
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+
+    .notification-actions {
+      display: grid;
+      grid-template-columns: 1fr;
+      width: 100%;
+    }
+
+    .notification-actions .btn,
+    .notification-actions form,
+    .notification-actions form button {
+      width: 100%;
+    }
+
+    .notification-list-header {
+      flex-direction: column;
+      padding: 0.9rem;
+    }
+
+    .notification-row {
+      grid-template-columns: 22px minmax(0, 1fr);
+      gap: 0.6rem;
+      padding: 0.95rem 0.9rem;
+    }
+
+    .notification-side {
+      grid-column: 2;
+      align-items: flex-start;
+      white-space: normal;
+      margin-top: 0.25rem;
+    }
+  }
+</style>
+
+<div class="notification-page">
+
+  <div class="notification-hero">
+    <div class="notification-hero-main">
+      <div>
+        <div class="notification-kicker">Notifications</div>
+        <h2 class="notification-title">Notifications</h2>
+        <p class="notification-description">
+          {% if unread_count %}
+            You have {{ unread_count }} unread notification{{ unread_count|pluralize }}.
+          {% else %}
+            No unread notifications.
+          {% endif %}
+        </p>
+
+        <div class="notification-summary-row">
+          <span class="notification-pill">
+            <i class="bi bi-bell"></i>
+            {{ notifications|length }} total
+          </span>
+
+          {% if unread_count %}
+          <span class="notification-pill">
+            <i class="bi bi-envelope-exclamation"></i>
+            {{ unread_count }} unread
+          </span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="notification-actions">
+        {% if notifications %}
+        <form method="post" action="{% url 'mark_all_notifications_read' %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-check2-all me-1"></i>Clear All
+          </button>
+        </form>
+        {% endif %}
+
+        {% if user.profile.role == 'ADMIN' %}
+        <a href="{% url 'send_notification' %}" class="btn btn-primary btn-sm">
+          <i class="bi bi-send me-1"></i>Send Notification
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="notification-list-card">
+    <div class="notification-list-header">
+      <div>
+        <h4 class="notification-list-title">
+          <i class="bi bi-inbox"></i>Inbox
+        </h4>
+        <div class="notification-list-subtitle">
+          Most recent notifications first.
+        </div>
+      </div>
+    </div>
+
+    <div class="notification-list">
       {% for n in notifications %}
       {% now "Y-m-d H:i" as current_time %}
-      <div class="list-group-item py-3 px-4 {% if not n.is_read %}border-start border-3{% if n.deadline %}border-danger{% else %}border-primary{% endif %}{% endif %}">
-        <div class="d-flex justify-content-between align-items-start">
-          <a href="{% url 'notification_detail' n.pk %}" class="d-flex align-items-start gap-3 text-decoration-none flex-grow-1">
-            {% if not n.is_read %}
-              <span class="badge bg-primary rounded-pill mt-1" style="width:10px; height:10px; padding:0;"></span>
-            {% else %}
-              <span style="width:10px; display:inline-block;"></span>
-            {% endif %}
-            <div>
-              <div class="fw-semibold {% if not n.is_read %}text-primary{% endif %}">
-                {{ n.subject }}
-                {% if n.deadline %}
-                  {% now "Y-m-d H:i" as current_time %}
-                  {% if n.deadline|date:"Y-m-d H:i" > current_time %}
-                    <span class="badge bg-danger ms-2" style="font-size:0.7rem;">
-                      <i class="bi bi-alarm me-1"></i>Due {{ n.deadline|date:"M d, Y H:i" }}
-                    </span>
-                  {% else %}
-                    <span class="badge bg-secondary ms-2" style="font-size:0.7rem;">
-                      <i class="bi bi-alarm me-1"></i>Past due {{ n.deadline|date:"M d, Y H:i" }}
-                    </span>
-                  {% endif %}
+
+      <div class="notification-row {% if not n.is_read %}is-unread{% endif %} {% if n.deadline and n.deadline|date:'Y-m-d H:i' > current_time %}is-deadline{% endif %}">
+        <div>
+          {% if not n.is_read %}
+            <div class="notification-status-dot"></div>
+          {% else %}
+            <div class="notification-status-placeholder"></div>
+          {% endif %}
+        </div>
+
+        <div class="min-w-0">
+          <a href="{% url 'notification_detail' n.pk %}" class="text-decoration-none">
+            <div class="notification-row-title">
+              {{ n.subject }}
+
+              {% if n.deadline %}
+                {% if n.deadline|date:"Y-m-d H:i" > current_time %}
+                  <span class="badge bg-danger ms-2" style="font-size:0.7rem;">
+                    <i class="bi bi-alarm me-1"></i>Due {{ n.deadline|date:"M d, Y H:i" }}
+                  </span>
+                {% else %}
+                  <span class="badge bg-secondary ms-2" style="font-size:0.7rem;">
+                    <i class="bi bi-alarm me-1"></i>Past due {{ n.deadline|date:"M d, Y H:i" }}
+                  </span>
                 {% endif %}
-              </div>
-              <div class="text-muted small mt-1">{{ n.message|truncatewords:25 }}</div>
-              <div class="text-muted small mt-1">
-                <i class="bi bi-person me-1"></i>From {{ n.sender.username|default:"System" }}
-                {% if n.attachments.exists %}
-                  <span class="ms-2"><i class="bi bi-paperclip me-1"></i>{{ n.attachments.count }} file{{ n.attachments.count|pluralize }}</span>
-                {% endif %}
-              </div>
+              {% endif %}
+            </div>
+
+            <div class="notification-preview">
+              {{ n.message|truncatewords:25 }}
             </div>
           </a>
-          <div class="text-nowrap ms-3 d-flex flex-column align-items-end gap-1">
-            <span class="text-muted small">{{ n.created_at|timesince }} ago</span>
-            {% if not n.deadline or n.deadline|date:"Y-m-d H:i" <= current_time %}
-            <form method="post" action="{% url 'mark_notification_read' n.pk %}">
-              {% csrf_token %}
-              <button type="submit" class="btn btn-outline-secondary btn-sm py-0 px-1" title="Dismiss" style="font-size:0.7rem;">
-                <i class="bi bi-x-lg"></i>
-              </button>
-            </form>
+
+          <div class="notification-meta">
+            <span>
+              <i class="bi bi-person"></i>
+              From {{ n.sender.username|default:"System" }}
+            </span>
+
+            {% if n.attachments.exists %}
+            <span>
+              <i class="bi bi-paperclip"></i>
+              {{ n.attachments.count }} file{{ n.attachments.count|pluralize }}
+            </span>
             {% endif %}
           </div>
         </div>
+
+        <div class="notification-side">
+          <span class="notification-time">{{ n.created_at|timesince }} ago</span>
+
+          {% if not n.deadline or n.deadline|date:"Y-m-d H:i" <= current_time %}
+          <form method="post" action="{% url 'mark_notification_read' n.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-secondary btn-sm py-0 px-1" title="Dismiss" style="font-size:0.7rem;">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </form>
+          {% endif %}
+        </div>
       </div>
+
       {% empty %}
-      <div class="text-center text-muted py-5">
-        <i class="bi bi-bell-slash fs-1 d-block mb-2 opacity-25"></i>
-        No notifications yet.
+      <div class="empty-state">
+        <i class="bi bi-bell-slash"></i>
+        <p class="mb-0">No notifications yet.</p>
       </div>
       {% endfor %}
     </div>
   </div>
+
 </div>
 
 {% endblock %}
