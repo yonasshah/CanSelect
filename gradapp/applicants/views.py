@@ -2,6 +2,7 @@
 import csv
 import random
 from urllib import request
+from django.urls import reverse
 from django.db.models import Avg, Case, Count, Exists, F, IntegerField, OuterRef, Q, Value, When
 import json
 from itertools import cycle
@@ -3387,34 +3388,57 @@ def analytics_dataset(request, pk):
     )
 
     # ── GPA distribution bands ───────────────────────────────────────────────
-    def gpa_bands(field):
-        return [
-            imported.filter(**{f'{field}__lt': 3.0}).count(),
-            imported.filter(**{f'{field}__gte': 3.0,  f'{field}__lt': 3.25}).count(),
-            imported.filter(**{f'{field}__gte': 3.25, f'{field}__lt': 3.5}).count(),
-            imported.filter(**{f'{field}__gte': 3.5,  f'{field}__lt': 3.75}).count(),
-            imported.filter(**{f'{field}__gte': 3.75}).count(),
-        ]
+    # ── Candidate label/link helper (for chart drill-down) ───────────────────
+    def _cand(a, value=None):
+        # NOTE: derives a display name defensively. If your Applicant model has a
+        # single name field, simplify this to e.g. `name = a.full_name`.
+        getfn = getattr(a, 'get_full_name', None)
+        name = getfn() if callable(getfn) else ''
+        if not name:
+            name = ' '.join(
+                str(getattr(a, f, '') or '').strip()
+                for f in ('first_name', 'last_name')
+            ).strip()
+        if not name:
+            name = str(a)
+        return {
+            'name': name,
+            'url': reverse('applicant_detail', args=[a.pk]),
+            'score': float(value) if value is not None else None,
+        }
 
-    gpa_band_labels   = ['< 3.00', '3.00–3.24', '3.25–3.49', '3.50–3.74', '≥ 3.75']
-    gpa_overall_bands = gpa_bands('gpa_overall')
-    gpa_science_bands = gpa_bands('gpa_science')
-    gpa_bcp_bands     = gpa_bands('gpa_bcp')
+    # ── GPA distribution bands (with member lists for drill-down) ────────────
+    def gpa_buckets(field):
+        members = [[], [], [], [], []]
+        for a in imported:
+            v = getattr(a, field, None)
+            if v is None:
+                continue
+            if   v < 3.0:  members[0].append(_cand(a, v))
+            elif v < 3.25: members[1].append(_cand(a, v))
+            elif v < 3.5:  members[2].append(_cand(a, v))
+            elif v < 3.75: members[3].append(_cand(a, v))
+            else:          members[4].append(_cand(a, v))
+        return members
 
-    # ── DAT Academic Average distribution bands ──────────────────────────────
+    gpa_band_labels     = ['< 3.00', '3.00–3.24', '3.25–3.49', '3.50–3.74', '≥ 3.75']
+    gpa_overall_members = gpa_buckets('gpa_overall')
+    gpa_science_members = gpa_buckets('gpa_science')
+    gpa_bcp_members     = gpa_buckets('gpa_bcp')
+    gpa_overall_bands   = [len(b) for b in gpa_overall_members]
+    gpa_science_bands   = [len(b) for b in gpa_science_members]
+    gpa_bcp_bands       = [len(b) for b in gpa_bcp_members]
+
+    # ── DAT Academic Average distribution bands (with member lists) ──────────
     dat_band_labels = ['200–239', '240–279', '280–319', '320–359', '360–399', '400–439', '440–479', '480–519', '520–559', '560–600']
-    dat_aa_bands = [
-        imported.filter(dat_academic_avg__gte=200, dat_academic_avg__lt=240).count(),
-        imported.filter(dat_academic_avg__gte=240, dat_academic_avg__lt=280).count(),
-        imported.filter(dat_academic_avg__gte=280, dat_academic_avg__lt=320).count(),
-        imported.filter(dat_academic_avg__gte=320, dat_academic_avg__lt=360).count(),
-        imported.filter(dat_academic_avg__gte=360, dat_academic_avg__lt=400).count(),
-        imported.filter(dat_academic_avg__gte=400, dat_academic_avg__lt=440).count(),
-        imported.filter(dat_academic_avg__gte=440, dat_academic_avg__lt=480).count(),
-        imported.filter(dat_academic_avg__gte=480, dat_academic_avg__lt=520).count(),
-        imported.filter(dat_academic_avg__gte=520, dat_academic_avg__lt=560).count(),
-        imported.filter(dat_academic_avg__gte=560, dat_academic_avg__lt=601).count(),
-    ]
+    dat_aa_members = [[] for _ in range(10)]
+    for a in imported:
+        v = getattr(a, 'dat_academic_avg', None)
+        if v is None or v < 200 or v >= 601:
+            continue
+        idx = min(9, int((v - 200) // 40))   # 40-wide bands starting at 200
+        dat_aa_members[idx].append(_cand(a, v))
+    dat_aa_bands = [len(b) for b in dat_aa_members]
 
     # ── Summary table rows for template ─────────────────────────────────────
     gpa_fields = [
@@ -3486,6 +3510,10 @@ def analytics_dataset(request, pk):
         'gpa_bcp_bands':     _json.dumps(gpa_bcp_bands),
         'dat_band_labels':   _json.dumps(dat_band_labels),
         'dat_aa_bands':      _json.dumps(dat_aa_bands),
+        'gpa_overall_members': _json.dumps(gpa_overall_members),
+        'gpa_science_members': _json.dumps(gpa_science_members),
+        'gpa_bcp_members':     _json.dumps(gpa_bcp_members),
+        'dat_aa_members':      _json.dumps(dat_aa_members),
         'crumbs': [
             {'label': 'Analytics',         'url': '/analytics/'},
             {'label': dataset.DisplayName, 'url': ''},
