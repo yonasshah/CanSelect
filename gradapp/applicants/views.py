@@ -20,11 +20,11 @@ from decimal import Decimal, InvalidOperation
 import pypdf
 import re as _re
 from collections import OrderedDict
-from .decorators import admin_required
+from .decorators import admin_required, committee_access_required
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from .models import Activity, Applicant, ApplicantFile, Notification, NotificationAttachment, Profile, Score, Vote, DataSet, Batch, Flag, Comment, ReviewPanel
-from .forms import ApplicantForm, ApplicantStatusForm, BatchAssignmentForm, BulkUploadForm, ReviewerGroupForm, SendNotificationForm, UploadManyFilesForm, EmailLoginForm,DataSetForm, BatchForm, CommentForm, ScoreForm
+from .forms import ApplicantForm, ApplicantStatusForm, BatchAssignmentForm, BulkUploadForm, SendNotificationForm, UploadManyFilesForm, EmailLoginForm, DataSetForm, BatchForm, CommentForm, ScoreForm, ReviewPanelForm
 
 def email_login(request):
     if request.method == "POST":
@@ -1554,8 +1554,8 @@ def dashboard(request):
     recent_activities = []
     if request.user.profile.role == 'ADMIN':
         recent_activities = Activity.objects.filter(
-            action_type__in=[Activity.VOTE_CAST, Activity.COMMENT_ADDED, Activity.DECISION_MADE, Activity.FLAG_ADDED]
-        ).select_related('actor', 'target_applicant')[:7]
+            action_type__in=[Activity.VOTE_CAST, Activity.COMMENT_ADDED, Activity.DECISION_MADE, Activity.FLAG_ADDED, Activity.BATCH_UPLOADED]
+        ).select_related('actor', 'target_applicant', 'target_batch')[:7]
 
     # --- 4. Run queries for charts *using the filtered applicants_qs* ---
     
@@ -1733,11 +1733,9 @@ def export_applicants_csv(request):
 @login_required
 @admin_required
 def activity_feed(request):
-    # ── CSV export ───────────────────────────────────────────────────
     if request.GET.get('export') == 'csv':
         return _export_activity_feed_csv(request)
  
-    # ── Filters ──────────────────────────────────────────────────────
     filter_reviewer  = request.GET.get('reviewer', '')
     filter_action    = request.GET.get('action', '')
     filter_date_from = request.GET.get('date_from', '')
@@ -1750,8 +1748,9 @@ def activity_feed(request):
             Activity.COMMENT_ADDED,
             Activity.DECISION_MADE,
             Activity.FLAG_ADDED,
+            Activity.BATCH_UPLOADED,
         ]
-    ).select_related('actor', 'target_applicant').order_by('-created_at')
+    ).select_related('actor', 'target_applicant', 'target_batch').order_by('-created_at')
  
     if filter_reviewer:
         activities = activities.filter(actor_id=filter_reviewer)
@@ -1766,11 +1765,12 @@ def activity_feed(request):
     page_obj  = paginator.get_page(request.GET.get('page'))
  
     all_reviewers = User.objects.filter(
-        profile__role='COMMITTEE_MEMBER'
+        Q(profile__role='COMMITTEE_MEMBER') |
+        Q(profile__role='ADMIN', profile__is_reviewer=True)
     ).order_by('username')
  
     return render(request, "activity_feed.html", {
-        'page_obj':       page_obj,
+        'page_obj':         page_obj,
         'filter_reviewer':  filter_reviewer,
         'filter_action':    filter_action,
         'filter_date_from': filter_date_from,
@@ -1780,6 +1780,52 @@ def activity_feed(request):
         'action_choices':   Activity.ACTION_CHOICES,
         'total_count':      paginator.count,
     })
+ 
+ 
+def _export_activity_feed_csv(request):
+    filter_reviewer  = request.GET.get('reviewer', '')
+    filter_action    = request.GET.get('action', '')
+    filter_date_from = request.GET.get('date_from', '')
+    filter_date_to   = request.GET.get('date_to', '')
+ 
+    activities = Activity.objects.filter(
+        action_type__in=[
+            Activity.VOTE_CAST,
+            Activity.COMMENT_ADDED,
+            Activity.DECISION_MADE,
+            Activity.FLAG_ADDED,
+            Activity.BATCH_UPLOADED,
+        ]
+    ).select_related('actor', 'target_applicant', 'target_batch').order_by('-created_at')
+ 
+    if filter_reviewer:
+        activities = activities.filter(actor_id=filter_reviewer)
+    if filter_action:
+        activities = activities.filter(action_type=filter_action)
+    if filter_date_from:
+        activities = activities.filter(created_at__date__gte=filter_date_from)
+    if filter_date_to:
+        activities = activities.filter(created_at__date__lte=filter_date_to)
+ 
+    response = HttpResponse(
+        content_type='text/csv',
+        headers={'Content-Disposition': 'attachment; filename="activity_feed.csv"'},
+    )
+    writer = csv.writer(response)
+    writer.writerow(['Date', 'Reviewer', 'Action', 'Candidate / Batch', 'Details'])
+    for a in activities:
+        if a.action_type == Activity.BATCH_UPLOADED:
+            target_label = str(a.target_batch) if a.target_batch else ''
+        else:
+            target_label = str(a.target_applicant) if a.target_applicant else ''
+        writer.writerow([
+            a.created_at.strftime('%Y-%m-%d %H:%M'),
+            a.actor.get_full_name() or a.actor.username if a.actor else 'System',
+            a.get_action_type_display(),
+            target_label,
+            a.details,
+        ])
+    return response
  
  
 def _export_activity_feed_csv(request):
@@ -1845,6 +1891,7 @@ def update_score(request, pk):
     return redirect('applicant_detail', pk=pk)
 
 @login_required
+@committee_access_required
 def applicant_queue(request):
     batches = request.user.assigned_batches.all()
     selected_batch_id = request.GET.get('batch')
@@ -2165,6 +2212,48 @@ def batch_assign_reviewers(request, pk):
     }
     return render(request, 'batch_assign_reviewers.html', context)
 
+@login_required
+@require_POST
+def toggle_committee_mode(request):
+    """
+    Toggle committee mode for sitting admin-reviewers (is_reviewer=True).
+    Entering committee mode: redirects to committee dashboard.
+    Leaving committee mode: redirects to admin dashboard.
+    """
+    profile = request.user.profile
+ 
+    # Only admins with is_reviewer=True can toggle
+    if profile.role != 'ADMIN' or not profile.is_reviewer:
+        messages.error(request, "You do not have permission to switch to committee mode.")
+        return redirect('dashboard')
+ 
+    if request.session.get('committee_mode'):
+        del request.session['committee_mode']
+        return redirect('dashboard')
+    else:
+        request.session['committee_mode'] = True
+        return redirect('committee_dashboard')
+ 
+ 
+@login_required
+@admin_required
+@require_POST
+def toggle_reviewer_status(request):
+    """
+    Toggle is_reviewer on an admin Profile.
+    Called from the Manage Panels page — Admin Reviewers section.
+    """
+    user_id = request.POST.get('user_id')
+    try:
+        profile = User.objects.get(pk=user_id, profile__role='ADMIN').profile
+        profile.is_reviewer = not profile.is_reviewer
+        profile.save()
+        status = "enabled" if profile.is_reviewer else "disabled"
+        messages.success(request, f"Committee reviewer access {status} for {profile.user.username}.")
+    except User.DoesNotExist:
+        messages.error(request, "Admin user not found.")
+    return redirect('manage_panels')
+
 
 @require_POST
 @login_required
@@ -2428,6 +2517,15 @@ def bulk_upload_applicants(request):
             count_in_batch = Applicant.objects.filter(round=batch_obj).count()
             batch_summary.append(f'"{batch_obj.DisplayName}" ({count_in_batch}/{BATCH_MAX_SIZE})')
 
+        for batch_obj, candidate_chunk in batch_placements:
+            Activity.objects.create(
+                actor=request.user,
+                action_type=Activity.BATCH_UPLOADED,
+                details=f"uploaded {len(candidate_chunk)} candidate(s) to",
+                target_applicant=None,
+                target_batch=batch_obj,
+            )
+ 
         batch_details = ', '.join(batch_summary)
         messages.success(
             request,
@@ -2991,6 +3089,7 @@ def _reviewer_progress_breakdown(user):
     return {'global': glob, 'datasets': rows, 'resume': resume, 'deadlines': deadlines}
     
 @login_required
+@committee_access_required
 def committee_dashboard(request):
     user = request.user
     
@@ -3024,7 +3123,8 @@ def committee_dashboard(request):
 
     # Their recent activity
     recent_activity = Activity.objects.filter(
-        actor=user
+        actor=user,
+        action_type__in=[Activity.VOTE_CAST, Activity.COMMENT_ADDED, Activity.FLAG_ADDED]
     ).select_related('target_applicant')[:5]
 
     # Their total votes and scores
@@ -3042,6 +3142,7 @@ def committee_dashboard(request):
 
 
 @login_required
+@committee_access_required
 def my_reviews(request):
     user = request.user
     sort = request.GET.get('sort', 'name')
@@ -3208,6 +3309,7 @@ def _export_my_reviews_csv(request, user):
 
 
 @login_required
+@committee_access_required
 def my_activity(request):
     user = request.user
  
@@ -3339,7 +3441,12 @@ def manage_panels(request):
  
     panels = ReviewPanel.objects.prefetch_related('members', 'batches').order_by('name')
     all_members = User.objects.filter(
-        profile__role='COMMITTEE_MEMBER'
+        Q(profile__role='COMMITTEE_MEMBER') |
+        Q(profile__role='ADMIN', profile__is_reviewer=True)
+    ).select_related('profile').order_by('last_name', 'first_name', 'username')
+    
+    admin_users = User.objects.filter(
+        profile__role='ADMIN'
     ).select_related('profile').order_by('last_name', 'first_name', 'username')
  
     # ── Handle panel creation ────────────────────────────────────────
@@ -3443,6 +3550,7 @@ def manage_panels(request):
         'unassigned_members': unassigned_members,
         'all_batches':        all_batches,
         'create_form':        create_form,
+        'admin_users': admin_users,
     })
 
 
@@ -3476,7 +3584,6 @@ def send_notification(request):
             subject = form.cleaned_data['subject']
             message = form.cleaned_data['message']
  
-            # Determine recipients
             recipients = User.objects.none()
  
             if recipient_type == 'dataset':
@@ -3485,24 +3592,20 @@ def send_notification(request):
                     batch_ids = Batch.objects.filter(DataSet=dataset).values_list('pk', flat=True)
                     reviewer_ids = Batch.objects.filter(pk__in=batch_ids).values_list('assigned_reviewers', flat=True)
                     recipients = User.objects.filter(pk__in=reviewer_ids).distinct()
- 
-            elif recipient_type == 'group':
-                group = form.cleaned_data.get('group')
-                if group:
-                    recipients = User.objects.filter(
-                        profile__role='COMMITTEE_MEMBER',
-                        profile__review_group=group,
-                    )
- 
+
+            elif recipient_type == 'panel':
+                panel = form.cleaned_data.get('panel')
+                if panel:
+                    recipients = panel.members.all()
+
             elif recipient_type == 'batch':
                 batch = form.cleaned_data.get('batch')
                 if batch:
                     recipients = batch.assigned_reviewers.all()
- 
+
             elif recipient_type == 'individual':
                 recipients = form.cleaned_data.get('individual_reviewers', User.objects.none())
  
-            # Create notifications
             count = 0
             for user in recipients:
                 notification = Notification.objects.create(
@@ -3526,10 +3629,8 @@ def send_notification(request):
             return redirect('send_notification')
     else:
         form = SendNotificationForm()
-    
  
     return render(request, 'send_notification.html', {'form': form})
- 
  
 @login_required
 def notification_list(request):

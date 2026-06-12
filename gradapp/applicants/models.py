@@ -10,30 +10,18 @@ class Profile(models.Model):
     class Role(models.TextChoices):
         ADMIN = 'ADMIN', 'Admin'
         COMMITTEE_MEMBER = 'COMMITTEE_MEMBER', 'Committee Member'
- 
-    class ReviewGroup(models.TextChoices):
-        UNASSIGNED = '', 'Unassigned'
-        GROUP_A = 'A', 'Group A'
-        GROUP_B = 'B', 'Group B'
-        GROUP_C = 'C', 'Group C'
- 
+
     class PersonType(models.TextChoices):
         STUDENT = 'STUDENT', 'Student'
         FACULTY = 'FACULTY', 'Faculty'
         STAFF   = 'STAFF',   'Staff'
         OTHER   = 'OTHER',   'Other'
- 
+
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     role = models.CharField(
         max_length=50,
         choices=Role.choices,
         default=Role.COMMITTEE_MEMBER
-    )
-    review_group = models.CharField(
-        max_length=1,
-        choices=ReviewGroup.choices,
-        default=ReviewGroup.UNASSIGNED,
-        blank=True,
     )
     person_type = models.CharField(
         max_length=20,
@@ -41,13 +29,25 @@ class Profile(models.Model):
         default=PersonType.OTHER,
         blank=True,
     )
- 
+    is_reviewer = models.BooleanField(
+        default=False,
+        help_text='Admin users with this flag can be assigned to batches as sitting committee members and can switch to committee mode.',
+    )
+
     def __str__(self):
-        group_label = f" [{self.get_review_group_display()}]" if self.review_group else ""
-        type_label  = f" ({self.get_person_type_display()})" if self.person_type and self.person_type != 'OTHER' else ""
-        return f"{self.user.username} - {self.get_role_display()}{group_label}{type_label}"
-    
-class Applicant(models.Model):   
+        type_label = f" ({self.get_person_type_display()})" if self.person_type and self.person_type != 'OTHER' else ""
+        reviewer_label = " [Reviewer]" if self.role == self.Role.ADMIN and self.is_reviewer else ""
+        panels = self.user.review_panels.all()
+        panel_label = f" [{', '.join(p.name for p in panels)}]" if panels.exists() else ""
+        return f"{self.user.username} - {self.get_role_display()}{type_label}{panel_label}{reviewer_label}"
+
+    @property
+    def can_use_committee_mode(self):
+        """True for committee members always, and for admins marked as sitting reviewers."""
+        return self.role == self.Role.COMMITTEE_MEMBER or (self.role == self.Role.ADMIN and self.is_reviewer)
+
+
+class Applicant(models.Model):
     class Status(models.TextChoices):
         INTERVIEW = 'INTERVIEW', 'Interview'
         INTERVIEW_COMPLETE = 'INTERVIEW_COMPLETE', 'Interview Complete'
@@ -57,7 +57,7 @@ class Applicant(models.Model):
         WAITLISTED = 'WAITLISTED', 'Waitlisted'
         REJECTED = 'REJECTED', 'Rejected'
         DECLINED = 'DECLINED', 'Candidate Declined'
-        
+
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     email = models.EmailField(blank=True, null=True)
@@ -110,14 +110,14 @@ class Applicant(models.Model):
         max_length=50,
         choices=Status.choices,
         default=Status.INTERVIEW,
-        db_index=True  
+        db_index=True
     )
-    
+
+    # limit_choices_to removed — sitting admin-reviewers can be assigned directly
     assigned_reviewers = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         related_name="assigned_applicants",
         blank=True,
-        limit_choices_to={'profile__role': Profile.Role.COMMITTEE_MEMBER}
     )
 
     def votes_summary(self):
@@ -181,7 +181,7 @@ class Flag(models.Model):
     def __str__(self):
         return f"{self.user.username} flagged {self.applicant} — {self.comment[:40]}"
 
-    
+
 class Vote(models.Model):
     VOTE_CHOICES = (
         (1, "Accept"),
@@ -196,6 +196,7 @@ class Vote(models.Model):
     class Meta:
         unique_together = ("applicant", "voter")
 
+
 class DataSet(models.Model):
     class ApplicationSystem(models.TextChoices):
         AADSAS = 'AADSAS', 'AADSAS'
@@ -207,7 +208,7 @@ class DataSet(models.Model):
         DMD_3P4  = 'DMD_3P4',  '3+4 DMD'
         POSTBACC = 'POSTBACC', 'Postbacc'
         OTHER    = 'OTHER',    'Other'
-        
+
     DisplayName = models.CharField(max_length=255)
     application_system = models.CharField(
         max_length=20,
@@ -228,9 +229,9 @@ class DataSet(models.Model):
     Active = models.BooleanField(default=True)
     IsLive = models.BooleanField(default=False)
     target_class_size = models.PositiveIntegerField(
-            blank=True, null=True,
-            help_text='Target number of students to accept for this program.'
-        ) 
+        blank=True, null=True,
+        help_text='Target number of students to accept for this program.'
+    )
     CreatedAt = models.DateTimeField(auto_now_add=True)
     UpdatedAt = models.DateTimeField(auto_now=True)
 
@@ -240,7 +241,7 @@ class DataSet(models.Model):
     def __str__(self):
         return self.DisplayName
 
-    
+
 class Score(models.Model):
     SCORE_CHOICES = [
         (1, '1 - Poor'),
@@ -262,6 +263,8 @@ class Score(models.Model):
 
     def __str__(self):
         return f"Score by {self.voter.username} for {self.applicant}"
+
+
 class ReviewPanel(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True, default='')
@@ -273,22 +276,22 @@ class ReviewPanel(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
- 
+
     class Meta:
         ordering = ['name']
- 
+
     def __str__(self):
         return self.name
- 
+
     @property
     def member_count(self):
         return self.members.count()
- 
+
     @property
     def batch_count(self):
         return self.batches.count()
-    
-    
+
+
 class Batch(models.Model):
     DataSet = models.ForeignKey("DataSet", related_name="batches", on_delete=models.CASCADE)
     DisplayName = models.CharField(max_length=255)
@@ -301,18 +304,12 @@ class Batch(models.Model):
     RoundId = models.IntegerField(blank=True, null=True)
     CreatedAt = models.DateTimeField(auto_now_add=True)
     UpdatedAt = models.DateTimeField(auto_now=True)
-    
+
+    # limit_choices_to removed — sitting admin-reviewers can be assigned directly
     assigned_reviewers = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         related_name="assigned_batches",
         blank=True,
-        limit_choices_to={'profile__role': Profile.Role.COMMITTEE_MEMBER}
-    )
-    review_group = models.CharField(
-        max_length=1,
-        choices=[('', 'Unassigned'), ('A', 'Group A'), ('B', 'Group B'), ('C', 'Group C')],
-        blank=True,
-        default='',
     )
     panel = models.ForeignKey(
         'ReviewPanel',
@@ -326,7 +323,7 @@ class Batch(models.Model):
 
     def __str__(self):
         return f"{self.DisplayName} (Dataset: {self.DataSet.DisplayName})"
-    
+
 
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
@@ -336,24 +333,33 @@ def create_user_profile(sender, instance, created, **kwargs):
 @receiver(post_save, sender=User)
 def save_user_profile(sender, instance, **kwargs):
     instance.profile.save()
-    
+
+
 class Activity(models.Model):
     VOTE_CAST = 'vote_cast'
     COMMENT_ADDED = 'comment_added'
     FLAG_ADDED = 'flag_added'
     DECISION_MADE = 'decision_made'
+    BATCH_UPLOADED = 'batch_uploaded'
 
     ACTION_CHOICES = [
-        (VOTE_CAST, 'Vote Cast'),
-        (COMMENT_ADDED, 'Comment Added'),
-        (FLAG_ADDED, 'Flag Added'),
-        (DECISION_MADE, 'Decision Made'),
+        (VOTE_CAST,      'Vote Cast'),
+        (COMMENT_ADDED,  'Comment Added'),
+        (FLAG_ADDED,     'Flag Added'),
+        (DECISION_MADE,  'Decision Made'),
+        (BATCH_UPLOADED, 'Batch Uploaded'),
     ]
-    
+
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     action_type = models.CharField(max_length=50, choices=ACTION_CHOICES)
     details = models.TextField()
-    target_applicant = models.ForeignKey(Applicant, on_delete=models.CASCADE, null=True)
+    target_applicant = models.ForeignKey(Applicant, on_delete=models.CASCADE, null=True, blank=True)
+    target_batch = models.ForeignKey(
+        'Batch',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='activity_entries',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -363,7 +369,8 @@ class Activity(models.Model):
     def __str__(self):
         actor_name = self.actor.username if self.actor else 'System'
         return f"{actor_name} - {self.get_action_type_display()}"
-    
+
+
 class Comment(models.Model):
     applicant = models.ForeignKey(Applicant, on_delete=models.CASCADE, related_name='comments')
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -375,7 +382,8 @@ class Comment(models.Model):
 
     def __str__(self):
         return f"Comment by {self.author.username} on {self.applicant}"
-    
+
+
 class Notification(models.Model):
     recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
     sender = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='sent_notifications')
@@ -385,14 +393,14 @@ class Notification(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     read_at = models.DateTimeField(blank=True, null=True)
     deadline = models.DateTimeField(blank=True, null=True)
- 
+
     class Meta:
         ordering = ['-created_at']
- 
+
     def __str__(self):
         return f"To {self.recipient.username}: {self.subject}"
-    
-    
+
+
 class NotificationAttachment(models.Model):
     notification = models.ForeignKey(Notification, on_delete=models.CASCADE, related_name='attachments')
     file = models.FileField(upload_to='notification_attachments/')

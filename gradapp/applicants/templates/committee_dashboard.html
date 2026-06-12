@@ -259,9 +259,15 @@
               <i class="bi bi-flag-fill me-2 text-danger"></i>
             {% endif %}
             {{ activity.details }}
-            <a href="{% url 'applicant_detail' activity.target_applicant.pk %}">
-              {{ activity.target_applicant.first_name }} {{ activity.target_applicant.last_name }}
-            </a>
+            {% if activity.target_applicant %}
+              <a href="{% url 'applicant_detail' activity.target_applicant.pk %}">
+                  {{ activity.target_applicant.first_name }} {{ activity.target_applicant.last_name }}
+              </a>
+          {% elif activity.target_batch %}
+              <a href="{% url 'batch_detail' activity.target_batch.pk %}">
+                  {{ activity.target_batch.DisplayName }}
+              </a>
+          {% endif %}
           </div>
           <small class="text-muted">{{ activity.created_at|timesince }} ago</small>
         </div>

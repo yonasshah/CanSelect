@@ -135,12 +135,21 @@
                             <i class="bi bi-check2-square me-2 text-success"></i>
                         {% elif activity.action_type == 'flag_added' %}
                             <i class="bi bi-flag-fill me-2 text-danger"></i>
+                        {% elif activity.action_type == 'batch_uploaded' %}
+                            <i class="bi bi-cloud-upload-fill me-2 text-success"></i>
                         {% endif %}
                         <strong>{{ activity.actor.username }}</strong>
                         {{ activity.details }}
-                        <a href="#" data-bs-toggle="modal" data-bs-target="#applicantModal" data-profile-url="{% url 'applicant_profile_partial' activity.target_applicant.pk %}">
-                            {{ activity.target_applicant.first_name }} {{ activity.target_applicant.last_name }}
-                        </a>
+                        {% if activity.target_applicant %}
+                            <a href="#" data-bs-toggle="modal" data-bs-target="#applicantModal"
+                            data-profile-url="{% url 'applicant_profile_partial' activity.target_applicant.pk %}">
+                                {{ activity.target_applicant.first_name }} {{ activity.target_applicant.last_name }}
+                            </a>
+                        {% elif activity.target_batch %}
+                            <a href="{% url 'batch_detail' activity.target_batch.pk %}">
+                                {{ activity.target_batch.DisplayName }}
+                            </a>
+                        {% endif %}
                     </div>
                     <small class="text-muted">{{ activity.created_at|timesince }} ago</small>
                 </div>

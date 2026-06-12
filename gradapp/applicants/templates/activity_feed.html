@@ -66,7 +66,7 @@
   <div class="card-body p-0">
     <ul class="list-group list-group-flush">
       {% for activity in page_obj %}
-      <li class="list-group-item {% if activity.action_type == 'flag_added' %}list-group-item-danger{% endif %}">
+      <li class="list-group-item {% if activity.action_type == 'flag_added' %}list-group-item-danger{% elif activity.action_type == 'batch_uploaded' %}list-group-item-success{% endif %}">
         <div class="d-flex w-100 justify-content-between align-items-start">
           <div>
             {% if activity.action_type == 'vote_cast' %}
@@ -77,13 +77,28 @@
               <i class="bi bi-check2-square me-2 text-success"></i>
             {% elif activity.action_type == 'flag_added' %}
               <i class="bi bi-flag-fill me-2 text-danger"></i>
+            {% elif activity.action_type == 'batch_uploaded' %}
+              <i class="bi bi-cloud-upload-fill me-2 text-success"></i>
             {% endif %}
 
             <strong>{{ activity.actor.get_full_name|default:activity.actor.username }}</strong>
-            {{ activity.details }}
-            <a href="{% url 'applicant_detail' activity.target_applicant.pk %}">
-              {{ activity.target_applicant.first_name }} {{ activity.target_applicant.last_name }}
-            </a>
+
+            {% if activity.action_type == 'batch_uploaded' %}
+              {{ activity.details }}
+              {% if activity.target_batch %}
+                <a href="{% url 'batch_detail' activity.target_batch.pk %}">
+                  {{ activity.target_batch.DisplayName }}
+                </a>
+                <span class="text-muted small">({{ activity.target_batch.DataSet.DisplayName }})</span>
+              {% endif %}
+            {% else %}
+              {{ activity.details }}
+              {% if activity.target_applicant %}
+                <a href="{% url 'applicant_detail' activity.target_applicant.pk %}">
+                  {{ activity.target_applicant.first_name }} {{ activity.target_applicant.last_name }}
+                </a>
+              {% endif %}
+            {% endif %}
 
             {% if activity.action_type == 'flag_added' %}
             <div class="mt-1 ms-4 p-2 bg-danger bg-opacity-10 border border-danger border-opacity-25 rounded small">

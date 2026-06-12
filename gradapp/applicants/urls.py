@@ -8,6 +8,7 @@ urlpatterns = [
     path("", views.dashboard, name="dashboard"),
     path("login/", views.email_login, name="login"),
     path("help/", views.help_page, name="help"),
+    path("toggle-committee-mode/", views.toggle_committee_mode, name="toggle_committee_mode"),
 
     # ── Applicants ────────────────────────────────────────────────────
     path("applicant/", views.applicant_list, name="applicant_list"),
@@ -34,7 +35,6 @@ urlpatterns = [
     path("datasets/<int:pk>/decisions/action/", views.dataset_decisions_action, name="dataset_decisions_action"),
     path("datasets/<int:pk>/decisions/export/", views.export_decisions_csv, name="export_decisions_csv"),
     path("datasets/<int:pk>/decisions/<str:section>/", views.dataset_decisions_section, name="dataset_decisions_section"),
-    
 
     # ── Batches ───────────────────────────────────────────────────────
     path("batches/", views.batch_list, name="batch_list"),
@@ -66,5 +66,5 @@ urlpatterns = [
     path("panels/", views.manage_panels, name="manage_panels"),
     path("search/", views.global_search, name="global_search"),
     path("members/update-type/", views.update_member_type, name="update_member_type"),
-
+    path("members/toggle-reviewer/", views.toggle_reviewer_status, name="toggle_reviewer_status"),
 ]
