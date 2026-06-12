@@ -1,285 +1,983 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <div>
-    <h2 class="mb-0">Welcome, {{ request.user.username }}</h2>
-    <p class="text-muted mb-0">Here's an overview of your assigned review work.</p>
+<style>
+  :root {
+    --cd-border: #dee2e6;
+    --cd-panel-bg: #ffffff;
+    --cd-panel-muted: #f8f9fa;
+    --cd-text: #212529;
+    --cd-muted: #6c757d;
+    --cd-hover: #f6f8fa;
+    --cd-success-soft: #e9f7ef;
+    --cd-warning-soft: #fff8e1;
+    --cd-danger-soft: #fdecec;
+    --cd-primary-soft: #eef5ff;
+  }
+
+  [data-bs-theme="dark"] {
+    --cd-border: #373b3f;
+    --cd-panel-bg: #212529;
+    --cd-panel-muted: #2b3035;
+    --cd-text: #f8f9fa;
+    --cd-muted: #adb5bd;
+    --cd-hover: #262b30;
+    --cd-success-soft: rgba(25,135,84,0.16);
+    --cd-warning-soft: rgba(255,193,7,0.14);
+    --cd-danger-soft: rgba(220,53,69,0.16);
+    --cd-primary-soft: rgba(13,110,253,0.14);
+  }
+
+  .committee-dashboard {
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .cd-header {
+    margin-bottom: 1.25rem;
+  }
+
+  .cd-kicker {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--cd-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.35rem;
+  }
+
+  .cd-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--cd-text);
+    letter-spacing: -0.025em;
+    margin: 0;
+  }
+
+  .cd-subtitle {
+    color: var(--cd-muted);
+    margin: 0.35rem 0 0;
+    font-size: 0.95rem;
+  }
+
+  .cd-panel {
+    background: var(--cd-panel-bg);
+    border: 1px solid var(--cd-border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 1.25rem;
+  }
+
+  .cd-panel-header {
+    min-height: 54px;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--cd-border);
+    background: var(--cd-panel-muted);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .cd-panel-title {
+    margin: 0;
+    font-size: 0.98rem;
+    font-weight: 700;
+    color: var(--cd-text);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .cd-panel-title i {
+    color: var(--cd-muted);
+  }
+
+  .cd-panel-subtitle {
+    font-size: 0.82rem;
+    color: var(--cd-muted);
+  }
+
+  .cd-panel-body {
+    padding: 1rem;
+  }
+
+  .cd-alert {
+    background: var(--cd-primary-soft);
+    border: 1px solid rgba(13,110,253,0.22);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .cd-alert-title {
+    font-weight: 700;
+    color: var(--cd-text);
+    margin-bottom: 0.2rem;
+  }
+
+  .cd-alert-text {
+    color: var(--cd-muted);
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .cd-alert-batches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .cd-batch-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 1px solid var(--cd-border);
+    background: var(--cd-panel-bg);
+    border-radius: 999px;
+    padding: 0.35rem 0.65rem;
+    font-size: 0.83rem;
+    font-weight: 650;
+    text-decoration: none;
+  }
+
+  .cd-batch-pill:hover {
+    background: var(--cd-hover);
+    text-decoration: none;
+  }
+
+  .cd-action-card {
+    border: 1px solid var(--cd-border);
+    background: var(--cd-panel-bg);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .cd-action-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .cd-action-left {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    min-width: 0;
+  }
+
+  .cd-action-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    border: 1px solid var(--cd-border);
+    background: var(--cd-panel-muted);
+    color: var(--cd-muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+  }
+
+  .cd-action-icon.primary {
+    background: var(--cd-primary-soft);
+    color: #0d6efd;
+    border-color: rgba(13,110,253,0.22);
+  }
+
+  .cd-action-icon.success {
+    background: var(--cd-success-soft);
+    color: #198754;
+    border-color: rgba(25,135,84,0.22);
+  }
+
+  .cd-action-title {
+    font-weight: 700;
+    color: var(--cd-text);
+    margin-bottom: 0.15rem;
+  }
+
+  .cd-action-meta {
+    color: var(--cd-muted);
+    font-size: 0.9rem;
+  }
+
+  .cd-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .cd-summary-card {
+    border: 1px solid var(--cd-border);
+    background: var(--cd-panel-bg);
+    border-radius: 12px;
+    padding: 1rem;
+    min-height: 118px;
+  }
+
+  .cd-summary-label {
+    color: var(--cd-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.055em;
+    margin-bottom: 0.45rem;
+  }
+
+  .cd-summary-value {
+    color: var(--cd-text);
+    font-size: 1.9rem;
+    font-weight: 750;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+  }
+
+  .cd-summary-note {
+    color: var(--cd-muted);
+    font-size: 0.84rem;
+  }
+
+  .cd-progress-main {
+    margin-bottom: 1.25rem;
+  }
+
+  .cd-progress-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+  }
+
+  .cd-progress-label {
+    color: var(--cd-text);
+    font-weight: 700;
+  }
+
+  .cd-progress-meta {
+    color: var(--cd-muted);
+    font-size: 0.85rem;
+  }
+
+  .cd-progress {
+    height: 9px;
+    background: var(--cd-panel-muted);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+
+  .cd-progress-bar {
+    height: 100%;
+    background: #198754;
+    border-radius: 999px;
+  }
+
+  .cd-dataset-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+
+  .cd-dataset-row {
+    border-top: 1px solid var(--cd-border);
+    padding-top: 0.9rem;
+  }
+
+  .cd-dataset-row:first-child {
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  .cd-dataset-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.45rem;
+  }
+
+  .cd-dataset-name {
+    font-weight: 700;
+    color: var(--cd-text);
+  }
+
+  .cd-dataset-count {
+    color: var(--cd-muted);
+    font-size: 0.85rem;
+  }
+
+  .cd-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    margin-top: 0.45rem;
+    color: var(--cd-muted);
+    font-size: 0.8rem;
+  }
+
+  .cd-meta-row span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .cd-deadline-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .cd-deadline-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: center;
+    text-decoration: none;
+    border: 1px solid var(--cd-border);
+    background: var(--cd-panel-bg);
+    border-radius: 10px;
+    padding: 0.8rem 0.9rem;
+  }
+
+  .cd-deadline-item:hover {
+    background: var(--cd-hover);
+    text-decoration: none;
+  }
+
+  .cd-deadline-item.critical {
+    background: var(--cd-danger-soft);
+    border-color: rgba(220,53,69,0.25);
+  }
+
+  .cd-deadline-item.soon {
+    background: var(--cd-warning-soft);
+    border-color: rgba(255,193,7,0.32);
+  }
+
+  .cd-deadline-title {
+    font-weight: 700;
+    color: var(--cd-text);
+    margin-bottom: 0.1rem;
+  }
+
+  .cd-deadline-meta {
+    color: var(--cd-muted);
+    font-size: 0.83rem;
+  }
+
+  .cd-deadline-date {
+    text-align: right;
+    font-size: 0.85rem;
+    color: var(--cd-muted);
+    white-space: nowrap;
+  }
+
+  .cd-deadline-date strong {
+    display: block;
+    color: var(--cd-text);
+  }
+
+  .cd-table {
+    margin: 0;
+  }
+
+  .cd-table thead th {
+    background: var(--cd-panel-muted);
+    color: var(--cd-muted);
+    font-size: 0.74rem;
+    font-weight: 750;
+    text-transform: uppercase;
+    letter-spacing: 0.055em;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--cd-border);
+    white-space: nowrap;
+  }
+
+  .cd-table tbody td {
+    padding: 0.95rem 1rem;
+    border-bottom: 1px solid var(--cd-border);
+    vertical-align: middle;
+  }
+
+  .cd-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .cd-table tbody tr:hover {
+    background: var(--cd-hover);
+  }
+
+  .cd-link-strong {
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  .cd-link-strong:hover {
+    text-decoration: underline;
+  }
+
+  .cd-muted {
+    color: var(--cd-muted);
+  }
+
+  .cd-chip {
+    display: inline-flex;
+    align-items: center;
+    max-width: 280px;
+    padding: 0.28rem 0.55rem;
+    border-radius: 6px;
+    background: var(--cd-panel-muted);
+    border: 1px solid var(--cd-border);
+    color: var(--cd-text);
+    font-size: 0.8rem;
+    font-weight: 650;
+  }
+
+  .cd-table-progress {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    min-width: 190px;
+  }
+
+  .cd-table-progress .cd-progress {
+    flex: 1;
+    height: 7px;
+  }
+
+  .cd-table-progress-count {
+    color: var(--cd-muted);
+    font-size: 0.82rem;
+    white-space: nowrap;
+  }
+
+  .cd-activity-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .cd-activity-item {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    align-items: start;
+    padding: 0.95rem 0;
+    border-bottom: 1px solid var(--cd-border);
+  }
+
+  .cd-activity-item:first-child {
+    padding-top: 0;
+  }
+
+  .cd-activity-item:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  .cd-activity-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: var(--cd-panel-muted);
+    border: 1px solid var(--cd-border);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .cd-activity-copy {
+    font-size: 0.92rem;
+    line-height: 1.45;
+    color: var(--cd-text);
+  }
+
+  .cd-activity-time {
+    color: var(--cd-muted);
+    font-size: 0.8rem;
+    white-space: nowrap;
+    padding-top: 0.1rem;
+  }
+
+  .cd-empty-state {
+    padding: 2.25rem 1rem;
+    text-align: center;
+    color: var(--cd-muted);
+  }
+
+  .cd-empty-state i {
+    display: block;
+    font-size: 1.7rem;
+    margin-bottom: 0.45rem;
+    opacity: 0.45;
+  }
+
+  .cd-empty-title {
+    font-weight: 700;
+    color: var(--cd-text);
+    margin-bottom: 0.15rem;
+  }
+
+  @media (max-width: 1199.98px) {
+    .cd-summary-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 991.98px) {
+    .cd-action-content {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .cd-deadline-item {
+      grid-template-columns: 1fr;
+    }
+
+    .cd-deadline-date {
+      text-align: left;
+    }
+
+    .cd-activity-item {
+      grid-template-columns: 34px minmax(0, 1fr);
+    }
+
+    .cd-activity-time {
+      grid-column: 2;
+      white-space: normal;
+      padding-top: 0;
+    }
+  }
+
+  @media (max-width: 575.98px) {
+    .cd-title {
+      font-size: 1.45rem;
+    }
+
+    .cd-summary-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .cd-summary-value {
+      font-size: 1.65rem;
+    }
+
+    .cd-panel-header {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .cd-table-progress {
+      min-width: 140px;
+    }
+  }
+</style>
+
+<div class="committee-dashboard">
+
+  {% if new_batch_alert %}
+  <div class="cd-alert alert-dismissible fade show" role="alert" id="new-batch-alert">
+    <div class="d-flex align-items-start gap-3">
+      <div class="cd-action-icon primary">
+        <i class="bi bi-collection-fill"></i>
+      </div>
+
+      <div class="flex-grow-1">
+        <div class="cd-alert-title">
+          {{ new_batch_alert|length }} new batch{{ new_batch_alert|length|pluralize:"es" }} assigned since your last login
+        </div>
+        <div class="cd-alert-text">
+          These batches are now available in your review queue.
+        </div>
+
+        <div class="cd-alert-batches">
+          {% for batch in new_batch_alert %}
+          <a href="{% url 'applicant_queue' %}?batch={{ batch.pk }}" class="cd-batch-pill">
+            <i class="bi bi-inbox"></i>
+            <span>{{ batch.DisplayName }}</span>
+            <span class="cd-muted">· {{ batch.DataSet.DisplayName }}</span>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Dismiss"></button>
+    </div>
   </div>
 
-</div>
+  <script>
+    (function() {
+      const alertKey = 'newBatchAlertDismissed_{{ request.user.pk }}';
+      const alertEl  = document.getElementById('new-batch-alert');
+      if (!alertEl) return;
 
-<!-- ── Resume / Next Action ── -->
-{% if progress.resume %}
-<div class="card mb-4 border-primary shadow-sm">
-  <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
-    <div class="d-flex align-items-center gap-3">
-      <div class="d-flex align-items-center justify-content-center rounded-circle bg-primary bg-opacity-10 text-primary"
-           style="width:48px; height:48px; flex-shrink:0;">
-        <i class="bi bi-play-fill fs-4"></i>
+      if (sessionStorage.getItem(alertKey)) {
+        alertEl.style.display = 'none';
+        return;
+      }
+
+      alertEl.addEventListener('closed.bs.alert', function() {
+        sessionStorage.setItem(alertKey, '1');
+      });
+    })();
+  </script>
+  {% endif %}
+
+  <div class="cd-header">
+    <div class="cd-kicker">Committee Review</div>
+    <h2 class="cd-title">Welcome, {{ request.user.username }}</h2>
+    <p class="cd-subtitle">
+      Track assigned batches, deadlines, voting progress, and recent review activity.
+    </p>
+  </div>
+
+  {% if progress.resume %}
+  <div class="cd-action-card">
+    <div class="cd-action-content">
+      <div class="cd-action-left">
+        <div class="cd-action-icon primary">
+          <i class="bi bi-play-fill"></i>
+        </div>
+        <div>
+          <div class="cd-action-title">
+            {% if progress.resume.started %}Pick up where you left off{% else %}Start your next review{% endif %}
+          </div>
+          <div class="cd-action-meta">
+            <strong>{{ progress.resume.unvoted }}</strong>
+            candidate{{ progress.resume.unvoted|pluralize }}
+            {% if progress.resume.started %}remaining{% else %}ready to review{% endif %}
+            in <strong>{{ progress.resume.batch.DisplayName }}</strong>
+            <span>· {{ progress.resume.dataset.DisplayName }}</span>
+            {% if progress.resume.deadline %}
+              <span>· Due {{ progress.resume.deadline|date:"M d, Y" }}</span>
+            {% endif %}
+          </div>
+        </div>
       </div>
-      <div>
-        <div class="fw-semibold">
-          {% if progress.resume.started %}Pick up where you left off{% else %}Start reviewing{% endif %}
-        </div>
-        <div class="text-muted small">
-          <span class="fw-semibold">{{ progress.resume.unvoted }}</span>
-          candidate{{ progress.resume.unvoted|pluralize }}
-          {% if progress.resume.started %}left{% else %}to review{% endif %} in
-          <span class="fw-semibold">{{ progress.resume.batch.DisplayName }}</span>
-          <span class="text-muted">· {{ progress.resume.dataset.DisplayName }}</span>
-          {% if progress.resume.deadline %}
-            <span class="ms-1">
-              <i class="bi bi-clock me-1"></i>due {{ progress.resume.deadline|date:"M d, Y" }}
-            </span>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-    <a href="{% url 'applicant_queue' %}?batch={{ progress.resume.batch.pk }}"
-       class="btn btn-primary">
-      <i class="bi bi-arrow-right-circle me-1"></i>{% if progress.resume.started %}Resume reviewing{% else %}Start reviewing{% endif %}
-    </a>
-  </div>
-</div>
-{% else %}
-{% if progress.global.total == 0 %}
-<div class="card mb-4 border-secondary shadow-sm">
-  <div class="card-body d-flex align-items-center gap-3">
-    <div class="d-flex align-items-center justify-content-center rounded-circle bg-secondary bg-opacity-10 text-secondary"
-         style="width:48px; height:48px; flex-shrink:0;">
-      <i class="bi bi-inbox fs-4"></i>
-    </div>
-    <div>
-      <div class="fw-semibold">No candidates assigned yet</div>
-      <div class="text-muted small">You'll see review work here once an administrator assigns you to a batch.</div>
-    </div>
-  </div>
-</div>
-{% else %}
-<div class="card mb-4 border-success shadow-sm">
-  <div class="card-body d-flex align-items-center gap-3">
-    <div class="d-flex align-items-center justify-content-center rounded-circle bg-success bg-opacity-10 text-success"
-         style="width:48px; height:48px; flex-shrink:0;">
-      <i class="bi bi-check-lg fs-4"></i>
-    </div>
-    <div>
-      <div class="fw-semibold">You're all caught up</div>
-      <div class="text-muted small">You've voted on every candidate assigned to you. Nice work.</div>
-    </div>
-  </div>
-</div>
-{% endif %}
-{% endif %}
-<!-- ── Deadline urgency strip ── -->
-{% if progress.deadlines %}
-<div class="card mb-4">
-  <div class="card-header fw-semibold py-2">
-    <i class="bi bi-alarm me-2"></i>Upcoming Deadlines
-  </div>
-  <div class="card-body py-2">
-    <div class="d-flex flex-column gap-2">
-      {% for d in progress.deadlines %}
-      <a href="{% url 'applicant_queue' %}?batch={{ d.batch.pk }}"
-         class="d-flex justify-content-between align-items-center text-decoration-none p-2 rounded
-                {% if d.urgency == 'critical' %}bg-danger bg-opacity-10
-                {% elif d.urgency == 'soon' %}bg-warning bg-opacity-10
-                {% endif %}"
-         style="border:1px solid {% if d.urgency == 'critical' %}rgba(220,53,69,0.25){% elif d.urgency == 'soon' %}rgba(255,193,7,0.3){% else %}rgba(0,0,0,0.08){% endif %};">
-        <div class="d-flex align-items-center gap-2">
-          <i class="bi
-             {% if d.urgency == 'critical' %}bi-exclamation-triangle-fill text-danger
-             {% elif d.urgency == 'soon' %}bi-clock-fill text-warning
-             {% else %}bi-clock text-muted{% endif %}"></i>
-          <span class="fw-semibold text-body">{{ d.batch.DisplayName }}</span>
-          <span class="text-muted small">· {{ d.dataset.DisplayName }}</span>
-          <span class="text-muted small">· {{ d.unvoted }} left to vote</span>
-        </div>
-        <div class="text-end">
-          <span class="small
-                {% if d.urgency == 'critical' %}text-danger fw-semibold
-                {% elif d.urgency == 'soon' %}text-warning fw-semibold
-                {% else %}text-muted{% endif %}">
-            {% if d.days_left == 0 %}Due today
-            {% elif d.days_left == 1 %}Due tomorrow
-            {% else %}{{ d.days_left }} days left{% endif %}
-          </span>
-          <div class="text-muted" style="font-size:0.7rem;">{{ d.deadline|date:"M d, Y" }}</div>
-        </div>
+
+      <a href="{% url 'applicant_queue' %}?batch={{ progress.resume.batch.pk }}" class="btn btn-primary">
+        {% if progress.resume.started %}Resume Reviewing{% else %}Start Reviewing{% endif %}
       </a>
-      {% endfor %}
     </div>
   </div>
-</div>
-{% endif %}
-<!-- ── Review Progress (cross-dataset) ── -->
-<div class="card mb-4">
-  <div class="card-header d-flex justify-content-between align-items-center">
-    <span class="fw-semibold"><i class="bi bi-speedometer2 me-2"></i>Your Review Progress</span>
-    <span class="badge bg-primary fs-6">
-      {{ progress.global.voted }} / {{ progress.global.total }} voted
-    </span>
-  </div>
-  <div class="card-body">
+  {% else %}
+    {% if progress.global.total == 0 %}
+    <div class="cd-action-card">
+      <div class="cd-action-content">
+        <div class="cd-action-left">
+          <div class="cd-action-icon">
+            <i class="bi bi-inbox"></i>
+          </div>
+          <div>
+            <div class="cd-action-title">No candidates assigned yet</div>
+            <div class="cd-action-meta">Your assigned review work will appear here once an administrator assigns you to a batch.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="cd-action-card">
+      <div class="cd-action-content">
+        <div class="cd-action-left">
+          <div class="cd-action-icon success">
+            <i class="bi bi-check-lg"></i>
+          </div>
+          <div>
+            <div class="cd-action-title">You're all caught up</div>
+            <div class="cd-action-meta">You've voted on every candidate currently assigned to you.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  {% endif %}
 
-    <!-- Global roll-up -->
-    <div class="mb-2 d-flex justify-content-between align-items-center" style="font-size:0.85rem;">
-      <span class="text-muted">Overall ({{ progress.datasets|length }} program{{ progress.datasets|length|pluralize }})</span>
-      <span>
-        <span class="fw-semibold">{{ progress.global.remaining }}</span> remaining
+  <div class="cd-summary-grid">
+    <div class="cd-summary-card">
+      <div class="cd-summary-label">Assigned Batches</div>
+      <div class="cd-summary-value">{{ assigned_batches|length }}</div>
+      <div class="cd-summary-note">
+        Batch{{ assigned_batches|length|pluralize:"es" }} currently assigned
+      </div>
+    </div>
+
+    <div class="cd-summary-card">
+      <div class="cd-summary-label">Assigned Candidates</div>
+      <div class="cd-summary-value">{{ progress.global.total }}</div>
+      <div class="cd-summary-note">{{ progress.global.voted }} voted so far</div>
+    </div>
+
+    <div class="cd-summary-card">
+      <div class="cd-summary-label">Remaining</div>
+      <div class="cd-summary-value">{{ progress.global.remaining }}</div>
+      <div class="cd-summary-note">
         {% if progress.global.open_remaining != progress.global.remaining %}
-          <span class="text-muted">·</span>
-          <span class="fw-semibold text-warning">{{ progress.global.open_remaining }}</span> still open
+          {{ progress.global.open_remaining }} still open
+        {% else %}
+          Candidates left to review
         {% endif %}
+      </div>
+    </div>
+
+    <div class="cd-summary-card">
+      <div class="cd-summary-label">Overall Progress</div>
+      <div class="cd-summary-value">{{ progress.global.pct }}%</div>
+      <div class="cd-summary-note">
+        {% if progress.global.next_deadline %}
+          Next deadline {{ progress.global.next_deadline|date:"M d, Y" }}
+        {% else %}
+          No upcoming deadline
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% if progress.deadlines %}
+  <div class="cd-panel">
+    <div class="cd-panel-header">
+      <h4 class="cd-panel-title">
+        <i class="bi bi-alarm"></i>Upcoming Deadlines
+      </h4>
+      <span class="cd-panel-subtitle">{{ progress.deadlines|length }} active deadline{{ progress.deadlines|length|pluralize }}</span>
+    </div>
+
+    <div class="cd-panel-body">
+      <div class="cd-deadline-list">
+        {% for d in progress.deadlines %}
+        <a href="{% url 'applicant_queue' %}?batch={{ d.batch.pk }}"
+           class="cd-deadline-item {% if d.urgency == 'critical' %}critical{% elif d.urgency == 'soon' %}soon{% endif %}">
+          <div>
+            <div class="cd-deadline-title">
+              {% if d.urgency == 'critical' %}
+                <i class="bi bi-exclamation-triangle-fill text-danger me-1"></i>
+              {% elif d.urgency == 'soon' %}
+                <i class="bi bi-clock-fill text-warning me-1"></i>
+              {% else %}
+                <i class="bi bi-clock text-muted me-1"></i>
+              {% endif %}
+              {{ d.batch.DisplayName }}
+            </div>
+            <div class="cd-deadline-meta">
+              {{ d.dataset.DisplayName }} · {{ d.unvoted }} candidate{{ d.unvoted|pluralize }} left to vote
+            </div>
+          </div>
+
+          <div class="cd-deadline-date">
+            <strong>
+              {% if d.days_left == 0 %}Due today
+              {% elif d.days_left == 1 %}Due tomorrow
+              {% else %}{{ d.days_left }} days left{% endif %}
+            </strong>
+            <span>{{ d.deadline|date:"M d, Y" }}</span>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="cd-panel">
+    <div class="cd-panel-header">
+      <h4 class="cd-panel-title">
+        <i class="bi bi-speedometer2"></i>Your Review Progress
+      </h4>
+      <span class="badge bg-primary">
+        {{ progress.global.voted }} / {{ progress.global.total }} voted
       </span>
     </div>
-    <div class="progress mb-1" style="height:10px;">
-      <div class="progress-bar bg-success" role="progressbar"
-           style="width:{{ progress.global.pct }}%"
-           aria-valuenow="{{ progress.global.pct }}" aria-valuemin="0" aria-valuemax="100"></div>
-    </div>
-    <div class="d-flex justify-content-between mb-4" style="font-size:0.75rem;">
-      <span class="text-muted">{{ progress.global.pct }}% of all assigned</span>
-      {% if progress.global.next_deadline %}
-        <span class="text-muted"><i class="bi bi-clock me-1"></i>Next deadline {{ progress.global.next_deadline|date:"M d, Y" }}</span>
+
+    <div class="cd-panel-body">
+      <div class="cd-progress-main">
+        <div class="cd-progress-top">
+          <div>
+            <div class="cd-progress-label">Overall progress</div>
+            <div class="cd-progress-meta">
+              {{ progress.datasets|length }} program{{ progress.datasets|length|pluralize }} assigned
+            </div>
+          </div>
+          <div class="text-end">
+            <div class="cd-progress-label">{{ progress.global.pct }}%</div>
+            <div class="cd-progress-meta">{{ progress.global.remaining }} remaining</div>
+          </div>
+        </div>
+
+        <div class="cd-progress">
+          <div class="cd-progress-bar" style="width:{{ progress.global.pct }}%"></div>
+        </div>
+      </div>
+
+      {% if progress.datasets %}
+      <div class="cd-dataset-list">
+        {% for row in progress.datasets %}
+        <div class="cd-dataset-row">
+          <div class="cd-dataset-head">
+            <div class="cd-dataset-name">{{ row.dataset.DisplayName }}</div>
+            <div class="cd-dataset-count">{{ row.voted }} / {{ row.total }}</div>
+          </div>
+
+          <div class="cd-progress">
+            <div class="cd-progress-bar
+                        {% if row.pct == 100 %}bg-success{% elif row.pct > 0 %}bg-primary{% else %}bg-secondary{% endif %}"
+                 style="width:{{ row.pct }}%"></div>
+          </div>
+
+          <div class="cd-meta-row">
+            <span><i class="bi bi-hourglass-split"></i>{{ row.remaining }} remaining</span>
+
+            {% if row.open_remaining != row.remaining %}
+              <span class="text-warning"><i class="bi bi-unlock"></i>{{ row.open_remaining }} still open</span>
+            {% endif %}
+
+            {% if row.flagged_by_me %}
+              <span class="text-danger"><i class="bi bi-flag-fill"></i>{{ row.flagged_by_me }} flagged by you</span>
+            {% endif %}
+
+            {% if row.next_deadline %}
+              <span><i class="bi bi-clock"></i>Next deadline {{ row.next_deadline|date:"M d, Y" }}</span>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="cd-empty-state">
+        <i class="bi bi-inbox"></i>
+        <div class="cd-empty-title">No assigned batches</div>
+        <div>You have not been assigned to any review batches yet.</div>
+      </div>
       {% endif %}
     </div>
+  </div>
 
-    <!-- Per-dataset breakdown -->
-    {% if progress.datasets|length > 1 %}
-      <div class="text-muted small fw-semibold mb-2">By program</div>
-    {% endif %}
-
-    {% for row in progress.datasets %}
-    <div class="{% if not forloop.last %}mb-3 pb-3 border-bottom{% endif %}">
-      <div class="d-flex justify-content-between align-items-center mb-1">
-        <span class="fw-semibold">{{ row.dataset.DisplayName }}</span>
-        <span class="text-muted small">{{ row.voted }} / {{ row.total }}</span>
-      </div>
-      <div class="progress mb-1" style="height:8px;">
-        <div class="progress-bar {% if row.pct == 100 %}bg-success{% elif row.pct > 0 %}bg-primary{% else %}bg-secondary{% endif %}"
-             style="width:{{ row.pct }}%"></div>
-      </div>
-      <div class="d-flex flex-wrap gap-3" style="font-size:0.75rem;">
-        <span class="text-muted">
-          <i class="bi bi-hourglass-split me-1"></i>{{ row.remaining }} remaining
-        </span>
-        {% if row.open_remaining != row.remaining %}
-          <span class="text-warning">
-            <i class="bi bi-unlock me-1"></i>{{ row.open_remaining }} still open
-          </span>
-        {% endif %}
-        {% if row.flagged_by_me %}
-          <span class="text-danger">
-            <i class="bi bi-flag-fill me-1"></i>{{ row.flagged_by_me }} flagged by you
-          </span>
-        {% endif %}
-        {% if row.next_deadline %}
-          <span class="text-muted">
-            <i class="bi bi-clock me-1"></i>Next: {{ row.next_deadline|date:"M d, Y" }}
-          </span>
-        {% endif %}
-      </div>
+  <div class="cd-panel">
+    <div class="cd-panel-header">
+      <h4 class="cd-panel-title">
+        <i class="bi bi-collection"></i>My Assigned Batches
+      </h4>
+      <span class="cd-panel-subtitle">
+        {{ assigned_batches|length }} batch{{ assigned_batches|length|pluralize:"es" }}
+      </span>
     </div>
-    {% empty %}
-    <p class="text-muted mb-0 text-center py-3">You have not been assigned to any batches yet.</p>
-    {% endfor %}
 
-  </div>
-</div>
-
-<!-- Assigned Batches -->
-<div class="card mb-4">
-  <div class="card-header fw-semibold">
-    <i class="bi bi-collection me-2"></i>My Assigned Batches
-  </div>
-  <div class="card-body p-0">
-    <table class="table table-hover align-middle mb-0">
-      <thead class="table-dark">
-        <tr>
-          <th>Batch</th>
-          <th>Dataset</th>
-          <th style="width:220px;">My Progress</th>
-          <th class="text-center">Candidates</th>
-          <th class="text-center">Deadline</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for batch in assigned_batches %}
-        <tr>
-          <td>
-            <a href="{% url 'applicant_queue' %}?batch={{ batch.pk }}" class="fw-semibold text-decoration-none">
-              {{ batch.DisplayName }}
-            </a>
-          </td>
-          <td class="text-muted small">{{ batch.DataSet.DisplayName }}</td>
-          <td>
-            <div class="d-flex align-items-center gap-2">
-              <div class="progress flex-grow-1" style="height:6px;">
-                <div class="progress-bar bg-success" style="width:{{ batch.progress_pct }}%"></div>
+    <div class="table-responsive">
+      <table class="table table-hover cd-table align-middle">
+        <thead>
+          <tr>
+            <th style="width: 28%;">Batch</th>
+            <th style="width: 26%;">DataSet</th>
+            <th style="width: 24%;">My Progress</th>
+            <th class="text-center" style="width: 10%;">Candidates</th>
+            <th class="text-center" style="width: 12%;">Deadline</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for batch in assigned_batches %}
+          <tr>
+            <td>
+              <a href="{% url 'applicant_queue' %}?batch={{ batch.pk }}" class="cd-link-strong">
+                {{ batch.DisplayName }}
+              </a>
+            </td>
+            <td>
+              <span class="cd-chip text-truncate">{{ batch.DataSet.DisplayName }}</span>
+            </td>
+            <td>
+              <div class="cd-table-progress">
+                <div class="cd-progress">
+                  <div class="cd-progress-bar {% if batch.progress_pct == 100 %}bg-success{% elif batch.progress_pct > 0 %}bg-primary{% else %}bg-secondary{% endif %}"
+                       style="width:{{ batch.progress_pct }}%"></div>
+                </div>
+                <span class="cd-table-progress-count">
+                  {{ batch.my_votes }}/{{ batch.total_candidates }}
+                </span>
               </div>
-              <span class="text-muted small" style="white-space:nowrap;">
-                {{ batch.my_votes }}/{{ batch.total_candidates }}
-              </span>
-            </div>
-          </td>
-          <td class="text-center">{{ batch.applicant_count }}</td>
-          <td class="text-center">
-            <span class="small text-muted">{{ batch.VoteExpire|date:"M d, Y"|default:"—" }}</span>
-          </td>
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="5" class="text-center text-muted py-4">
-            You have not been assigned to any batches yet.
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+            </td>
+            <td class="text-center">{{ batch.applicant_count }}</td>
+            <td class="text-center">
+              <span class="cd-muted small">{{ batch.VoteExpire|date:"M d, Y"|default:"—" }}</span>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5">
+              <div class="cd-empty-state">
+                <i class="bi bi-collection"></i>
+                <div class="cd-empty-title">No assigned batches</div>
+                <div>Your assigned batches will appear here.</div>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
-</div>
 
-<!-- Recent Activity -->
-<div class="card">
-  <div class="card-header fw-semibold">
-    <i class="bi bi-clock-history me-2"></i>Recent Activity
-  </div>
-  <div class="card-body">
-    <ul class="list-group list-group-flush">
-      {% for activity in recent_activity %}
-      <li class="list-group-item px-0">
-        <div class="d-flex justify-content-between">
-          <div>
+  <div class="cd-panel">
+    <div class="cd-panel-header">
+      <h4 class="cd-panel-title">
+        <i class="bi bi-clock-history"></i>Recent Activity
+      </h4>
+      <a href="{% url 'my_activity' %}" class="btn btn-outline-secondary btn-sm">
+        View Full Activity
+      </a>
+    </div>
+
+    <div class="cd-panel-body">
+      {% if recent_activity %}
+      <div class="cd-activity-list">
+        {% for activity in recent_activity %}
+        <div class="cd-activity-item">
+          <div class="cd-activity-icon">
             {% if activity.action_type == 'vote_cast' %}
-              <i class="bi bi-person-check-fill me-2 text-primary"></i>
+              <i class="bi bi-person-check-fill text-primary"></i>
             {% elif activity.action_type == 'comment_added' %}
-              <i class="bi bi-chat-dots-fill me-2 text-info"></i>
+              <i class="bi bi-chat-dots-fill text-info"></i>
             {% elif activity.action_type == 'flag_added' %}
-              <i class="bi bi-flag-fill me-2 text-danger"></i>
+              <i class="bi bi-flag-fill text-danger"></i>
+            {% elif activity.action_type == 'batch_uploaded' %}
+              <i class="bi bi-cloud-upload-fill text-success"></i>
+            {% else %}
+              <i class="bi bi-circle-fill text-secondary"></i>
             {% endif %}
-            {{ activity.details }}
-            {% if activity.target_applicant %}
-              <a href="{% url 'applicant_detail' activity.target_applicant.pk %}">
-                  {{ activity.target_applicant.first_name }} {{ activity.target_applicant.last_name }}
-              </a>
-          {% elif activity.target_batch %}
-              <a href="{% url 'batch_detail' activity.target_batch.pk %}">
-                  {{ activity.target_batch.DisplayName }}
-              </a>
-          {% endif %}
           </div>
-          <small class="text-muted">{{ activity.created_at|timesince }} ago</small>
+
+          <div class="cd-activity-copy">
+            {{ activity.details }}
+
+            {% if activity.target_applicant %}
+              <a href="{% url 'applicant_detail' activity.target_applicant.pk %}" class="cd-link-strong">
+                {{ activity.target_applicant.first_name }} {{ activity.target_applicant.last_name }}
+              </a>
+            {% elif activity.target_batch %}
+              <a href="{% url 'batch_detail' activity.target_batch.pk %}" class="cd-link-strong">
+                {{ activity.target_batch.DisplayName }}
+              </a>
+            {% endif %}
+          </div>
+
+          <div class="cd-activity-time">
+            {{ activity.created_at|timesince }} ago
+          </div>
         </div>
-      </li>
-      {% empty %}
-      <li class="list-group-item px-0 text-muted">No recent activity.</li>
-      {% endfor %}
-    </ul>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="cd-empty-state">
+        <i class="bi bi-clock-history"></i>
+        <div class="cd-empty-title">No recent activity</div>
+        <div>Your review activity will appear here once you begin voting, commenting, or flagging candidates.</div>
+      </div>
+      {% endif %}
+    </div>
   </div>
-  <div class="card-footer text-center">
-    <a href="{% url 'my_activity' %}" class="text-decoration-none small">View Full Activity</a>
-  </div>
+
 </div>
 
 {% endblock %}

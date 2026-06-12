@@ -67,4 +67,7 @@ urlpatterns = [
     path("search/", views.global_search, name="global_search"),
     path("members/update-type/", views.update_member_type, name="update_member_type"),
     path("members/toggle-reviewer/", views.toggle_reviewer_status, name="toggle_reviewer_status"),
+    path("profile/", views.profile_settings, name="profile_settings"),
+    path("analytics/", views.analytics_overview, name="analytics_overview"),
+    path("analytics/<int:pk>/", views.analytics_dataset, name="analytics_dataset"),
 ]

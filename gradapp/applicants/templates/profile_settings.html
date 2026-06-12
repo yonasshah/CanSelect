@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-0">Profile & Settings</h2>
+    <p class="text-muted mb-0">Manage your account details and password.</p>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+
+    <!-- Profile Information -->
+    <div class="card mb-4">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-person-circle me-2"></i>Profile Information
+      </div>
+      <div class="card-body">
+        {% if profile_success %}
+        <div class="alert alert-success py-2 small">
+          <i class="bi bi-check-circle me-1"></i>Profile updated successfully.
+        </div>
+        {% endif %}
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="form_type" value="profile">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">First Name</label>
+              <input type="text" name="first_name" class="form-control"
+                     value="{{ request.user.first_name }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Last Name</label>
+              <input type="text" name="last_name" class="form-control"
+                     value="{{ request.user.last_name }}">
+            </div>
+            <div class="col-md-8">
+              <label class="form-label">Email Address</label>
+              <input type="email" name="email" class="form-control"
+                     value="{{ request.user.email }}">
+            </div>
+            {% if request.user.profile.role == 'COMMITTEE_MEMBER' or request.session.committee_mode %}
+            <div class="col-md-4">
+              <label class="form-label">Person Type</label>
+              <select name="person_type" class="form-select">
+                {% for val, label in person_type_choices %}
+                  <option value="{{ val }}"
+                    {% if profile.person_type == val %}selected{% endif %}>
+                    {{ label }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endif %}
+          </div>
+          <div class="mt-3">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-save me-1"></i>Save Changes
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Change Password -->
+    <div class="card mb-4">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-lock me-2"></i>Change Password
+      </div>
+      <div class="card-body">
+        {% if password_success %}
+        <div class="alert alert-success py-2 small">
+          <i class="bi bi-check-circle me-1"></i>Password changed successfully.
+        </div>
+        {% endif %}
+        {% if password_error %}
+        <div class="alert alert-danger py-2 small">
+          {% for field, errors in password_error.items %}
+            {% for error in errors %}<div>{{ error }}</div>{% endfor %}
+          {% endfor %}
+        </div>
+        {% endif %}
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="form_type" value="password">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Current Password</label>
+              <input type="password" name="old_password" class="form-control"
+                     autocomplete="current-password">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">New Password</label>
+              <input type="password" name="new_password1" class="form-control"
+                     autocomplete="new-password">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Confirm New Password</label>
+              <input type="password" name="new_password2" class="form-control"
+                     autocomplete="new-password">
+            </div>
+          </div>
+          <div class="mt-3">
+            <button type="submit" class="btn btn-outline-primary">
+              <i class="bi bi-shield-lock me-1"></i>Update Password
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Right column — account info -->
+  <div class="col-lg-5">
+    <div class="card mb-4">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-info-circle me-2"></i>Account Details
+      </div>
+      <div class="card-body">
+        <div class="mb-3">
+          <div class="text-muted small mb-1">Username</div>
+          <div class="fw-semibold">{{ request.user.username }}</div>
+        </div>
+        <div class="mb-3">
+          <div class="text-muted small mb-1">Role</div>
+          <div>
+            {% if request.user.profile.role == 'ADMIN' %}
+              <span class="badge bg-danger">Admin</span>
+              {% if request.user.profile.is_reviewer %}
+                <span class="badge bg-primary ms-1">Committee Reviewer</span>
+              {% endif %}
+            {% else %}
+              <span class="badge bg-secondary">Committee Member</span>
+            {% endif %}
+          </div>
+        </div>
+        {% if request.user.profile.role == 'COMMITTEE_MEMBER' %}
+        <div class="mb-3">
+          <div class="text-muted small mb-1">Person Type</div>
+          <div>{{ profile.get_person_type_display }}</div>
+        </div>
+        {% endif %}
+        <div class="mb-0">
+          <div class="text-muted small mb-1">Member Since</div>
+          <div>{{ request.user.date_joined|date:"M d, Y" }}</div>
+        </div>
+      </div>
+    </div>
+
+    {% if request.user.profile.role == 'COMMITTEE_MEMBER' or request.session.committee_mode %}
+    <div class="card">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-collection me-2"></i>Assigned Batches
+      </div>
+      <div class="card-body p-0">
+        <ul class="list-group list-group-flush">
+          {% for batch in request.user.assigned_batches.all %}
+          <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+            <div>
+              <div class="small fw-semibold">{{ batch.DisplayName }}</div>
+              <div class="text-muted" style="font-size:0.75rem;">{{ batch.DataSet.DisplayName }}</div>
+            </div>
+            {% if batch.Active %}
+              <span class="badge bg-success">Active</span>
+            {% else %}
+              <span class="badge bg-secondary">Inactive</span>
+            {% endif %}
+          </li>
+          {% empty %}
+          <li class="list-group-item text-muted small py-3 text-center">
+            No batches assigned yet.
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

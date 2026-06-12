@@ -1,169 +1,684 @@
 {% extends "base.html" %}
 {% block content %}
-<h2 class="mb-4">Dashboard</h2>
 
-<div class="row g-3 mb-4">
-    <div class="col-md-4">
-        <div class="card text-center card-hover">
-            <div class="card-body">
-                <h5 class="card-title">Total Applicants</h5>
-                <p class="card-text fs-2 fw-bold">{{ applicant_count }}</p>
-                <a href="{% url 'applicant_list' %}" class="btn btn-primary">View All</a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card text-center card-hover">
-            <div class="card-body">
-                <h5 class="card-title">Total DataSets</h5>
-                <p class="card-text fs-2 fw-bold">{{ dataset_count }}</p>
-                <a href="{% url 'dataset_list' %}" class="btn btn-primary">View All</a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card text-center card-hover">
-            <div class="card-body">
-                <h5 class="card-title">Total Batches</h5>
-                <p class="card-text fs-2 fw-bold">{{ batch_count }}</p>
-                <a href="{% url 'batch_list' %}" class="btn btn-primary">View All</a>
-            </div>
-        </div>
-    </div>
-</div>
+<style>
+  :root {
+    --dash-border: #dee2e6;
+    --dash-muted: #6c757d;
+    --dash-panel-bg: #ffffff;
+    --dash-subtle-bg: #f8f9fa;
+    --dash-hover-bg: #f6f8fa;
+    --dash-heading: #212529;
+  }
 
-{% if user.profile.role == 'ADMIN' %}
+  [data-bs-theme="dark"] {
+    --dash-border: #373b3f;
+    --dash-muted: #adb5bd;
+    --dash-panel-bg: #212529;
+    --dash-subtle-bg: #2b3035;
+    --dash-hover-bg: #262b30;
+    --dash-heading: #f8f9fa;
+  }
 
-<div class="card mb-4">
-    <div class="card-body">
-        <form method="GET" action="{% url 'dashboard' %}" class="row g-3 align-items-center">
-            <div class="col-md-6">
-                <label for="datasetFilter" class="form-label fw-bold">Filter by DataSet</label>
-                <select class="form-select" name="dataset" id="datasetFilter" onchange="this.form.submit()">
-                    <option value="">All DataSets</option>
-                    {% for ds in all_datasets %}
-                        <option value="{{ ds.pk }}" {% if selected_dataset.pk == ds.pk %}selected{% endif %}>
-                            {{ ds.DisplayName }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-6 align-self-end">
-                {% if selected_dataset %}
-                    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Clear Filter</a>
-                {% endif %}
-            </div>
-        </form>
+  .dashboard-shell {
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1.25rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .dashboard-kicker {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--dash-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.35rem;
+  }
+
+  .dashboard-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--dash-heading);
+    margin: 0;
+    letter-spacing: -0.025em;
+  }
+
+  .dashboard-subtitle {
+    color: var(--dash-muted);
+    margin: 0.35rem 0 0;
+    font-size: 0.95rem;
+  }
+
+  .dashboard-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .summary-card {
+    background: var(--dash-panel-bg);
+    border: 1px solid var(--dash-border);
+    border-radius: 12px;
+    padding: 1rem;
+    min-height: 132px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  }
+
+  .summary-card:hover {
+    border-color: #adb5bd;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.045);
+    transform: translateY(-1px);
+  }
+
+  [data-bs-theme="dark"] .summary-card:hover {
+    border-color: #495057;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  }
+
+  .summary-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .summary-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--dash-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.055em;
+    margin-bottom: 0.45rem;
+  }
+
+  .summary-value {
+    font-size: 2.15rem;
+    line-height: 1;
+    font-weight: 750;
+    color: var(--dash-heading);
+    margin: 0;
+  }
+
+  .summary-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 9px;
+    background: var(--dash-subtle-bg);
+    border: 1px solid var(--dash-border);
+    color: var(--dash-muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+    flex-shrink: 0;
+  }
+
+  .summary-footer {
+    margin-top: 1rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--dash-border);
+  }
+
+  .summary-link {
+    font-size: 0.86rem;
+    font-weight: 650;
+    text-decoration: none;
+  }
+
+  .summary-link:hover {
+    text-decoration: underline;
+  }
+
+  .dashboard-panel {
+    background: var(--dash-panel-bg);
+    border: 1px solid var(--dash-border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 1.25rem;
+  }
+
+  .panel-header {
+    min-height: 54px;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--dash-border);
+    background: var(--dash-subtle-bg);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .panel-title {
+    margin: 0;
+    font-size: 0.98rem;
+    font-weight: 700;
+    color: var(--dash-heading);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .panel-title i {
+    color: var(--dash-muted);
+  }
+
+  .panel-subtitle {
+    color: var(--dash-muted);
+    font-size: 0.82rem;
+  }
+
+  .panel-body {
+    padding: 1rem;
+  }
+
+  .filter-panel {
+    padding: 1rem;
+  }
+
+  .filter-label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--dash-heading);
+    margin-bottom: 0.4rem;
+  }
+
+  .filter-note {
+    color: var(--dash-muted);
+    font-size: 0.84rem;
+  }
+
+  .chart-box {
+    height: 285px;
+    position: relative;
+  }
+
+  .chart-box-small {
+    height: 260px;
+  }
+
+  .dashboard-table {
+    margin: 0;
+  }
+
+  .dashboard-table thead th {
+    background: var(--dash-subtle-bg);
+    color: var(--dash-muted);
+    font-size: 0.74rem;
+    font-weight: 750;
+    text-transform: uppercase;
+    letter-spacing: 0.055em;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--dash-border);
+    white-space: nowrap;
+  }
+
+  .dashboard-table tbody td {
+    padding: 0.95rem 1rem;
+    border-bottom: 1px solid var(--dash-border);
+    vertical-align: middle;
+  }
+
+  .dashboard-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .dashboard-table tbody tr:hover {
+    background: var(--dash-hover-bg);
+  }
+
+  .name-link {
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  .name-link:hover {
+    text-decoration: underline;
+  }
+
+  .muted-text {
+    color: var(--dash-muted);
+  }
+
+  .dataset-chip {
+    display: inline-flex;
+    align-items: center;
+    max-width: 280px;
+    padding: 0.28rem 0.55rem;
+    border-radius: 6px;
+    background: var(--dash-subtle-bg);
+    border: 1px solid var(--dash-border);
+    color: var(--dash-heading);
+    font-size: 0.8rem;
+    font-weight: 650;
+  }
+
+  .activity-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .activity-item {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    align-items: start;
+    padding: 0.95rem 0;
+    border-bottom: 1px solid var(--dash-border);
+  }
+
+  .activity-item:first-child {
+    padding-top: 0;
+  }
+
+  .activity-item:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  .activity-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: var(--dash-subtle-bg);
+    border: 1px solid var(--dash-border);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .activity-copy {
+    font-size: 0.92rem;
+    line-height: 1.45;
+  }
+
+  .activity-copy strong {
+    color: var(--dash-heading);
+  }
+
+  .activity-time {
+    color: var(--dash-muted);
+    font-size: 0.8rem;
+    white-space: nowrap;
+    padding-top: 0.1rem;
+  }
+
+  .empty-state {
+    padding: 2.25rem 1rem;
+    text-align: center;
+    color: var(--dash-muted);
+  }
+
+  .empty-state i {
+    display: block;
+    font-size: 1.7rem;
+    margin-bottom: 0.45rem;
+    opacity: 0.45;
+  }
+
+  .empty-state-title {
+    font-weight: 650;
+    color: var(--dash-heading);
+    margin-bottom: 0.15rem;
+  }
+
+  .status-line {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--dash-muted);
+    font-size: 0.85rem;
+  }
+
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #198754;
+    display: inline-block;
+  }
+
+  @media (max-width: 991.98px) {
+    .dashboard-header {
+      flex-direction: column;
+    }
+
+    .dashboard-actions {
+      justify-content: flex-start;
+    }
+
+    .summary-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .activity-item {
+      grid-template-columns: 34px minmax(0, 1fr);
+    }
+
+    .activity-time {
+      grid-column: 2;
+      white-space: normal;
+      padding-top: 0;
+    }
+  }
+
+  @media (max-width: 575.98px) {
+    .dashboard-title {
+      font-size: 1.45rem;
+    }
+
+    .summary-value {
+      font-size: 1.85rem;
+    }
+
+    .panel-header {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .chart-box,
+    .chart-box-small {
+      height: 245px;
+    }
+  }
+</style>
+
+<div class="dashboard-shell">
+
+  <div class="dashboard-header">
+    <div>
+      <div class="dashboard-kicker">Admissions Management</div>
+      <h2 class="dashboard-title">Dashboard</h2>
+      <p class="dashboard-subtitle">
+        Review applicant volume, dataset activity, voting trends, and recent system updates.
+      </p>
     </div>
-</div>
 
-<div class="row mb-4">
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header">
-                Vote Summary
-            </div>
-            <div class="card-body">
-                <canvas id="voteChart"></canvas>
-            </div>
+    {% if user.profile.role == 'ADMIN' %}
+    <div class="dashboard-actions">
+      <a href="{% url 'bulk_upload' %}" class="btn btn-primary btn-sm">
+        <i class="bi bi-folder2-open me-1"></i>Bulk Upload
+      </a>
+      <a href="{% url 'activity_feed' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-clock-history me-1"></i>Activity Feed
+      </a>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="summary-grid">
+    <div class="summary-card">
+      <div class="summary-top">
+        <div>
+          <div class="summary-label">Applicants</div>
+          <p class="summary-value">{{ applicant_count }}</p>
         </div>
-    </div>
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
-                Demographics (Gender)
-            </div>
-            <div class="card-body">
-                <canvas id="genderChart"></canvas>
-            </div>
+        <div class="summary-icon">
+          <i class="bi bi-people-fill"></i>
         </div>
+      </div>
+      <div class="summary-footer">
+        <a href="{% url 'applicant_list' %}" class="summary-link">
+          View applicant records
+        </a>
+      </div>
     </div>
-</div>
-{% endif %}
-<div class="card">
-    <div class="card-header">
-        <h4>Recent Applicants</h4>
-    </div>
-    <div class="card-body">
-        <table class="table table-striped table-hover align-middle">
-            <thead class="table-dark">
-                <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Dataset</th>
-                    <th>Submitted</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for a in recent_applicants %}
-                <tr>
-                    <td>
-                        <a href="#" data-bs-toggle="modal" data-bs-target="#applicantModal" data-profile-url="{% url 'applicant_profile_partial' a.pk %}">
-                            {{ a.last_name }}, {{ a.first_name }}
-                        </a>
-                    </td>
-                    <td>{{ a.email }}</td>
-                    <td>{{ a.dataset.DisplayName|default:"—" }}</td>
-                    <td>{{ a.created_at|date:"Y-m-d H:i" }}</td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="4" class="text-center text-muted">No applicants yet.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
 
-{% if user.profile.role == 'ADMIN' %}
-<div class="card mt-4">
-    <div class="card-header">
-        <h4 class="mb-0">Recent Activity</h4>
+    <div class="summary-card">
+      <div class="summary-top">
+        <div>
+          <div class="summary-label">DataSets</div>
+          <p class="summary-value">{{ dataset_count }}</p>
+        </div>
+        <div class="summary-icon">
+          <i class="bi bi-stack"></i>
+        </div>
+      </div>
+      <div class="summary-footer">
+        <a href="{% url 'dataset_list' %}" class="summary-link">
+          Manage datasets
+        </a>
+      </div>
     </div>
-    <div class="card-body">
-        <ul class="list-group list-group-flush">
-            {% for activity in recent_activities %}
-            <li class="list-group-item">
-                <div class="d-flex w-100 justify-content-between">
-                    <div>
-                        {% if activity.action_type == 'vote_cast' %}
-                            <i class="bi bi-person-check-fill me-2 text-primary"></i>
-                        {% elif activity.action_type == 'comment_added' %}
-                            <i class="bi bi-chat-dots-fill me-2 text-info"></i>
-                        {% elif activity.action_type == 'decision_made' %}
-                            <i class="bi bi-check2-square me-2 text-success"></i>
-                        {% elif activity.action_type == 'flag_added' %}
-                            <i class="bi bi-flag-fill me-2 text-danger"></i>
-                        {% elif activity.action_type == 'batch_uploaded' %}
-                            <i class="bi bi-cloud-upload-fill me-2 text-success"></i>
-                        {% endif %}
-                        <strong>{{ activity.actor.username }}</strong>
-                        {{ activity.details }}
-                        {% if activity.target_applicant %}
-                            <a href="#" data-bs-toggle="modal" data-bs-target="#applicantModal"
-                            data-profile-url="{% url 'applicant_profile_partial' activity.target_applicant.pk %}">
-                                {{ activity.target_applicant.first_name }} {{ activity.target_applicant.last_name }}
-                            </a>
-                        {% elif activity.target_batch %}
-                            <a href="{% url 'batch_detail' activity.target_batch.pk %}">
-                                {{ activity.target_batch.DisplayName }}
-                            </a>
-                        {% endif %}
-                    </div>
-                    <small class="text-muted">{{ activity.created_at|timesince }} ago</small>
-                </div>
-            </li>
-            {% empty %}
-            <li class="list-group-item text-muted">No recent activity.</li>
+
+    <div class="summary-card">
+      <div class="summary-top">
+        <div>
+          <div class="summary-label">Batches</div>
+          <p class="summary-value">{{ batch_count }}</p>
+        </div>
+        <div class="summary-icon">
+          <i class="bi bi-collection-fill"></i>
+        </div>
+      </div>
+      <div class="summary-footer">
+        <a href="{% url 'batch_list' %}" class="summary-link">
+          Review batches
+        </a>
+      </div>
+    </div>
+  </div>
+
+  {% if user.profile.role == 'ADMIN' %}
+  <div class="dashboard-panel">
+    <div class="filter-panel">
+      <form method="GET" action="{% url 'dashboard' %}" class="row g-3 align-items-end">
+        <div class="col-lg-5">
+          <label for="datasetFilter" class="filter-label">DataSet</label>
+          <select class="form-select" name="dataset" id="datasetFilter" onchange="this.form.submit()">
+            <option value="">All DataSets</option>
+            {% for ds in all_datasets %}
+              <option value="{{ ds.pk }}" {% if selected_dataset.pk == ds.pk %}selected{% endif %}>
+                {{ ds.DisplayName }}
+              </option>
             {% endfor %}
-        </ul>
+          </select>
+        </div>
+
+        <div class="col-lg-7 d-flex justify-content-lg-end align-items-center gap-2">
+          {% if selected_dataset %}
+            <span class="status-line">
+              <span class="status-dot"></span>
+              Showing {{ selected_dataset.DisplayName }}
+            </span>
+            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary btn-sm">
+              Clear
+            </a>
+          {% else %}
+            <span class="filter-note">Showing results across all datasets.</span>
+          {% endif %}
+        </div>
+      </form>
     </div>
-    <div class="card-footer text-center">
-        <a href="{% url 'activity_feed' %}">View Full Activity Feed</a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-lg-4">
+      <div class="dashboard-panel h-100 mb-0">
+        <div class="panel-header">
+          <h4 class="panel-title">
+            <i class="bi bi-pie-chart"></i>Vote Summary
+          </h4>
+          <span class="panel-subtitle">Accept / Deny / Waitlist</span>
+        </div>
+        <div class="panel-body">
+          <div class="chart-box chart-box-small">
+            <canvas id="voteChart"></canvas>
+          </div>
+        </div>
+      </div>
     </div>
+
+    <div class="col-lg-8">
+      <div class="dashboard-panel h-100 mb-0">
+        <div class="panel-header">
+          <h4 class="panel-title">
+            <i class="bi bi-bar-chart"></i>Demographics
+          </h4>
+          <span class="panel-subtitle">Gender distribution</span>
+        </div>
+        <div class="panel-body">
+          <div class="chart-box">
+            <canvas id="genderChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="dashboard-panel">
+    <div class="panel-header">
+      <h4 class="panel-title">
+        <i class="bi bi-person-lines-fill"></i>Recent Applicants
+      </h4>
+      <a href="{% url 'applicant_list' %}" class="btn btn-outline-secondary btn-sm">
+        View All
+      </a>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover dashboard-table align-middle">
+        <thead>
+          <tr>
+            <th style="width: 28%;">Applicant</th>
+            <th style="width: 28%;">Email</th>
+            <th style="width: 26%;">DataSet</th>
+            <th style="width: 18%;">Uploaded</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in recent_applicants %}
+          <tr>
+            <td>
+              <a href="#"
+                 class="name-link"
+                 data-bs-toggle="modal"
+                 data-bs-target="#applicantModal"
+                 data-profile-url="{% url 'applicant_profile_partial' a.pk %}">
+                {{ a.last_name }}, {{ a.first_name }}
+              </a>
+            </td>
+            <td>
+              {% if a.email %}
+                <span class="text-break">{{ a.email }}</span>
+              {% else %}
+                <span class="muted-text">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if a.dataset %}
+                <span class="dataset-chip text-truncate">{{ a.dataset.DisplayName }}</span>
+              {% else %}
+                <span class="muted-text">—</span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="muted-text">{{ a.created_at|date:"M j, Y g:i A" }}</span>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="4">
+              <div class="empty-state">
+                <i class="bi bi-inbox"></i>
+                <div class="empty-state-title">No applicants yet</div>
+                <div>Applicant records will appear here once they are uploaded.</div>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if user.profile.role == 'ADMIN' %}
+  <div class="dashboard-panel">
+    <div class="panel-header">
+      <h4 class="panel-title">
+        <i class="bi bi-activity"></i>Recent Activity
+      </h4>
+      <a href="{% url 'activity_feed' %}" class="btn btn-outline-secondary btn-sm">
+        Full Activity Feed
+      </a>
+    </div>
+
+    <div class="panel-body">
+      {% if recent_activities %}
+        <div class="activity-list">
+          {% for activity in recent_activities %}
+          <div class="activity-item">
+            <div class="activity-icon">
+              {% if activity.action_type == 'vote_cast' %}
+                <i class="bi bi-person-check-fill text-primary"></i>
+              {% elif activity.action_type == 'comment_added' %}
+                <i class="bi bi-chat-dots-fill text-info"></i>
+              {% elif activity.action_type == 'decision_made' %}
+                <i class="bi bi-check2-square text-success"></i>
+              {% elif activity.action_type == 'flag_added' %}
+                <i class="bi bi-flag-fill text-danger"></i>
+              {% elif activity.action_type == 'batch_uploaded' %}
+                <i class="bi bi-cloud-upload-fill text-success"></i>
+              {% else %}
+                <i class="bi bi-circle-fill text-secondary"></i>
+              {% endif %}
+            </div>
+
+            <div class="activity-copy">
+              <strong>{{ activity.actor.username }}</strong>
+              {{ activity.details }}
+
+              {% if activity.target_applicant %}
+                <a href="#"
+                   class="fw-semibold text-decoration-none"
+                   data-bs-toggle="modal"
+                   data-bs-target="#applicantModal"
+                   data-profile-url="{% url 'applicant_profile_partial' activity.target_applicant.pk %}">
+                  {{ activity.target_applicant.first_name }} {{ activity.target_applicant.last_name }}
+                </a>
+              {% elif activity.target_batch %}
+                <a href="{% url 'batch_detail' activity.target_batch.pk %}" class="fw-semibold text-decoration-none">
+                  {{ activity.target_batch.DisplayName }}
+                </a>
+              {% endif %}
+            </div>
+
+            <div class="activity-time">
+              {{ activity.created_at|timesince }} ago
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state">
+          <i class="bi bi-clock-history"></i>
+          <div class="empty-state-title">No recent activity</div>
+          <div>Votes, comments, uploads, flags, and decisions will appear here.</div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
 </div>
-{% endif %}
 
 {% endblock %}
 
@@ -174,74 +689,115 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-    // --- 1. Vote Summary Chart (Doughnut) ---
-    const voteCtx = document.getElementById('voteChart');
-    if (voteCtx) {
-        new Chart(voteCtx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Accept', 'Deny', 'Waitlist'],
-                datasets: [{
-                    label: 'Votes',
-                    data: [
-                        {{ vote_summary.accept_count }},
-                        {{ vote_summary.deny_count }},
-                        {{ vote_summary.waitlist_count }}
-                    ],
-                    backgroundColor: [
-                        '#198754',  // Bootstrap Success (Green)
-                        '#dc3545',  // Bootstrap Danger (Red)
-                        '#ffc107'   // Bootstrap Warning (Yellow)
-                    ],
-                    hoverOffset: 4
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        position: 'top',
-                    }
-                }
-            }
-        });
-    }
+  const chartTextColor = getComputedStyle(document.documentElement).getPropertyValue('--bs-body-color') || '#212529';
+  const chartGridColor = document.documentElement.getAttribute('data-bs-theme') === 'dark'
+    ? 'rgba(255,255,255,0.08)'
+    : 'rgba(0,0,0,0.08)';
 
-    // --- 2. Gender Chart (Horizontal Bar) ---
-    const genderCtx = document.getElementById('genderChart');
-    if (genderCtx) {
-        new Chart(genderCtx, {
-            type: 'bar',
-            data: {
-                labels: {{ gender_labels }},
-                datasets: [{
-                    label: 'Count',
-                    data: {{ gender_data }},
-                    backgroundColor: 'rgba(13, 110, 253, 0.6)', // Bootstrap Primary (Blue)
-                    borderColor: 'rgba(13, 110, 253, 1)',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                indexAxis: 'y', 
-                plugins: {
-                    legend: {
-                        display: false 
-                    }
-                },
-                scales: {
-                    x: {
-                        beginAtZero: true,
-                        ticks: {
-                            
-                            stepSize: 1
-                        }
-                    }
-                }
+  const voteCtx = document.getElementById('voteChart');
+  if (voteCtx) {
+    new Chart(voteCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Accept', 'Deny', 'Waitlist'],
+        datasets: [{
+          label: 'Votes',
+          data: [
+            {{ vote_summary.accept_count }},
+            {{ vote_summary.deny_count }},
+            {{ vote_summary.waitlist_count }}
+          ],
+          backgroundColor: [
+            'rgba(25,135,84,0.9)',
+            'rgba(220,53,69,0.9)',
+            'rgba(255,193,7,0.9)'
+          ],
+          borderColor: [
+            'rgba(25,135,84,1)',
+            'rgba(220,53,69,1)',
+            'rgba(255,193,7,1)'
+          ],
+          borderWidth: 1,
+          hoverOffset: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '64%',
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              color: chartTextColor,
+              usePointStyle: true,
+              pointStyle: 'circle',
+              boxWidth: 8,
+              boxHeight: 8,
+              padding: 16
             }
-        });
-    }
+          },
+          tooltip: {
+            padding: 10
+          }
+        }
+      }
+    });
+  }
+
+  const genderCtx = document.getElementById('genderChart');
+  if (genderCtx) {
+    new Chart(genderCtx, {
+      type: 'bar',
+      data: {
+        labels: {{ gender_labels }},
+        datasets: [{
+          label: 'Applicants',
+          data: {{ gender_data }},
+          backgroundColor: 'rgba(73,80,87,0.72)',
+          borderColor: 'rgba(73,80,87,1)',
+          borderWidth: 1,
+          borderRadius: 3,
+          barThickness: 20
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: 'y',
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            padding: 10
+          }
+        },
+        scales: {
+          x: {
+            beginAtZero: true,
+            grid: {
+              color: chartGridColor
+            },
+            ticks: {
+              color: chartTextColor,
+              precision: 0,
+              stepSize: 1
+            }
+          },
+          y: {
+            grid: {
+              display: false
+            },
+            ticks: {
+              color: chartTextColor
+            }
+          }
+        }
+      }
+    });
+  }
 </script>
 {% endif %}
+
 {% endblock %}

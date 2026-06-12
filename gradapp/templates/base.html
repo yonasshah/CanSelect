@@ -3,102 +3,557 @@
 <html lang="en" id="html-root">
   <head>
     <meta charset="utf-8">
-    <title>Candidate Selection</title>
+    <title>{% block title %}Candidate Selection{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 
     <style>
-      .card, .table-hover tbody tr { transition: all 0.2s ease-in-out; }
-      .card-hover:hover { transform: translateY(-5px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-      [data-bs-theme="dark"] .card-hover:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
-    </style>
+      :root {
+        --app-bg: #f8f9fb;
+        --app-surface: #ffffff;
+        --app-surface-muted: #f6f7f9;
+        --app-border: #e1e5ea;
+        --app-border-soft: rgba(0,0,0,0.06);
+        --app-text: #212529;
+        --app-muted: #667085;
+        --app-navbar: #1f2328;
+        --app-navbar-border: rgba(255,255,255,0.1);
+        --app-hover: #f1f3f5;
+        --app-primary-soft: rgba(13,110,253,0.08);
+        --app-focus: rgba(13,110,253,0.22);
+        --app-shadow-sm: 0 1px 2px rgba(16,24,40,0.04);
+        --app-shadow-md: 0 4px 12px rgba(16,24,40,0.08);
+      }
 
-    <style>
-      [data-bs-theme="dark"] body { background-color: #1a1d21; }
-      [data-bs-theme="dark"] .card { background-color: #212529; border-color: #373b3f; }
-      [data-bs-theme="dark"] .table-dark { --bs-table-bg: #2b3035; }
-      [data-bs-theme="dark"] .bg-light { background-color: #2b3035 !important; }
-      [data-bs-theme="dark"] .form-control,
-      [data-bs-theme="dark"] .form-select { background-color: #2b3035; border-color: #373b3f; color: #dee2e6; }
-      [data-bs-theme="dark"] .form-control:focus,
-      [data-bs-theme="dark"] .form-select:focus { background-color: #2b3035; border-color: #0d6efd; color: #dee2e6; }
-      [data-bs-theme="dark"] .list-group-item { background-color: #212529; border-color: #373b3f; color: #dee2e6; }
-      [data-bs-theme="dark"] .modal-content { background-color: #212529; border-color: #373b3f; }
-      [data-bs-theme="dark"] .table-light { --bs-table-bg: #2b3035; --bs-table-color: #dee2e6; }
-      [data-bs-theme="dark"] .progress { background-color: #373b3f; }
-      [data-bs-theme="dark"] .text-dark { color: #dee2e6 !important; }
-      [data-bs-theme="dark"] .badge.bg-light { background-color: #373b3f !important; color: #dee2e6 !important; }
-      [data-bs-theme="dark"] .alert-info { background-color: #1a3a4a; border-color: #2a5a6a; color: #8ecae6; }
-      [data-bs-theme="dark"] .alert-warning { background-color: #3a3520; border-color: #5a5530; color: #ffc107; }
+      [data-bs-theme="dark"] {
+        --app-bg: #181b1f;
+        --app-surface: #212529;
+        --app-surface-muted: #2a2f34;
+        --app-border: #363b40;
+        --app-border-soft: rgba(255,255,255,0.08);
+        --app-text: #f8f9fa;
+        --app-muted: #adb5bd;
+        --app-navbar: #171a1d;
+        --app-navbar-border: rgba(255,255,255,0.1);
+        --app-hover: #262b30;
+        --app-primary-soft: rgba(13,110,253,0.15);
+        --app-focus: rgba(13,110,253,0.32);
+        --app-shadow-sm: 0 1px 2px rgba(0,0,0,0.24);
+        --app-shadow-md: 0 4px 12px rgba(0,0,0,0.28);
+      }
+
+      html,
+      body {
+        min-height: 100%;
+      }
+
+      body {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        background: var(--app-bg);
+        color: var(--app-text);
+      }
+
+      main {
+        flex: 1;
+      }
+
+      a {
+        text-underline-offset: 2px;
+      }
+
+      code {
+        color: #d63384;
+        background: rgba(0,0,0,0.035);
+        border-radius: 4px;
+        padding: 0.1rem 0.25rem;
+      }
+
+      [data-bs-theme="dark"] code {
+        color: #e685b5;
+        background: #2a2f34;
+      }
+
+      .card,
+      .modal-content,
+      .list-group-item {
+        background-color: var(--app-surface);
+        border-color: var(--app-border);
+      }
+
+      .card {
+        box-shadow: var(--app-shadow-sm);
+      }
+
+      .card-header {
+        background-color: var(--app-surface-muted);
+        border-color: var(--app-border);
+        font-weight: 650;
+      }
+
+      .card-hover {
+        transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+      }
+
+      .card-hover:hover {
+        transform: translateY(-1px);
+        border-color: #cfd6df;
+        box-shadow: var(--app-shadow-md);
+      }
+
+      [data-bs-theme="dark"] .card-hover:hover {
+        border-color: #495057;
+      }
+
+      .table-hover tbody tr {
+        transition: background-color 0.15s ease;
+      }
+
+      .table-hover tbody tr:hover {
+        background-color: var(--app-hover);
+      }
+
+      .table-dark {
+        --bs-table-bg: #262b30;
+        --bs-table-border-color: #343a40;
+      }
+
+      .table-light,
+      .table-secondary {
+        --bs-table-bg: var(--app-surface-muted);
+        --bs-table-color: var(--app-text);
+      }
+
+      .bg-light,
+      .bg-white,
+      .card-body .rounded.bg-white {
+        background-color: var(--app-surface-muted) !important;
+        color: var(--app-text);
+      }
+
+      .text-dark {
+        color: var(--app-text) !important;
+      }
+
+      .badge.bg-light {
+        background-color: var(--app-surface-muted) !important;
+        color: var(--app-text) !important;
+        border: 1px solid var(--app-border);
+      }
+
+      .form-control,
+      .form-select {
+        background-color: var(--app-surface);
+        border-color: var(--app-border);
+        color: var(--app-text);
+      }
+
+      .form-control:focus,
+      .form-select:focus {
+        background-color: var(--app-surface);
+        border-color: #0d6efd;
+        color: var(--app-text);
+        box-shadow: 0 0 0 0.2rem var(--app-focus);
+      }
+
+      .progress {
+        background-color: var(--app-surface-muted);
+      }
+
+      .alert-info {
+        background-color: #e8f4fb;
+        border-color: #b6e0f3;
+        color: #075985;
+      }
+
+      .alert-warning {
+        background-color: #fff8e1;
+        border-color: #ffe08a;
+        color: #7d4a00;
+      }
+
+      [data-bs-theme="dark"] .alert-info {
+        background-color: #1a3a4a;
+        border-color: #2a5a6a;
+        color: #8ecae6;
+      }
+
+      [data-bs-theme="dark"] .alert-warning {
+        background-color: #3a3520;
+        border-color: #5a5530;
+        color: #ffc107;
+      }
+
+      .upload-zone {
+        background: var(--app-surface);
+        border-color: var(--app-border);
+        color: var(--app-text);
+      }
+
+      .upload-zone.dragover {
+        border-color: #0d6efd;
+        background: var(--app-primary-soft);
+      }
+
+      .upload-zone .upload-icon {
+        color: var(--app-muted);
+      }
+
+      .preview-card {
+        background: var(--app-surface);
+        border-left-color: #0d6efd;
+        box-shadow: var(--app-shadow-sm);
+      }
+
+      .batch-name-display {
+        background: var(--app-surface-muted);
+        color: var(--app-text);
+      }
+
+      .dropdown-menu {
+        border-color: var(--app-border);
+        box-shadow: var(--app-shadow-md);
+        padding-top: 0.4rem;
+        padding-bottom: 0.4rem;
+      }
+
+      .dropdown-item {
+        border-radius: 6px;
+        margin: 0.1rem 0.35rem;
+        width: calc(100% - 0.7rem);
+        font-size: 0.94rem;
+      }
+
+      .dropdown-item:hover {
+        background-color: var(--app-hover);
+      }
+
+      .dropdown-item.active,
+      .dropdown-item.active:hover {
+        background-color: #0d6efd;
+        color: #fff;
+      }
+
+      .dropdown-header {
+        color: var(--app-muted);
+        font-size: 0.78rem;
+      }
+
+      .dropdown-item-text {
+        padding-left: 0.85rem;
+        padding-right: 0.85rem;
+      }
+
+      /* ── Navbar ─────────────────────────────────────────────── */
+
+      .app-navbar {
+        min-height: 64px;
+        background: var(--app-navbar);
+        border-bottom: 1px solid var(--app-navbar-border);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.16);
+      }
+
+      .app-navbar .container-fluid {
+        min-height: 64px;
+      }
+
+      .app-brand {
+        min-width: 0;
+        margin-right: 1.5rem;
+      }
+
+      .app-brand-logo {
+        height: 38px;
+        width: auto;
+        flex-shrink: 0;
+      }
+
+      .app-brand-divider {
+        width: 1px;
+        height: 30px;
+        background: rgba(255,255,255,0.22);
+        margin-left: 0.9rem;
+        margin-right: 0.9rem;
+        flex-shrink: 0;
+      }
+
+      .app-brand-text {
+        color: #fff;
+        font-weight: 600;
+        font-size: 1rem;
+        letter-spacing: 0;
+        white-space: nowrap;
+        min-width: 0;
+      }
+
+      .app-brand-text-short {
+        display: none;
+      }
+
+      .app-nav {
+        gap: 0.18rem;
+      }
+
+      .app-navbar .nav-link {
+        color: rgba(255,255,255,0.84);
+        border-radius: 6px;
+        padding: 0.52rem 0.78rem;
+        line-height: 1.2;
+        font-size: 0.96rem;
+        font-weight: 500;
+        letter-spacing: 0;
+        transition: background-color 0.12s ease, color 0.12s ease;
+      }
+
+      .app-navbar .nav-link:hover {
+        color: #fff;
+        background-color: rgba(255,255,255,0.09);
+      }
+
+      .app-navbar .nav-link.active {
+        color: #fff;
+        background-color: rgba(255,255,255,0.16);
+      }
+
+      .app-navbar .nav-link i {
+        font-size: 1rem;
+      }
+
+      .app-navbar .dropdown-toggle::after {
+        margin-left: 0.45rem;
+      }
+
+      .app-icon-btn,
       .theme-toggle {
-        background: none; border: 1px solid rgba(255,255,255,0.3); color: #fff;
-        border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 0.85rem; transition: all 0.2s;
+        width: 36px;
+        height: 36px;
+        padding: 0 !important;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px !important;
       }
-      .theme-toggle:hover { border-color: rgba(255,255,255,0.6); background: rgba(255,255,255,0.1); }
-      [data-bs-theme="dark"] .upload-zone { background: #2b3035; border-color: #4a4e54; color: #dee2e6; }
-      [data-bs-theme="dark"] .upload-zone.dragover { border-color: #0d6efd; background: #1a2a3a; }
-      [data-bs-theme="dark"] .upload-zone .upload-icon { color: #6c757d; }
-      [data-bs-theme="dark"] code { color: #e685b5; background-color: #2b3035; }
-      [data-bs-theme="dark"] .bg-white,
-      [data-bs-theme="dark"] .card-body .rounded.bg-white { background-color: #2b3035 !important; color: #dee2e6; }
-      [data-bs-theme="dark"] .card.border-primary,
-      [data-bs-theme="dark"] .card.border-success,
-      [data-bs-theme="dark"] .card.border-warning,
-      [data-bs-theme="dark"] .card.border-secondary { background-color: #212529; }
-      [data-bs-theme="dark"] .table-secondary { --bs-table-bg: #2b3035; --bs-table-color: #dee2e6; }
-      [data-bs-theme="dark"] .preview-card { background: #212529; border-left-color: #0d6efd; box-shadow: 0 1px 4px rgba(0,0,0,0.2); }
-      [data-bs-theme="dark"] .batch-name-display { background: #2b3035; color: #dee2e6; }
-      [data-bs-theme="dark"] .card-header { background-color: #2b3035; border-color: #373b3f; }
-      .dropdown-menu .dropdown-item:hover { background-color: #e9ecef; }
-      .dropdown-menu .dropdown-item.active,
-      .dropdown-menu .dropdown-item.active:hover { background-color: #0d6efd; color: #fff; }
-      [data-bs-theme="dark"] .dropdown-menu .dropdown-item:hover { background-color: #373b3f; }
-      [data-bs-theme="dark"] .dropdown-menu .dropdown-item.active,
-      [data-bs-theme="dark"] .dropdown-menu .dropdown-item.active:hover { background-color: #0d6efd; color: #fff; }
 
-      .navbar { min-height: 68px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
-      .navbar-brand { margin-right: 1.25rem; }
-      .navbar-brand img { height: 44px; }
-      .navbar-brand span { letter-spacing: 0.2px; font-size: 1.05rem; }
-      .navbar-nav { gap: 0.25rem; }
-      .navbar .nav-link { border-radius: 8px; padding: 0.45rem 0.65rem; line-height: 1.2; transition: background-color 0.15s ease, color 0.15s ease; }
-      .navbar-dark .navbar-nav .nav-link:hover { background-color: rgba(255, 255, 255, 0.075); color: #fff; }
-      .navbar-dark .navbar-nav .nav-link.active { background-color: rgba(255, 255, 255, 0.16); color: #fff; }
-      .navbar-dark .navbar-nav .nav-link.active:hover { background-color: rgba(255, 255, 255, 0.18); }
-      .nav-icon-btn, .theme-toggle { width: 34px; height: 34px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
-
-      @media (max-width: 1199.98px) {
-        .navbar { min-height: 64px; }
-        .navbar-brand img { height: 40px; }
-        .navbar-brand span { font-size: 1rem; max-width: none; }
-        .navbar-collapse { padding-top: 0.75rem; }
-        .navbar-nav { gap: 0.35rem; }
-        .navbar .nav-link { padding: 0.6rem 0.75rem; }
-        .navbar-nav.ms-auto { align-items: stretch !important; border-top: 1px solid rgba(255, 255, 255, 0.1); margin-top: 0.75rem; padding-top: 0.75rem; }
+      .theme-toggle {
+        background: transparent;
+        border: 1px solid rgba(255,255,255,0.24);
+        color: #fff;
+        cursor: pointer;
+        transition: background-color 0.12s ease, border-color 0.12s ease;
       }
-      @media (max-width: 575.98px) {
-        .navbar-brand span { font-size: 0.9rem; max-width: 190px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .navbar-brand img { height: 36px; }
+
+      .theme-toggle:hover {
+        border-color: rgba(255,255,255,0.45);
+        background: rgba(255,255,255,0.08);
       }
 
       .role-pill {
-        font-size: 0.7rem; font-weight: 500; letter-spacing: 0.02em; padding: 0.2rem 0.45rem;
-        border-radius: 999px; color: #f1f3f5; background-color: rgba(255, 255, 255, 0.12);
-        border: 1px solid rgba(255, 255, 255, 0.18);
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        padding: 0.22rem 0.5rem;
+        border-radius: 999px;
+        color: #f8f9fa;
+        background-color: rgba(255,255,255,0.12);
+        border: 1px solid rgba(255,255,255,0.2);
+        white-space: nowrap;
       }
 
-      html, body { min-height: 100%; }
-      body { min-height: 100vh; display: flex; flex-direction: column; }
-      main { flex: 1; }
+      .role-pill-admin {
+        background-color: rgba(220,53,69,0.22);
+        border-color: rgba(220,53,69,0.35);
+      }
+
+      .role-pill-committee {
+        background-color: rgba(13,110,253,0.3);
+        border-color: rgba(13,110,253,0.5);
+      }
+
+      .user-menu-name {
+        max-width: 170px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .navbar-toggler {
+        border-color: rgba(255,255,255,0.22);
+        padding: 0.38rem 0.55rem;
+      }
+
+      .navbar-toggler:focus {
+        box-shadow: 0 0 0 0.15rem rgba(255,255,255,0.18);
+      }
+
+      /* ── Main layout / footer ───────────────────────────────── */
+
+      .app-main {
+        width: 100%;
+        background: var(--app-bg);
+        padding-top: 1.35rem;
+        padding-bottom: 2rem;
+      }
+
+      .app-alert {
+        border-radius: 10px;
+        box-shadow: var(--app-shadow-sm);
+      }
 
       .app-footer {
-        background-color: #f8f9fa; color: #212529; margin-top: auto;
-        padding-top: 1.25rem; padding-bottom: 1.25rem; border-top: 1px solid #dee2e6;
+        background-color: var(--app-surface);
+        color: var(--app-text);
+        margin-top: auto;
+        padding-top: 0.85rem;
+        padding-bottom: 0.85rem;
+        border-top: 1px solid var(--app-border);
       }
-      .app-footer img { opacity: 0.95; }
-      .app-footer .text-muted { color: #6c757d !important; }
-      [data-bs-theme="dark"] .app-footer { background-color: #1f2328; border-color: #343a40 !important; color: #dee2e6; }
-      [data-bs-theme="dark"] .app-footer .text-muted { color: #adb5bd !important; }
+
+      .app-footer img {
+        height: 30px;
+        opacity: 0.95;
+      }
+
+      .app-footer .text-muted {
+        color: var(--app-muted) !important;
+      }
+
+      .app-footer-title {
+        font-size: 0.9rem;
+        font-weight: 700;
+        line-height: 1.2;
+      }
+
+      .app-footer-subtitle {
+        font-size: 0.76rem;
+        color: var(--app-muted);
+      }
+
+      .committee-toast .toast {
+        box-shadow: var(--app-shadow-md);
+      }
+
+      @media (max-width: 1199.98px) {
+        .app-navbar {
+          min-height: 64px;
+        }
+
+        .app-navbar .container-fluid {
+          min-height: 64px;
+        }
+
+        .app-brand-logo {
+          height: 36px;
+        }
+
+        .app-brand-text {
+          font-size: 0.98rem;
+        }
+
+        .navbar-collapse {
+          padding-top: 0.85rem;
+          padding-bottom: 0.85rem;
+        }
+
+        .app-nav {
+          gap: 0.35rem;
+        }
+
+        .app-navbar .nav-link {
+          padding: 0.72rem 0.85rem;
+          font-size: 0.98rem;
+        }
+
+        .navbar-nav.ms-auto {
+          align-items: stretch !important;
+          border-top: 1px solid rgba(255,255,255,0.1);
+          margin-top: 0.85rem;
+          padding-top: 0.85rem;
+        }
+
+        .app-icon-btn,
+        .theme-toggle {
+          width: auto;
+          height: auto;
+          justify-content: flex-start;
+          padding: 0.72rem 0.85rem !important;
+        }
+
+        .theme-toggle {
+          border-color: transparent;
+        }
+      }
+
+      @media (max-width: 575.98px) {
+        .app-navbar {
+          min-height: 58px;
+        }
+
+        .app-navbar .container-fluid {
+          min-height: 58px;
+          padding-left: 0.85rem !important;
+          padding-right: 0.85rem !important;
+        }
+
+        .app-brand {
+          flex: 1;
+          min-width: 0;
+          margin-right: 0.5rem;
+        }
+
+        .app-brand-logo {
+          height: 34px;
+        }
+
+        .app-brand-divider {
+          height: 27px;
+          margin-left: 0.65rem;
+          margin-right: 0.65rem;
+        }
+
+        .app-brand-text-full {
+          display: none;
+        }
+
+        .app-brand-text-short {
+          display: inline;
+          max-width: 150px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          font-size: 0.95rem;
+        }
+
+        .app-brand .role-pill {
+          display: none;
+        }
+
+        .navbar-toggler {
+          flex-shrink: 0;
+          padding: 0.32rem 0.5rem;
+        }
+
+        .app-main {
+          padding-top: 1rem;
+        }
+      }
+
+      @media (max-width: 390px) {
+        .app-brand-text-short {
+          max-width: 125px;
+        }
+
+        .app-brand-logo {
+          height: 32px;
+        }
+
+        .app-brand-divider {
+          margin-left: 0.55rem;
+          margin-right: 0.55rem;
+        }
+      }
     </style>
 
     <script>
@@ -113,19 +568,23 @@
       pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     </script>
   </head>
-  <body>
 
-    <nav class="navbar navbar-expand-xl navbar-dark bg-dark">
+  <body>
+    <nav class="navbar navbar-expand-xl navbar-dark app-navbar">
       <div class="container-fluid px-3 px-lg-4">
-        <a class="navbar-brand d-flex align-items-center"
+
+        <a class="navbar-brand app-brand d-flex align-items-center"
            href="{% if user.is_authenticated %}{% if user.profile.role == 'ADMIN' and not request.session.committee_mode %}{% url 'dashboard' %}{% else %}{% url 'committee_dashboard' %}{% endif %}{% else %}{% url 'login' %}{% endif %}">
-          <img src="{% static 'temple_logo.png' %}" alt="Temple University Kornberg School of Dentistry" height="50" class="me-2">
-          <span class="border-start border-secondary ms-3 ps-3 fs-5 fw-light text-white">Kornberg Admissions Portal</span>
+          <img src="{% static 'temple_logo.png' %}" alt="Temple University Kornberg School of Dentistry" class="app-brand-logo">
+          <span class="app-brand-divider"></span>
+          <span class="app-brand-text app-brand-text-full">Kornberg Admissions Portal</span>
+          <span class="app-brand-text app-brand-text-short">Kornberg Portal</span>
+
           {% if user.is_authenticated %}
             {% if user.profile.role == 'ADMIN' and not request.session.committee_mode %}
-              <span class="role-pill ms-2">Admin</span>
+              <span class="role-pill role-pill-admin ms-3">Admin</span>
             {% elif request.session.committee_mode %}
-              <span class="role-pill ms-2" style="background:rgba(13,110,253,0.35); border-color:rgba(13,110,253,0.5);">Committee Mode</span>
+              <span class="role-pill role-pill-committee ms-3">Committee Mode</span>
             {% endif %}
           {% endif %}
         </a>
@@ -136,99 +595,164 @@
         </button>
 
         <div class="collapse navbar-collapse" id="navbarNav">
-          <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <ul class="navbar-nav app-nav me-auto mb-2 mb-lg-0">
 
             {% if user.is_authenticated %}
               {% if user.profile.role == 'ADMIN' and not request.session.committee_mode %}
+
               <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"
-                   href="{% url 'dashboard' %}"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a>
+                   href="{% url 'dashboard' %}">
+                  <i class="bi bi-speedometer2 me-1"></i>Dashboard
+                </a>
               </li>
+
               <li class="nav-item">
                 <a class="nav-link {% if 'dataset' in request.resolver_match.url_name|default:'' %}active{% endif %}"
-                   href="{% url 'dataset_list' %}"><i class="bi bi-stack me-1"></i>DataSets</a>
+                   href="{% url 'dataset_list' %}">
+                  <i class="bi bi-stack me-1"></i>DataSets
+                </a>
               </li>
+
               <li class="nav-item">
                 <a class="nav-link {% if 'batch' in request.resolver_match.url_name|default:'' and 'bulk' not in request.resolver_match.url_name|default:'' %}active{% endif %}"
-                   href="{% url 'batch_list' %}"><i class="bi bi-collection-fill me-1"></i>Batches</a>
+                   href="{% url 'batch_list' %}">
+                  <i class="bi bi-collection-fill me-1"></i>Batches
+                </a>
               </li>
+
               <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'applicant_list' %}active{% endif %}"
-                   href="{% url 'applicant_list' %}"><i class="bi bi-people-fill me-1"></i>Applicants</a>
+                   href="{% url 'applicant_list' %}">
+                  <i class="bi bi-people-fill me-1"></i>Applicants
+                </a>
               </li>
+
               <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle {% if request.resolver_match.url_name in 'bulk_upload,manage_panels,send_notification,activity_feed,global_search,candidate_info_upload' %}active{% endif %}"
-                   href="#" data-bs-toggle="dropdown"><i class="bi bi-gear me-1"></i>Admin</a>
+                <a class="nav-link dropdown-toggle {% if request.resolver_match.url_name in 'bulk_upload,manage_panels,send_notification,activity_feed,global_search,candidate_info_upload,analytics_overview,analytics_dataset' %}active{% endif %}"
+                   href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                  <i class="bi bi-grid-3x3-gap me-1"></i>Tools
+                </a>
+
                 <ul class="dropdown-menu">
-                  <li><a class="dropdown-item {% if request.resolver_match.url_name == 'bulk_upload' %}active{% endif %}" href="{% url 'bulk_upload' %}">
-                    <i class="bi bi-folder2-open me-2"></i>Bulk Upload</a></li>
-                  <li><a class="dropdown-item {% if request.resolver_match.url_name == 'candidate_info_upload' %}active{% endif %}" href="{% url 'candidate_info_upload' %}">
-                    <i class="bi bi-file-earmark-spreadsheet me-2"></i>Candidate Info Upload</a></li>
-                  <li><a class="dropdown-item {% if request.resolver_match.url_name == 'manage_panels' %}active{% endif %}" href="{% url 'manage_panels' %}">
-                    <i class="bi bi-people-fill me-2"></i>Panels</a></li>
-                  <li><a class="dropdown-item {% if request.resolver_match.url_name == 'send_notification' %}active{% endif %}" href="{% url 'send_notification' %}">
-                    <i class="bi bi-send me-2"></i>Send Reminder</a></li>
+                  <li>
+                    <a class="dropdown-item {% if request.resolver_match.url_name == 'bulk_upload' %}active{% endif %}" href="{% url 'bulk_upload' %}">
+                      <i class="bi bi-folder2-open me-2"></i>Bulk Upload
+                    </a>
+                  </li>
+
+                  <li>
+                    <a class="dropdown-item {% if request.resolver_match.url_name == 'candidate_info_upload' %}active{% endif %}" href="{% url 'candidate_info_upload' %}">
+                      <i class="bi bi-file-earmark-spreadsheet me-2"></i>Candidate Info Upload
+                    </a>
+                  </li>
+
+                  <li>
+                    <a class="dropdown-item {% if request.resolver_match.url_name == 'manage_panels' %}active{% endif %}" href="{% url 'manage_panels' %}">
+                      <i class="bi bi-people-fill me-2"></i>Panels
+                    </a>
+                  </li>
+
+                  <li>
+                    <a class="dropdown-item {% if request.resolver_match.url_name == 'send_notification' %}active{% endif %}" href="{% url 'send_notification' %}">
+                      <i class="bi bi-send me-2"></i>Send Reminder
+                    </a>
+                  </li>
+
                   <li><hr class="dropdown-divider"></li>
-                  <li><a class="dropdown-item {% if request.resolver_match.url_name == 'activity_feed' %}active{% endif %}" href="{% url 'activity_feed' %}">
-                    <i class="bi bi-clock-history me-2"></i>Activity Feed</a></li>
-                  <li><hr class="dropdown-divider"></li>
-                  <li><a class="dropdown-item {% if request.resolver_match.url_name == 'global_search' %}active{% endif %}" href="{% url 'global_search' %}">
-                    <i class="bi bi-search me-2"></i>Global Search</a></li>
+
+                  <li>
+                    <a class="dropdown-item {% if request.resolver_match.url_name == 'activity_feed' %}active{% endif %}" href="{% url 'activity_feed' %}">
+                      <i class="bi bi-clock-history me-2"></i>Activity Feed
+                    </a>
+                  </li>
+
+                  <li>
+                    <a class="dropdown-item {% if request.resolver_match.url_name == 'global_search' %}active{% endif %}" href="{% url 'global_search' %}">
+                      <i class="bi bi-search me-2"></i>Global Search
+                    </a>
+                  </li>
+
+                  <li>
+                    <a class="dropdown-item {% if request.resolver_match.url_name == 'analytics_overview' or request.resolver_match.url_name == 'analytics_dataset' %}active{% endif %}" href="{% url 'analytics_overview' %}">
+                      <i class="bi bi-bar-chart-line me-2"></i>Analytics
+                    </a>
+                  </li>
                 </ul>
               </li>
 
               {% else %}
+
               <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'committee_dashboard' %}active{% endif %}"
-                   href="{% url 'committee_dashboard' %}"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a>
+                   href="{% url 'committee_dashboard' %}">
+                  <i class="bi bi-speedometer2 me-1"></i>Dashboard
+                </a>
               </li>
+
               <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'applicant_queue' %}active{% endif %}"
-                   href="{% url 'applicant_queue' %}"><i class="bi bi-inbox-fill me-1"></i>My Queue</a>
+                   href="{% url 'applicant_queue' %}">
+                  <i class="bi bi-inbox-fill me-1"></i>My Queue
+                </a>
               </li>
+
               <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'my_reviews' %}active{% endif %}"
-                   href="{% url 'my_reviews' %}"><i class="bi bi-star-fill me-1"></i>My Reviews</a>
+                   href="{% url 'my_reviews' %}">
+                  <i class="bi bi-star-fill me-1"></i>My Reviews
+                </a>
               </li>
+
               <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'my_activity' %}active{% endif %}"
-                   href="{% url 'my_activity' %}"><i class="bi bi-clock-history me-1"></i>My Activity</a>
+                   href="{% url 'my_activity' %}">
+                  <i class="bi bi-clock-history me-1"></i>My Activity
+                </a>
               </li>
+
               <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'help' %}active{% endif %}"
-                   href="{% url 'help' %}"><i class="bi bi-question-circle me-1"></i>Help</a>
+                   href="{% url 'help' %}">
+                  <i class="bi bi-question-circle me-1"></i>Help
+                </a>
               </li>
+
               {% endif %}
             {% endif %}
-
           </ul>
 
-          <ul class="navbar-nav ms-auto align-items-center">
+          <ul class="navbar-nav ms-auto align-items-center gap-xl-1">
             {% if user.is_authenticated %}
               <li class="nav-item">
-                <a href="{% url 'notification_list' %}" class="nav-link nav-icon-btn position-relative py-1 px-2" title="Notifications">
+                <a href="{% url 'notification_list' %}" class="nav-link app-icon-btn position-relative" title="Notifications">
                   <i class="bi bi-bell-fill"></i>
                   {% if unread_notification_count %}
-                  <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:0.6rem;">
+                  <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:0.65rem;">
                     {{ unread_notification_count }}
                   </span>
                   {% endif %}
                 </a>
               </li>
+
               <li class="nav-item">
-                <button class="theme-toggle nav-link py-1 px-2" id="theme-toggle" title="Toggle dark mode">
+                <button class="theme-toggle nav-link" id="theme-toggle" type="button" title="Toggle dark mode">
                   <i class="bi bi-moon-fill" id="theme-icon"></i>
+                  <span class="d-xl-none ms-2">Toggle theme</span>
                 </button>
               </li>
+
               <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown">
+                <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                   <i class="bi bi-person-circle me-1"></i>
-                  {{ user.username }}
+                  <span class="user-menu-name">{{ user.username }}</span>
                 </a>
+
                 <ul class="dropdown-menu dropdown-menu-end">
                   <li>
                     <h6 class="dropdown-header">Signed in as {{ user.username }}</h6>
                   </li>
+
                   <li>
                     <span class="dropdown-item-text">
                       {% if user.profile.role == 'ADMIN' and not request.session.committee_mode %}
@@ -260,6 +784,15 @@
                   {% endif %}
 
                   <li><hr class="dropdown-divider"></li>
+
+                  <li>
+                    <a class="dropdown-item {% if request.resolver_match.url_name == 'profile_settings' %}active{% endif %}" href="{% url 'profile_settings' %}">
+                      <i class="bi bi-person-gear me-2"></i>Profile & Settings
+                    </a>
+                  </li>
+
+                  <li><hr class="dropdown-divider"></li>
+
                   <li>
                     <form method="post" action="{% url 'logout' %}">
                       {% csrf_token %}
@@ -272,37 +805,44 @@
               </li>
             {% else %}
               <li class="nav-item">
-                <a class="btn btn-outline-light btn-sm" href="{% url 'login' %}">Login</a>
+                <a class="btn btn-outline-light btn-sm px-3" href="{% url 'login' %}">Login</a>
               </li>
             {% endif %}
           </ul>
         </div>
+      </div>
     </nav>
 
-    <main class="container mt-4 pb-5">
-      {% if messages %}
-      {% for message in messages %}
-        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-          {{ message }}
-          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-      {% endfor %}
-      {% endif %}
-      {% block content %}{% endblock %}
+    <main class="app-main">
+      <div class="container">
+        {% if messages %}
+          <div class="mb-3">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show app-alert" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+      </div>
     </main>
 
     <footer class="app-footer">
       <div class="container">
-        <div class="row align-items-center gy-3">
+        <div class="row align-items-center gy-2">
           <div class="col-md-6">
             <div class="d-flex align-items-center">
-              <img src="{% static 'temple_logo.png' %}" alt="Temple University Kornberg School of Dentistry" height="38" class="me-3">
+              <img src="{% static 'temple_logo.png' %}" alt="Temple University Kornberg School of Dentistry" class="me-3">
               <div>
-                <div class="fw-semibold">Kornberg Admissions Portal</div>
-                <div class="small text-muted">Candidate review and admissions decision support</div>
+                <div class="app-footer-title">Kornberg Admissions Portal</div>
+                <div class="app-footer-subtitle">Candidate review and admissions decision support</div>
               </div>
             </div>
           </div>
+
           <div class="col-md-6 text-md-end">
             <div class="small text-muted">&copy; {% now "Y" %} Temple University Kornberg School of Dentistry</div>
             <div class="small text-muted">
@@ -340,16 +880,33 @@
 
     <script>
       const applicantModal = document.getElementById('applicantModal');
+
       if (applicantModal) {
         applicantModal.addEventListener('show.bs.modal', event => {
           const button = event.relatedTarget;
+          if (!button) return;
+
           const profileUrl = button.getAttribute('data-profile-url');
           const modalBody = applicantModal.querySelector('.modal-body');
-          modalBody.innerHTML = '<p class="text-center">Loading...</p>';
+
+          if (!profileUrl || !modalBody) return;
+
+          modalBody.innerHTML = '<p class="text-center text-muted py-3">Loading applicant profile...</p>';
+
           fetch(profileUrl)
-            .then(response => { if (!response.ok) { throw new Error('Network response was not ok'); } return response.text(); })
-            .then(html => { modalBody.innerHTML = html; })
-            .catch(error => { modalBody.innerHTML = '<p class="text-center text-danger">Could not load profile.</p>'; console.error('Error fetching applicant profile:', error); });
+            .then(response => {
+              if (!response.ok) {
+                throw new Error('Network response was not ok');
+              }
+              return response.text();
+            })
+            .then(html => {
+              modalBody.innerHTML = html;
+            })
+            .catch(error => {
+              modalBody.innerHTML = '<p class="text-center text-danger py-3">Could not load profile.</p>';
+              console.error('Error fetching applicant profile:', error);
+            });
         });
       }
     </script>
@@ -359,12 +916,24 @@
         const checkboxes = document.querySelectorAll('.applicant-checkbox');
         const batchActionContainer = document.getElementById('batch-action-container');
         const compareBtn = document.getElementById('compare-btn');
+
         function toggleButtons() {
           const checkedCount = document.querySelectorAll('.applicant-checkbox:checked').length;
-          if (batchActionContainer) { batchActionContainer.style.display = checkedCount >= 1 ? 'inline' : 'none'; }
-          if (compareBtn) { compareBtn.style.display = checkedCount >= 2 ? 'inline' : 'none'; }
+
+          if (batchActionContainer) {
+            batchActionContainer.style.display = checkedCount >= 1 ? 'inline' : 'none';
+          }
+
+          if (compareBtn) {
+            compareBtn.style.display = checkedCount >= 2 ? 'inline' : 'none';
+          }
         }
-        checkboxes.forEach(cb => { cb.addEventListener('change', toggleButtons); });
+
+        checkboxes.forEach(cb => {
+          cb.addEventListener('change', toggleButtons);
+        });
+
+        toggleButtons();
       });
     </script>
 
@@ -372,14 +941,24 @@
       document.body.addEventListener('click', function(event) {
         if (event.target.classList.contains('speed-control')) {
           event.preventDefault();
+
           const button = event.target;
           const speed = button.dataset.speed;
           const videoId = button.dataset.videoId;
           const video = document.getElementById(videoId);
-          if (video) { video.playbackRate = parseFloat(speed); }
+
+          if (video) {
+            video.playbackRate = parseFloat(speed);
+          }
+
           const container = button.closest('.speed-controls-container');
+
           if (container) {
-            container.querySelectorAll('.speed-control').forEach(btn => { btn.classList.remove('btn-secondary', 'active'); btn.classList.add('btn-outline-secondary'); });
+            container.querySelectorAll('.speed-control').forEach(btn => {
+              btn.classList.remove('btn-secondary', 'active');
+              btn.classList.add('btn-outline-secondary');
+            });
+
             button.classList.remove('btn-outline-secondary');
             button.classList.add('btn-secondary', 'active');
           }
@@ -390,9 +969,19 @@
     <script>
       document.addEventListener("DOMContentLoaded", function() {
         const rows = document.querySelectorAll(".clickable-row");
+
         rows.forEach(row => {
           row.addEventListener("click", (e) => {
-            if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || e.target.closest('a') || e.target.closest('button')) { return; }
+            if (
+              e.target.tagName === 'A' ||
+              e.target.tagName === 'BUTTON' ||
+              e.target.tagName === 'INPUT' ||
+              e.target.closest('a') ||
+              e.target.closest('button')
+            ) {
+              return;
+            }
+
             window.location.href = row.dataset.href;
           });
         });
@@ -405,24 +994,30 @@
         const toggle = document.getElementById('theme-toggle');
         const icon = document.getElementById('theme-icon');
         const saved = localStorage.getItem('theme') || 'light';
+
         updateIcon(saved);
+
         if (toggle) {
           toggle.addEventListener('click', () => {
             const current = html.getAttribute('data-bs-theme');
             const next = current === 'dark' ? 'light' : 'dark';
+
             html.setAttribute('data-bs-theme', next);
             localStorage.setItem('theme', next);
             updateIcon(next);
           });
         }
+
         function updateIcon(theme) {
-          if (icon) { icon.className = theme === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-fill'; }
+          if (icon) {
+            icon.className = theme === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-fill';
+          }
         }
       })();
     </script>
 
     {% if user.is_authenticated and user.profile.role == 'ADMIN' and user.profile.is_reviewer %}
-    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055;">
+    <div class="position-fixed bottom-0 end-0 p-3 committee-toast" style="z-index: 1055;">
       <div id="committeeModeToast" class="toast align-items-center text-bg-primary border-0" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="6000">
         <div class="d-flex">
           <div class="toast-body d-flex align-items-center gap-2 flex-wrap">
@@ -434,6 +1029,7 @@
                 Switched back to <strong>admin view</strong>.
               {% endif %}
             </span>
+
             {% if request.session.committee_mode %}
             <form method="post" action="{% url 'toggle_committee_mode' %}" class="ms-1">
               {% csrf_token %}
@@ -443,17 +1039,21 @@
             </form>
             {% endif %}
           </div>
+
           <button type="button" class="btn-close btn-close-white me-2 m-auto flex-shrink-0" data-bs-dismiss="toast" aria-label="Close"></button>
         </div>
       </div>
     </div>
+
     <script>
       (function() {
         const toastEl = document.getElementById('committeeModeToast');
         if (!toastEl) return;
-        const modeKey    = 'committeeMode';
+
+        const modeKey = 'committeeMode';
         const currentMode = '{% if request.session.committee_mode %}on{% else %}off{% endif %}';
-        const lastMode   = sessionStorage.getItem(modeKey);
+        const lastMode = sessionStorage.getItem(modeKey);
+
         if (lastMode !== currentMode) {
           sessionStorage.setItem(modeKey, currentMode);
           const toast = new bootstrap.Toast(toastEl);

@@ -5,6 +5,8 @@ from urllib import request
 from django.db.models import Avg, Case, Count, Exists, F, IntegerField, OuterRef, Q, Value, When
 import json
 from itertools import cycle
+from django.contrib.auth.forms import PasswordChangeForm
+from django.contrib.auth import update_session_auth_hash
 from django.utils.safestring import mark_safe
 from datetime import datetime
 from django.http import HttpResponse
@@ -3087,7 +3089,40 @@ def _reviewer_progress_breakdown(user):
     deadlines.sort(key=lambda x: x['deadline'])
 
     return {'global': glob, 'datasets': rows, 'resume': resume, 'deadlines': deadlines}
-    
+ 
+def _get_new_batch_alert(user):
+    """
+    Return a list of batches uploaded since the user's previous login
+    that they are assigned to review. Used to surface a one-time alert
+    on the committee dashboard.
+    Returns [] if previous_login is None (first ever login).
+    """
+    previous_login = user.profile.previous_login
+    if not previous_login:
+        return []
+ 
+    # Find BATCH_UPLOADED activity entries since previous login
+    recent_uploads = Activity.objects.filter(
+        action_type=Activity.BATCH_UPLOADED,
+        created_at__gt=previous_login,
+        target_batch__isnull=False,
+    ).select_related('target_batch', 'target_batch__DataSet')
+ 
+    # Filter to batches the user is actually assigned to
+    assigned_batch_ids = set(
+        user.assigned_batches.values_list('pk', flat=True)
+    )
+ 
+    seen = set()
+    new_batches = []
+    for entry in recent_uploads:
+        batch = entry.target_batch
+        if batch.pk in assigned_batch_ids and batch.pk not in seen:
+            seen.add(batch.pk)
+            new_batches.append(batch)
+ 
+    return new_batches
+   
 @login_required
 @committee_access_required
 def committee_dashboard(request):
@@ -3130,6 +3165,8 @@ def committee_dashboard(request):
     # Their total votes and scores
     total_votes = Vote.objects.filter(voter=user).count()
     total_scores = Score.objects.filter(voter=user).count()
+    
+    new_batch_alert = _get_new_batch_alert(user)
 
     return render(request, "committee_dashboard.html", {
         'progress': progress,
@@ -3138,9 +3175,319 @@ def committee_dashboard(request):
         'recent_activity': recent_activity,
         'total_votes': total_votes,
         'total_scores': total_scores,
+        'new_batch_alert': new_batch_alert,
     })
 
+@login_required
+def profile_settings(request):
+    from django.contrib.auth.forms import PasswordChangeForm
+    from django.contrib.auth import update_session_auth_hash
+ 
+    user = request.user
+    profile = user.profile
+ 
+    # Profile form — updates User fields + person_type
+    profile_error = None
+    password_error = None
+    profile_success = False
+    password_success = False
+ 
+    if request.method == 'POST':
+        form_type = request.POST.get('form_type')
+ 
+        if form_type == 'profile':
+            first_name  = request.POST.get('first_name', '').strip()
+            last_name   = request.POST.get('last_name', '').strip()
+            email       = request.POST.get('email', '').strip()
+            person_type = request.POST.get('person_type', '')
+ 
+            user.first_name = first_name
+            user.last_name  = last_name
+            user.email      = email
+            user.save()
+ 
+            valid_types = [c[0] for c in Profile.PersonType.choices]
+            if person_type in valid_types:
+                profile.person_type = person_type
+                profile.save(update_fields=['person_type'])
+ 
+            profile_success = True
+ 
+        elif form_type == 'password':
+            password_form = PasswordChangeForm(user, request.POST)
+            if password_form.is_valid():
+                password_form.save()
+                update_session_auth_hash(request, password_form.user)
+                password_success = True
+            else:
+                password_error = password_form.errors
+ 
+    password_form = PasswordChangeForm(user)
+ 
+    return render(request, 'profile_settings.html', {
+        'profile':          profile,
+        'password_form':    password_form,
+        'person_type_choices': Profile.PersonType.choices,
+        'profile_success':  profile_success,
+        'password_success': password_success,
+        'profile_error':    profile_error,
+        'password_error':   password_error,
+    })
+ 
+@login_required
+@admin_required
+def analytics_overview(request):
+    """
+    Cross-dataset analytics overview.
+    Shows review progress and DAT/GPA aggregate stats per dataset.
+    """
+    from django.db.models import Avg, Count, Min, Max, Q
+ 
+    datasets = DataSet.objects.filter(Active=True).order_by('DisplayName')
+ 
+    dataset_rows = []
+    for ds in datasets:
+        batches      = ds.batches.filter(Active=True)
+        batch_count  = batches.count()
+        candidates   = Applicant.objects.filter(dataset=ds)
+        cand_count   = candidates.count()
+ 
+        reviewer_ids = set()
+        for b in batches:
+            reviewer_ids.update(b.assigned_reviewers.values_list('pk', flat=True))
+        reviewer_count = len(reviewer_ids)
+ 
+        potential_votes = sum(
+            b.applicant_set.count() * b.assigned_reviewers.count()
+            for b in batches
+        )
+        actual_votes = Vote.objects.filter(
+            applicant__dataset=ds
+        ).count()
+        progress_pct = round(actual_votes / potential_votes * 100) if potential_votes > 0 else 0
+ 
+        # DAT/GPA aggregates
+        imported = candidates.filter(candidate_info_imported=True)
+        imported_count = imported.count()
+        gpa_stats = imported.aggregate(
+            avg_overall=Avg('gpa_overall'),
+            avg_science=Avg('gpa_science'),
+            avg_bcp=Avg('gpa_bcp'),
+        )
+        dat_stats = imported.aggregate(
+            avg_aa=Avg('dat_academic_avg'),
+        )
+ 
+        dataset_rows.append({
+            'dataset':         ds,
+            'batch_count':     batch_count,
+            'cand_count':      cand_count,
+            'reviewer_count':  reviewer_count,
+            'actual_votes':    actual_votes,
+            'potential_votes': potential_votes,
+            'progress_pct':    progress_pct,
+            'imported_count':  imported_count,
+            'gpa_overall_avg': round(gpa_stats['avg_overall'], 2) if gpa_stats['avg_overall'] else None,
+            'gpa_science_avg': round(gpa_stats['avg_science'], 2) if gpa_stats['avg_science'] else None,
+            'gpa_bcp_avg':     round(gpa_stats['avg_bcp'], 2)     if gpa_stats['avg_bcp']     else None,
+            'dat_aa_avg':      round(dat_stats['avg_aa'], 1)       if dat_stats['avg_aa']       else None,
+        })
+ 
+    # Global totals
+    total_candidates   = sum(r['cand_count']      for r in dataset_rows)
+    total_actual       = sum(r['actual_votes']     for r in dataset_rows)
+    total_potential    = sum(r['potential_votes']  for r in dataset_rows)
+    global_progress    = round(total_actual / total_potential * 100) if total_potential > 0 else 0
+ 
+    return render(request, 'analytics_overview.html', {
+        'dataset_rows':     dataset_rows,
+        'total_candidates': total_candidates,
+        'total_actual':     total_actual,
+        'total_potential':  total_potential,
+        'global_progress':  global_progress,
+    })
+ 
+ 
+@login_required
+@admin_required
+def analytics_dataset(request, pk):
+    """
+    Per-dataset analytics: review progress breakdown + DAT/GPA distributions.
+    """
+    from django.db.models import Avg, Count, Min, Max, Q
+    import json as _json
 
+    dataset    = get_object_or_404(DataSet, pk=pk)
+    batches    = dataset.batches.filter(Active=True).order_by('DisplayName')
+    candidates = Applicant.objects.filter(dataset=dataset)
+    imported   = candidates.filter(candidate_info_imported=True)
+
+    # ── Review progress per batch ────────────────────────────────────────────
+    batch_progress = []
+    for b in batches:
+        assigned  = b.assigned_reviewers.all()
+        r_count   = assigned.count()
+        c_count   = Applicant.objects.filter(round=b).count()
+        potential = c_count * r_count
+        actual    = Vote.objects.filter(
+            applicant__round=b,
+            voter__in=assigned,
+        ).count()
+        pct = round(actual / potential * 100) if potential > 0 else 0
+
+        reviewer_rows = []
+        for reviewer in assigned.select_related('profile'):
+            rv = Vote.objects.filter(
+                applicant__round=b,
+                voter=reviewer,
+            ).count()
+            reviewer_rows.append({
+                'user':       reviewer,
+                'votes_cast': rv,
+                'total':      c_count,
+                'pct':        round(rv / c_count * 100) if c_count > 0 else 0,
+            })
+        reviewer_rows.sort(key=lambda x: -x['pct'])
+
+        batch_progress.append({
+            'batch':         b,
+            'c_count':       c_count,
+            'r_count':       r_count,
+            'actual':        actual,
+            'potential':     potential,
+            'pct':           pct,
+            'reviewer_rows': reviewer_rows,
+        })
+
+    # ── DAT/GPA aggregate stats ──────────────────────────────────────────────
+    imported_count = imported.count()
+    total_count    = candidates.count()
+
+    def safe_round(val, dp=2):
+        return round(val, dp) if val is not None else None
+
+    gpa_agg = imported.aggregate(
+        avg=Avg('gpa_overall'),   mn=Min('gpa_overall'),   mx=Max('gpa_overall'),
+        avg_sci=Avg('gpa_science'), mn_sci=Min('gpa_science'), mx_sci=Max('gpa_science'),
+        avg_bcp=Avg('gpa_bcp'),   mn_bcp=Min('gpa_bcp'),   mx_bcp=Max('gpa_bcp'),
+    )
+    dat_agg = imported.aggregate(
+        avg_aa=Avg('dat_academic_avg'),            mn_aa=Min('dat_academic_avg'),            mx_aa=Max('dat_academic_avg'),
+        avg_pat=Avg('dat_perceptual_ability'),      mn_pat=Min('dat_perceptual_ability'),      mx_pat=Max('dat_perceptual_ability'),
+        avg_qr=Avg('dat_quantitative_reasoning'),   mn_qr=Min('dat_quantitative_reasoning'),   mx_qr=Max('dat_quantitative_reasoning'),
+        avg_rc=Avg('dat_reading_comp'),             mn_rc=Min('dat_reading_comp'),             mx_rc=Max('dat_reading_comp'),
+        avg_bio=Avg('dat_biology'),                 mn_bio=Min('dat_biology'),                 mx_bio=Max('dat_biology'),
+        avg_gc=Avg('dat_general_chem'),             mn_gc=Min('dat_general_chem'),             mx_gc=Max('dat_general_chem'),
+        avg_oc=Avg('dat_organic_chem'),             mn_oc=Min('dat_organic_chem'),             mx_oc=Max('dat_organic_chem'),
+        avg_ts=Avg('dat_total_science'),            mn_ts=Min('dat_total_science'),            mx_ts=Max('dat_total_science'),
+    )
+
+    # ── GPA distribution bands ───────────────────────────────────────────────
+    def gpa_bands(field):
+        return [
+            imported.filter(**{f'{field}__lt': 3.0}).count(),
+            imported.filter(**{f'{field}__gte': 3.0,  f'{field}__lt': 3.25}).count(),
+            imported.filter(**{f'{field}__gte': 3.25, f'{field}__lt': 3.5}).count(),
+            imported.filter(**{f'{field}__gte': 3.5,  f'{field}__lt': 3.75}).count(),
+            imported.filter(**{f'{field}__gte': 3.75}).count(),
+        ]
+
+    gpa_band_labels   = ['< 3.00', '3.00–3.24', '3.25–3.49', '3.50–3.74', '≥ 3.75']
+    gpa_overall_bands = gpa_bands('gpa_overall')
+    gpa_science_bands = gpa_bands('gpa_science')
+    gpa_bcp_bands     = gpa_bands('gpa_bcp')
+
+    # ── DAT Academic Average distribution bands ──────────────────────────────
+    dat_band_labels = ['200–239', '240–279', '280–319', '320–359', '360–399', '400–439', '440–479', '480–519', '520–559', '560–600']
+    dat_aa_bands = [
+        imported.filter(dat_academic_avg__gte=200, dat_academic_avg__lt=240).count(),
+        imported.filter(dat_academic_avg__gte=240, dat_academic_avg__lt=280).count(),
+        imported.filter(dat_academic_avg__gte=280, dat_academic_avg__lt=320).count(),
+        imported.filter(dat_academic_avg__gte=320, dat_academic_avg__lt=360).count(),
+        imported.filter(dat_academic_avg__gte=360, dat_academic_avg__lt=400).count(),
+        imported.filter(dat_academic_avg__gte=400, dat_academic_avg__lt=440).count(),
+        imported.filter(dat_academic_avg__gte=440, dat_academic_avg__lt=480).count(),
+        imported.filter(dat_academic_avg__gte=480, dat_academic_avg__lt=520).count(),
+        imported.filter(dat_academic_avg__gte=520, dat_academic_avg__lt=560).count(),
+        imported.filter(dat_academic_avg__gte=560, dat_academic_avg__lt=601).count(),
+    ]
+
+    # ── Summary table rows for template ─────────────────────────────────────
+    gpa_fields = [
+        ('Overall GPA', safe_round(gpa_agg['avg']),     safe_round(gpa_agg['mn']),     safe_round(gpa_agg['mx']),     'gpa_overall'),
+        ('Science GPA', safe_round(gpa_agg['avg_sci']), safe_round(gpa_agg['mn_sci']), safe_round(gpa_agg['mx_sci']), 'gpa_science'),
+        ('BCP GPA',     safe_round(gpa_agg['avg_bcp']), safe_round(gpa_agg['mn_bcp']), safe_round(gpa_agg['mx_bcp']), 'gpa_bcp'),
+    ]
+
+    # dat_fields: (label, avg, min, max, good_threshold)
+    # good_threshold — at or above this score we colour green
+    dat_fields = [
+        ('Academic Average',       safe_round(dat_agg['avg_aa'],  1), dat_agg['mn_aa'],  dat_agg['mx_aa'],  400),
+        ('Perceptual Ability',     safe_round(dat_agg['avg_pat'], 1), dat_agg['mn_pat'], dat_agg['mx_pat'], 380),
+        ('Quantitative Reasoning', safe_round(dat_agg['avg_qr'],  1), dat_agg['mn_qr'],  dat_agg['mx_qr'],  380),
+        ('Reading Comprehension',  safe_round(dat_agg['avg_rc'],  1), dat_agg['mn_rc'],  dat_agg['mx_rc'],  380),
+        ('Biology',                safe_round(dat_agg['avg_bio'], 1), dat_agg['mn_bio'], dat_agg['mx_bio'], 380),
+        ('General Chemistry',      safe_round(dat_agg['avg_gc'],  1), dat_agg['mn_gc'],  dat_agg['mx_gc'],  380),
+        ('Organic Chemistry',      safe_round(dat_agg['avg_oc'],  1), dat_agg['mn_oc'],  dat_agg['mx_oc'],  380),
+        ('Total Science',          safe_round(dat_agg['avg_ts'],  1), dat_agg['mn_ts'],  dat_agg['mx_ts'],  380),
+    ]
+
+    return render(request, 'analytics_dataset.html', {
+        'dataset':        dataset,
+        'batch_progress': batch_progress,
+        'imported_count': imported_count,
+        'total_count':    total_count,
+        # GPA summary
+        'gpa_fields':     gpa_fields,
+        # DAT summary
+        'dat_fields':     dat_fields,
+        # Individual agg values (still used for the stat cards in template)
+        'gpa_overall_avg': safe_round(gpa_agg['avg']),
+        'gpa_overall_min': safe_round(gpa_agg['mn']),
+        'gpa_overall_max': safe_round(gpa_agg['mx']),
+        'gpa_science_avg': safe_round(gpa_agg['avg_sci']),
+        'gpa_science_min': safe_round(gpa_agg['mn_sci']),
+        'gpa_science_max': safe_round(gpa_agg['mx_sci']),
+        'gpa_bcp_avg':     safe_round(gpa_agg['avg_bcp']),
+        'gpa_bcp_min':     safe_round(gpa_agg['mn_bcp']),
+        'gpa_bcp_max':     safe_round(gpa_agg['mx_bcp']),
+        'dat_aa_avg':      safe_round(dat_agg['avg_aa'],  1),
+        'dat_aa_min':      dat_agg['mn_aa'],
+        'dat_aa_max':      dat_agg['mx_aa'],
+        'dat_pat_avg':     safe_round(dat_agg['avg_pat'], 1),
+        'dat_pat_min':     dat_agg['mn_pat'],
+        'dat_pat_max':     dat_agg['mx_pat'],
+        'dat_qr_avg':      safe_round(dat_agg['avg_qr'],  1),
+        'dat_qr_min':      dat_agg['mn_qr'],
+        'dat_qr_max':      dat_agg['mx_qr'],
+        'dat_rc_avg':      safe_round(dat_agg['avg_rc'],  1),
+        'dat_rc_min':      dat_agg['mn_rc'],
+        'dat_rc_max':      dat_agg['mx_rc'],
+        'dat_bio_avg':     safe_round(dat_agg['avg_bio'], 1),
+        'dat_bio_min':     dat_agg['mn_bio'],
+        'dat_bio_max':     dat_agg['mx_bio'],
+        'dat_gc_avg':      safe_round(dat_agg['avg_gc'],  1),
+        'dat_gc_min':      dat_agg['mn_gc'],
+        'dat_gc_max':      dat_agg['mx_gc'],
+        'dat_oc_avg':      safe_round(dat_agg['avg_oc'],  1),
+        'dat_oc_min':      dat_agg['mn_oc'],
+        'dat_oc_max':      dat_agg['mx_oc'],
+        'dat_ts_avg':      safe_round(dat_agg['avg_ts'],  1),
+        'dat_ts_min':      dat_agg['mn_ts'],
+        'dat_ts_max':      dat_agg['mx_ts'],
+        # Chart data (JSON for Chart.js)
+        'gpa_band_labels':   _json.dumps(gpa_band_labels),
+        'gpa_overall_bands': _json.dumps(gpa_overall_bands),
+        'gpa_science_bands': _json.dumps(gpa_science_bands),
+        'gpa_bcp_bands':     _json.dumps(gpa_bcp_bands),
+        'dat_band_labels':   _json.dumps(dat_band_labels),
+        'dat_aa_bands':      _json.dumps(dat_aa_bands),
+        'crumbs': [
+            {'label': 'Analytics',         'url': '/analytics/'},
+            {'label': dataset.DisplayName, 'url': ''},
+        ],
+    })
+    
 @login_required
 @committee_access_required
 def my_reviews(request):

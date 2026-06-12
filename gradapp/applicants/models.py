@@ -33,6 +33,11 @@ class Profile(models.Model):
         default=False,
         help_text='Admin users with this flag can be assigned to batches as sitting committee members and can switch to committee mode.',
     )
+    previous_login = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='The login timestamp prior to the current session. Used to detect newly uploaded batches since last login.',
+    )
 
     def __str__(self):
         type_label = f" ({self.get_person_type_display()})" if self.person_type and self.person_type != 'OTHER' else ""

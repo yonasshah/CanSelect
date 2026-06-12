@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-0">Analytics</h2>
+    <p class="text-muted mb-0">Review progress and academic score summaries across all active datasets.</p>
+  </div>
+</div>
+
+<!-- Global progress strip -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card border-0 bg-light text-center">
+      <div class="card-body py-3">
+        <div class="fs-2 fw-bold text-primary">{{ total_candidates }}</div>
+        <div class="text-muted small">Total Candidates</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-0 bg-light text-center">
+      <div class="card-body py-3">
+        <div class="fs-2 fw-bold text-success">{{ total_actual }}</div>
+        <div class="text-muted small">Votes Cast</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-0 bg-light text-center">
+      <div class="card-body py-3">
+        <div class="fs-2 fw-bold text-warning">{{ total_potential }}</div>
+        <div class="text-muted small">Potential Votes</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-0 bg-light text-center">
+      <div class="card-body py-3">
+        <div class="fs-2 fw-bold">{{ global_progress }}%</div>
+        <div class="text-muted small">Overall Completion</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Per-dataset table -->
+<div class="card">
+  <div class="card-header fw-semibold">
+    <i class="bi bi-stack me-2"></i>By Dataset
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-dark">
+        <tr>
+          <th>Dataset</th>
+          <th class="text-center">Candidates</th>
+          <th class="text-center">Reviewers</th>
+          <th style="width:200px;">Review Progress</th>
+          <th class="text-center">Avg Overall GPA</th>
+          <th class="text-center">Avg Science GPA</th>
+          <th class="text-center">Avg BCP GPA</th>
+          <th class="text-center">Avg DAT AA</th>
+          <th class="text-center">Data Coverage</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in dataset_rows %}
+        <tr>
+          <td>
+            <a href="{% url 'dataset_detail' row.dataset.pk %}" class="fw-semibold text-decoration-none">
+              {{ row.dataset.DisplayName }}
+            </a>
+          </td>
+          <td class="text-center">{{ row.cand_count }}</td>
+          <td class="text-center">{{ row.reviewer_count }}</td>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <div class="progress flex-grow-1" style="height:7px;">
+                <div class="progress-bar {% if row.progress_pct == 100 %}bg-success{% elif row.progress_pct > 0 %}bg-primary{% else %}bg-secondary{% endif %}"
+                     style="width:{{ row.progress_pct }}%"></div>
+              </div>
+              <span class="text-muted small" style="white-space:nowrap;">
+                {{ row.actual_votes }}/{{ row.potential_votes }}
+              </span>
+            </div>
+          </td>
+          <td class="text-center">
+            {% if row.gpa_overall_avg %}
+              <span class="fw-semibold {% if row.gpa_overall_avg >= 3.5 %}text-success{% elif row.gpa_overall_avg >= 3.0 %}text-warning{% else %}text-danger{% endif %}">
+                {{ row.gpa_overall_avg }}
+              </span>
+            {% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
+          <td class="text-center">
+            {% if row.gpa_science_avg %}
+              <span class="fw-semibold {% if row.gpa_science_avg >= 3.5 %}text-success{% elif row.gpa_science_avg >= 3.0 %}text-warning{% else %}text-danger{% endif %}">
+                {{ row.gpa_science_avg }}
+              </span>
+            {% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
+          <td class="text-center">
+            {% if row.gpa_bcp_avg %}
+              <span class="fw-semibold {% if row.gpa_bcp_avg >= 3.5 %}text-success{% elif row.gpa_bcp_avg >= 3.0 %}text-warning{% else %}text-danger{% endif %}">
+                {{ row.gpa_bcp_avg }}
+              </span>
+            {% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
+          <td class="text-center">
+            {% if row.dat_aa_avg %}
+              <span class="fw-semibold {% if row.dat_aa_avg >= 220 %}text-success{% elif row.dat_aa_avg >= 200 %}text-warning{% else %}text-danger{% endif %}">
+                {{ row.dat_aa_avg }}
+              </span>
+            {% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
+          <td class="text-center">
+            {% if row.cand_count > 0 %}
+              {% widthratio row.imported_count row.cand_count 100 as cov_pct %}
+              <span class="small text-muted">{{ row.imported_count }}/{{ row.cand_count }}</span>
+              <div class="progress mt-1" style="height:4px;">
+                <div class="progress-bar bg-info" style="width:{{ cov_pct }}%"></div>
+              </div>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="{% url 'analytics_dataset' row.dataset.pk %}" class="btn btn-outline-primary btn-sm">
+              <i class="bi bi-bar-chart-line me-1"></i>Details
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="10" class="text-center text-muted py-4">No active datasets found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

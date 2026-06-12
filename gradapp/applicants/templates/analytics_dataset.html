@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% include "partials/breadcrumbs.html" with crumbs=crumbs %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-0">{{ dataset.DisplayName }}</h2>
+    <p class="text-muted mb-0">Analytics — review progress and academic score distributions.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'dataset_detail' dataset.pk %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-stack me-1"></i>Dataset Detail
+    </a>
+    <a href="{% url 'analytics_overview' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>All Datasets
+    </a>
+  </div>
+</div>
+
+<!-- Data coverage notice -->
+{% if imported_count < total_count %}
+<div class="alert alert-info py-2 small mb-4">
+  <i class="bi bi-info-circle me-1"></i>
+  Academic data available for <strong>{{ imported_count }}</strong> of <strong>{{ total_count }}</strong> candidates.
+  Score statistics reflect only candidates with imported data.
+  {% if imported_count == 0 %}Use Bulk Upload or Candidate Info Upload to import academic data.{% endif %}
+</div>
+{% endif %}
+
+<!-- ── Review Progress ─────────────────────────────────────────────────────── -->
+<h4 class="mb-3">Review Progress</h4>
+
+{% for row in batch_progress %}
+<div class="card mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center py-2">
+    <div class="d-flex align-items-center gap-2">
+      <a href="{% url 'batch_detail' row.batch.pk %}" class="fw-semibold text-decoration-none">
+        {{ row.batch.DisplayName }}
+      </a>
+      <span class="text-muted small">{{ row.c_count }} candidate{{ row.c_count|pluralize }} · {{ row.r_count }} reviewer{{ row.r_count|pluralize }}</span>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <div class="d-flex align-items-center gap-2" style="width:160px;">
+        <div class="progress flex-grow-1" style="height:6px;">
+          <div class="progress-bar {% if row.pct == 100 %}bg-success{% elif row.pct > 0 %}bg-primary{% else %}bg-secondary{% endif %}"
+               style="width:{{ row.pct }}%"></div>
+        </div>
+        <span class="text-muted small">{{ row.actual }}/{{ row.potential }}</span>
+      </div>
+      <span class="badge {% if row.pct == 100 %}bg-success{% elif row.pct > 0 %}bg-primary{% else %}bg-secondary{% endif %}">
+        {{ row.pct }}%
+      </span>
+    </div>
+  </div>
+  {% if row.reviewer_rows %}
+  <div class="card-body py-2">
+    {% for r in row.reviewer_rows %}
+    <div class="d-flex align-items-center gap-3 {% if not forloop.last %}mb-2{% endif %}">
+      <div style="width:160px;" class="text-truncate">
+        <i class="bi bi-person-circle text-secondary me-1"></i>
+        <span class="small">{{ r.user.get_full_name|default:r.user.username }}</span>
+      </div>
+      <div class="flex-grow-1">
+        <div class="progress" style="height:6px;">
+          <div class="progress-bar {% if r.pct == 100 %}bg-success{% elif r.pct >= 50 %}bg-primary{% elif r.pct > 0 %}bg-warning{% else %}bg-secondary{% endif %}"
+               style="width:{{ r.pct }}%"></div>
+        </div>
+      </div>
+      <div style="width:70px;" class="text-end">
+        <span class="small {% if r.pct == 100 %}text-success fw-semibold{% else %}text-muted{% endif %}">
+          {{ r.votes_cast }}/{{ r.total }}
+        </span>
+      </div>
+      <div style="width:36px;" class="text-end">
+        {% if r.pct == 100 %}
+          <i class="bi bi-check-circle-fill text-success"></i>
+        {% else %}
+          <span class="small text-muted">{{ r.pct }}%</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% empty %}
+<div class="text-muted small mb-4">No active batches in this dataset.</div>
+{% endfor %}
+
+{% if imported_count > 0 %}
+
+<!-- ── GPA Distributions ───────────────────────────────────────────────────── -->
+<h4 class="mt-4 mb-3">GPA Statistics</h4>
+
+<!-- GPA summary cards -->
+<div class="row g-3 mb-4">
+  {% for label, avg, mn, mx, field in gpa_fields %}
+  <div class="col-md-4">
+    <div class="card border-0 bg-light">
+      <div class="card-body py-3">
+        <div class="text-muted small mb-2">{{ label }}</div>
+        <div class="d-flex justify-content-between align-items-end">
+          <div>
+            <div class="fs-2 fw-bold {% if avg >= 3.5 %}text-success{% elif avg >= 3.0 %}text-warning{% else %}text-danger{% endif %}">
+              {{ avg|default:"—" }}
+            </div>
+            <div class="text-muted small">average</div>
+          </div>
+          <div class="text-end">
+            <div class="small text-muted">Min <span class="fw-semibold text-body">{{ mn|default:"—" }}</span></div>
+            <div class="small text-muted">Max <span class="fw-semibold text-body">{{ mx|default:"—" }}</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- GPA distribution charts -->
+<div class="row g-4 mb-4">
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header fw-semibold py-2 small">Overall GPA Distribution</div>
+      <div class="card-body">
+        <canvas id="gpaOverallChart" height="220"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header fw-semibold py-2 small">Science GPA Distribution</div>
+      <div class="card-body">
+        <canvas id="gpaScienceChart" height="220"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header fw-semibold py-2 small">BCP GPA Distribution</div>
+      <div class="card-body">
+        <canvas id="gpaBcpChart" height="220"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── DAT Statistics ──────────────────────────────────────────────────────── -->
+<h4 class="mt-2 mb-3">DAT Statistics</h4>
+
+<!-- DAT summary table -->
+<div class="card mb-4">
+  <div class="card-body p-0">
+    <table class="table table-hover align-middle mb-0" style="font-size:0.88rem;">
+      <thead class="table-light">
+        <tr>
+          <th>Score</th>
+          <th class="text-center">Average</th>
+          <th class="text-center">Min</th>
+          <th class="text-center">Max</th>
+          <th style="width:200px;">Avg indicator</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for label, avg, mn, mx, good_thresh in dat_fields %}
+        <tr>
+          <td class="fw-semibold">{{ label }}</td>
+          <td class="text-center">
+            {% if avg %}
+              <span class="fw-bold {% if avg >= good_thresh %}text-success{% else %}text-warning{% endif %}">
+                {{ avg }}
+              </span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="text-center text-muted">{{ mn|default:"—" }}</td>
+          <td class="text-center text-muted">{{ mx|default:"—" }}</td>
+          <td>
+            {% if avg %}
+            <div class="progress" style="height:6px;">
+              <div class="progress-bar {% if avg >= good_thresh %}bg-success{% else %}bg-warning{% endif %}"
+                   style="width:{% widthratio avg 600 100 %}%"></div>
+            </div>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- DAT Academic Average distribution chart -->
+<div class="card mb-4">
+  <div class="card-header fw-semibold py-2 small">DAT Academic Average Distribution</div>
+  <div class="card-body">
+    <canvas id="datAaChart" height="120"></canvas>
+  </div>
+</div>
+
+{% endif %}{# end imported_count > 0 #}
+
+{% endblock %}
+
+{% block extra_js %}
+{% if imported_count > 0 %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(function() {
+  const isDark = document.getElementById('html-root').getAttribute('data-bs-theme') === 'dark';
+  const gridColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)';
+  const labelColor = isDark ? '#adb5bd' : '#6c757d';
+
+  const bandLabels    = {{ gpa_band_labels|safe }};
+  const datBandLabels = {{ dat_band_labels|safe }};
+
+  function makeBarChart(id, labels, data, color) {
+    const ctx = document.getElementById(id);
+    if (!ctx) return;
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: data,
+          backgroundColor: color,
+          borderRadius: 4,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: gridColor }, ticks: { color: labelColor, font: { size: 11 } } },
+          y: { grid: { color: gridColor }, ticks: { color: labelColor, stepSize: 1, font: { size: 11 } }, beginAtZero: true }
+        }
+      }
+    });
+  }
+
+  makeBarChart('gpaOverallChart', bandLabels, {{ gpa_overall_bands|safe }}, 'rgba(13,110,253,0.6)');
+  makeBarChart('gpaScienceChart', bandLabels, {{ gpa_science_bands|safe }}, 'rgba(25,135,84,0.6)');
+  makeBarChart('gpaBcpChart',     bandLabels, {{ gpa_bcp_bands|safe }},     'rgba(108,117,125,0.6)');
+  makeBarChart('datAaChart',      datBandLabels, {{ dat_aa_bands|safe }},   'rgba(255,193,7,0.7)');
+})();
+</script>
+{% endif %}
+{% endblock %}
