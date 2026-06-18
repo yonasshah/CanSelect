@@ -1,7 +1,7 @@
 import os
 import re
 import mimetypes
-from django.http import StreamingHttpResponse, Http404
+from django.http import StreamingHttpResponse, Http404, HttpResponseForbidden
 
 
 class RangeFileWrapper:
@@ -34,7 +34,29 @@ class RangeFileWrapper:
 
 
 def serve_media_with_range(request, path, document_root=None):
-    """Serve media files with HTTP Range support so video/audio can seek."""
+    """Serve media files with HTTP Range support so video/audio can seek.
+
+    Committee members may only load media *inline* (PDF.js, <video>, <img>).
+    Top-level navigations (new tab, address bar, "save link as") and downloads
+    are blocked for them via Fetch Metadata headers. Admins are unrestricted.
+    """
+    user = request.user
+    if not user.is_authenticated:
+        return HttpResponseForbidden('Authentication required.')
+
+    # ── Committee lockdown ───────────────────────────────────────────────────
+    is_committee = (
+        user.is_authenticated
+        and getattr(getattr(user, 'profile', None), 'role', None) != 'ADMIN'
+    )
+    if is_committee:
+        sec_mode = request.headers.get('Sec-Fetch-Mode', '')
+        sec_dest = request.headers.get('Sec-Fetch-Dest', '')
+        # Inline loads are 'empty' (fetch/XHR), 'video', 'audio', 'image'.
+        # A new tab / address-bar hit / download is a top-level document nav.
+        if sec_mode == 'navigate' or sec_dest == 'document':
+            return HttpResponseForbidden('Direct access to this file is not permitted.')
+
     full_path = os.path.normpath(os.path.join(document_root, path))
     root = os.path.normpath(document_root)
     # Prevent directory traversal
@@ -69,4 +91,5 @@ def serve_media_with_range(request, path, document_root=None):
         resp['Content-Length'] = str(size)
 
     resp['Accept-Ranges'] = 'bytes'
+    resp['Content-Disposition'] = 'inline'   # signal "display", not "download"
     return resp

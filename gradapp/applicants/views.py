@@ -1660,6 +1660,9 @@ def compare_applicants(request):
 
 @login_required
 def export_applicants_csv(request):
+    if request.user.profile.role != 'ADMIN':
+        return HttpResponse('Exports are not available for committee members.', status=403)
+
     selected_dataset_id = request.GET.get('dataset')
     selected_batch_id   = request.GET.get('batch')
     search_query        = request.GET.get('q', '')
@@ -3534,8 +3537,10 @@ def my_reviews(request):
     filter_score_max = request.GET.get('score_max', '')
     has_filters      = any([filter_batch, filter_vote, filter_flagged, filter_score_min, filter_score_max])
  
-    # CSV export branch — triggered by ?export=csv
+    # CSV export branch — triggered by ?export=csv (admin only)
     if request.GET.get('export') == 'csv':
+        if user.profile.role != 'ADMIN':
+            return HttpResponse('Exports are not available for committee members.', status=403)
         return _export_my_reviews_csv(request, user)
  
     assigned_batches = Batch.objects.filter(assigned_reviewers=user)
@@ -3692,8 +3697,10 @@ def _export_my_reviews_csv(request, user):
 def my_activity(request):
     user = request.user
  
-    # ── CSV export ───────────────────────────────────────────────────
+    # ── CSV export ─────────────────────────────────────────── (admin only)
     if request.GET.get('export') == 'csv':
+        if user.profile.role != 'ADMIN':
+            return HttpResponse('Exports are not available for committee members.', status=403)
         return _export_my_activity_csv(request, user)
  
     # ── Filters ──────────────────────────────────────────────────────

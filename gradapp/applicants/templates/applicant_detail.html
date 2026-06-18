@@ -542,12 +542,14 @@
               <span class="text-truncate" style="max-width:300px;">{{ video.file.name|cut:"applicants/" }}</span>
               <i class="bi bi-chevron-down" style="font-size:0.7rem;"></i>
             </button>
+            {% if user.profile.role == 'ADMIN' %}
             <a href="{{ video.file.url }}" target="_blank" class="btn btn-outline-secondary btn-sm">
               <i class="bi bi-download"></i>
             </a>
+            {% endif %}
           </div>
           <div id="video-collapse-{{ video.pk }}" style="display:none;">
-            <video id="video-{{ video.pk }}" class="w-100 rounded bg-dark mt-1" controls style="max-height:400px;">
+            <video id="video-{{ video.pk }}" class="w-100 rounded bg-dark mt-1" controls controlsList="nodownload noremoteplayback" disablePictureInPicture oncontextmenu="return false;" style="max-height:400px;">
               <source src="{{ video.file.url }}" type="video/mp4">
               Your browser does not support the video tag.
             </video>
@@ -655,13 +657,15 @@
                         data-pdf-target="#pdf-viewer-{{ doc.pk }}"
                         data-pdf-url="{{ doc.file.url }}">
                   <i class="bi bi-eye me-1"></i>
-                  <span class="pdf-toggle-label">Preview</span>
+                  <span class="pdf-toggle-label">View</span>
                 </button>
 
+                {% if user.profile.role == 'ADMIN' %}
                 <a href="{{ doc.file.url }}" target="_blank" class="btn btn-outline-secondary btn-sm">
                   <i class="bi bi-box-arrow-up-right me-1"></i>
                   Open
                 </a>
+                {% endif %}
               </div>
             </div>
 
@@ -726,11 +730,13 @@
               </div>
               <div class="d-flex gap-2">
                 <button class="btn btn-outline-primary btn-sm pdf-toggle-btn" data-pdf-target="#pdf-viewer-{{ doc.pk }}" data-pdf-url="{{ doc.file.url }}">
-                  <i class="bi bi-eye me-1"></i><span class="pdf-toggle-label">Preview</span>
+                  <i class="bi bi-eye me-1"></i><span class="pdf-toggle-label">View</span>
                 </button>
+                {% if user.profile.role == 'ADMIN' %}
                 <a href="{{ doc.file.url }}" target="_blank" class="btn btn-outline-secondary btn-sm">
                   <i class="bi bi-box-arrow-up-right me-1"></i>Open
                 </a>
+                {% endif %}
               </div>
             </div>
             <div id="pdf-viewer-{{ doc.pk }}" class="pdf-viewer-container" style="display:none;">
@@ -775,9 +781,13 @@
         <div class="row g-2">
           {% for photo in photo_files %}
           <div class="col-4 col-md-3">
+            {% if user.profile.role == 'ADMIN' %}
             <a href="{{ photo.file.url }}" target="_blank">
               <img src="{{ photo.file.url }}" class="img-thumbnail w-100" style="height:120px; object-fit:cover;" alt="{{ photo.file.name|cut:'applicants/' }}">
             </a>
+            {% else %}
+            <img src="{{ photo.file.url }}" class="img-thumbnail w-100" style="height:120px; object-fit:cover;" oncontextmenu="return false;" alt="{{ photo.file.name|cut:'applicants/' }}">
+            {% endif %}
             <div class="text-muted text-center" style="font-size:0.65rem;">{{ photo.file.name|cut:"applicants/" }}</div>
           </div>
           {% endfor %}
@@ -819,13 +829,15 @@
                 {% with doc.file.name|lower as fname %}
                   {% if '.pdf' in fname %}
                   <button class="btn btn-outline-primary btn-sm pdf-toggle-btn" data-pdf-target="#pdf-viewer-{{ doc.pk }}" data-pdf-url="{{ doc.file.url }}">
-                    <i class="bi bi-eye me-1"></i><span class="pdf-toggle-label">Preview</span>
+                    <i class="bi bi-eye me-1"></i><span class="pdf-toggle-label">View</span>
                   </button>
                   {% endif %}
                 {% endwith %}
+                {% if user.profile.role == 'ADMIN' %}
                 <a href="{{ doc.file.url }}" target="_blank" class="btn btn-outline-secondary btn-sm">
                   <i class="bi bi-box-arrow-up-right me-1"></i>Open
                 </a>
+                {% endif %}
               </div>
             </div>
             {% with doc.file.name|lower as fname %}
@@ -1150,6 +1162,8 @@
 </style>
 
 <script>
+  const IS_ADMIN = {% if user.profile.role == 'ADMIN' %}true{% else %}false{% endif %};
+
   document.querySelectorAll('.video-toggle-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const targetId = btn.getAttribute('data-video-target');
@@ -1243,7 +1257,9 @@
         }).catch(err => {
           state.loading = false;
           const scrollArea = container.querySelector('.pdf-scroll-area');
-          scrollArea.innerHTML = '<p class="text-center p-3"><a href="' + btn.getAttribute('data-pdf-url') + '" target="_blank" class="btn btn-outline-light btn-sm"><i class="bi bi-box-arrow-up-right me-1"></i>Open in new tab instead</a></p>';
+          scrollArea.innerHTML = IS_ADMIN
+            ? '<p class="text-center p-3"><a href="' + btn.getAttribute('data-pdf-url') + '" target="_blank" class="btn btn-outline-light btn-sm"><i class="bi bi-box-arrow-up-right me-1"></i>Open in new tab instead</a></p>'
+            : '<p class="text-center text-light p-3">Unable to display this document.</p>';
           reject(err);
         });
       });
@@ -1262,7 +1278,7 @@
     function closeViewer() {
       const label = btn.querySelector('.pdf-toggle-label');
       container.style.display = 'none';
-      if (label) label.textContent = 'Preview';
+      if (label) label.textContent = 'View';
       btn.classList.remove('active');
     }
 
@@ -1336,18 +1352,6 @@
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
     const open = Array.from(document.querySelectorAll('.pdf-viewer-container'))
       .find(c => c.style.display !== 'none' && c.style.display !== '' && c.offsetParent !== null);
-    if (!open) return;
-    e.preventDefault();
-    if (e.key === 'ArrowLeft') open.querySelector('.pdf-prev').click();
-    else open.querySelector('.pdf-next').click();
-  });
-
-  // Arrow-key navigation for whichever PDF viewer is currently open
-  document.addEventListener('keydown', function (e) {
-    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
-    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-    const open = Array.from(document.querySelectorAll('.pdf-viewer-container'))
-      .find(c => c.style.display !== 'none' && c.offsetParent !== null);
     if (!open) return;
     e.preventDefault();
     if (e.key === 'ArrowLeft') open.querySelector('.pdf-prev').click();

@@ -450,10 +450,12 @@
       </div>
 
       <div class="reviews-hero-actions">
+        {% if user.profile.role == 'ADMIN' %}
         <a href="?sort={{ sort }}&dir={{ direction }}&batch={{ filter_batch }}&vote={{ filter_vote }}{% if filter_flagged %}&flagged_only=1{% endif %}&score_min={{ filter_score_min }}&score_max={{ filter_score_max }}&export=csv"
            class="btn btn-outline-success btn-sm">
           <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV
         </a>
+        {% endif %}
       </div>
     </div>
   </div>
