@@ -549,7 +549,7 @@
             {% endif %}
           </div>
           <div id="video-collapse-{{ video.pk }}" style="display:none;">
-            <video id="video-{{ video.pk }}" class="w-100 rounded bg-dark mt-1" controls controlsList="nodownload noremoteplayback" disablePictureInPicture oncontextmenu="return false;" style="max-height:400px;">
+            <video id="video-{{ video.pk }}" class="w-100 rounded bg-dark mt-1" controls controlsList="nodownload noremoteplayback" disablePictureInPicture oncontextmenu="return false;" onratechange="if(this.playbackRate>2.5)this.playbackRate=2.5;" style="max-height:400px;">
               <source src="{{ video.file.url }}" type="video/mp4">
               Your browser does not support the video tag.
             </video>
@@ -559,8 +559,7 @@
               <button class="btn btn-secondary btn-sm speed-control active" data-video-id="video-{{ video.pk }}" data-speed="1">1x</button>
               <button class="btn btn-outline-secondary btn-sm speed-control" data-video-id="video-{{ video.pk }}" data-speed="1.5">1.5x</button>
               <button class="btn btn-outline-secondary btn-sm speed-control" data-video-id="video-{{ video.pk }}" data-speed="2">2x</button>
-              <button class="btn btn-outline-secondary btn-sm speed-control" data-video-id="video-{{ video.pk }}" data-speed="3">3x</button>
-              <button class="btn btn-outline-secondary btn-sm speed-control" data-video-id="video-{{ video.pk }}" data-speed="4">4x</button>
+              <button class="btn btn-outline-secondary btn-sm speed-control" data-video-id="video-{{ video.pk }}" data-speed="2.5">2.5x</button>
             </div>
           </div>
         </div>
@@ -1361,7 +1360,7 @@
   document.querySelectorAll('.speed-control').forEach(btn => {
     btn.addEventListener('click', function() {
       const videoId = this.getAttribute('data-video-id');
-      const speed = parseFloat(this.getAttribute('data-speed'));
+      const speed = Math.min(2.5, parseFloat(this.getAttribute('data-speed')));
       const video = document.getElementById(videoId);
       if (video) video.playbackRate = speed;
       const container = this.closest('.d-flex') || this.parentElement;

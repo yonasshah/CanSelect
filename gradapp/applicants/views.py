@@ -1636,6 +1636,9 @@ def compare_applicants(request):
     if not applicant_ids:
         messages.warning(request, "You must select at least two applicants to compare.")
         return redirect("applicant_list")
+    if len(applicant_ids) > 4:
+        messages.warning(request, "You can compare up to 4 applicants at a time. Please select fewer.")
+        return redirect("applicant_list")
  
     applicants = Applicant.objects.filter(pk__in=applicant_ids).select_related('dataset', 'round')
  

@@ -1052,12 +1052,19 @@ function toggleActionButtons() {
   }
 
   if (compareBtn) {
-    compareBtn.style.display = checked >= 2 ? 'inline' : 'none';
+    compareBtn.style.display = (checked >= 2 && checked <= 4) ? 'inline' : 'none';
   }
 }
 
 document.querySelectorAll('.applicant-checkbox').forEach(cb => {
-  cb.addEventListener('change', toggleActionButtons);
+  cb.addEventListener('change', function () {
+    const checked = document.querySelectorAll('.applicant-checkbox:checked').length;
+    if (checked > 4) {
+      this.checked = false;
+      alert('You can compare up to 4 candidates at a time.');
+    }
+    toggleActionButtons();
+  });
 });
 </script>
 
