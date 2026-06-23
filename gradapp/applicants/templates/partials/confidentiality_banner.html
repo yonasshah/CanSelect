@@ -1,0 +1,25 @@
+<div class="alert alert-warning alert-dismissible fade show d-flex align-items-start gap-2 mb-4" role="alert" id="confidentiality-banner">
+  <i class="bi bi-shield-lock-fill mt-1"></i>
+  <div>
+    <strong>Confidentiality reminder:</strong>
+    As an Admissions Committee member, you agreed to never, directly or indirectly, disclose to any other person or entity any information related to the admissions process or any other privileged or confidential information acquired in the course of serving on the committee.
+  </div>
+  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+
+<script>
+  (function() {
+    const bannerKey = 'confidentialityBannerDismissed_{{ request.user.pk }}';
+    const bannerEl  = document.getElementById('confidentiality-banner');
+    if (!bannerEl) return;
+
+    if (sessionStorage.getItem(bannerKey)) {
+      bannerEl.style.display = 'none';
+      return;
+    }
+
+    bannerEl.addEventListener('closed.bs.alert', function() {
+      sessionStorage.setItem(bannerKey, '1');
+    });
+  })();
+</script>

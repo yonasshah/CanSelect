@@ -9,6 +9,7 @@ urlpatterns = [
     path("login/", views.email_login, name="login"),
     path("help/", views.help_page, name="help"),
     path("toggle-committee-mode/", views.toggle_committee_mode, name="toggle_committee_mode"),
+    path("confidentiality/", views.confidentiality_agreement, name="confidentiality_agreement"),
 
     # ── Applicants ────────────────────────────────────────────────────
     path("applicant/", views.applicant_list, name="applicant_list"),

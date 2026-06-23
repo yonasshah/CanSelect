@@ -3244,6 +3244,21 @@ def profile_settings(request):
         'profile_error':    profile_error,
         'password_error':   password_error,
     })
+    
+@login_required
+def confidentiality_agreement(request):
+    profile = request.user.profile
+    next_url = request.GET.get('next') or request.POST.get('next') or 'dashboard'
+
+    if request.method == 'POST':
+        if request.POST.get('agree') == '1':
+            profile.confidentiality_acknowledged_at = timezone.now()
+            profile.save(update_fields=['confidentiality_acknowledged_at'])
+            return redirect(next_url)
+        else:
+            messages.error(request, "You must check the box to confirm you've read and agree to the confidentiality policy.")
+
+    return render(request, 'confidentiality_agreement.html', {'next_url': next_url})
  
 @login_required
 @admin_required

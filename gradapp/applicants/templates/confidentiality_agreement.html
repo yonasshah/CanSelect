@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-center">
+  <div class="card" style="max-width: 760px; width: 100%;">
+    <div class="card-body">
+
+      <h4 class="section-title text-dark">Admissions Committee Member Confidentiality and Conflict of Interest Agreement</h4>
+
+      <p>An Admissions Committee member holds a special position of trust within the Kornberg School of Dentistry. Committee members have access to highly sensitive confidential material and are parties to highly sensitive confidential discussions regarding candidates for admission. The fairness of the admissions process demands a commitment from each committee member that he or she will adhere to the highest standards of ethical conduct and professionalism.</p>
+
+      <p>Included in these standards is the responsibility of Admissions Committee members to ensure and maintain absolute confidentiality of all aspects of the admissions process. This obligation includes, but is not limited to, refraining from any disclosure or discussion of applicant information or Admissions Committee deliberations with anyone not on the Admissions Committee or on the Admissions staff. Failure to maintain absolute confidentiality is a serious breach of ethics that will be addressed through all appropriate disciplinary procedures of the Kornberg School of Dentistry and Temple University.</p>
+
+      <p>Admissions committee members with a conflict of interest regarding a particular candidate must recuse themselves from voting or participating in discussions pertaining to the candidate. Conflicts of interest include, but are not limited to, family members, candidates with close personal or family relationships, and business associates or their family members.</p>
+
+      <p>The Kornberg School of Dentistry requires that members of the Admissions Committee acknowledge, by signature, their responsibilities to maintain absolute confidentiality and declare any conflict of interest situations that may exist.</p>
+      <hr class="my-4">
+      <h5 class="text-dark">Statement of Admissions Committee Member</h5>
+      <p>I acknowledge that as an Admissions Committee member I will be responsible for reviewing and discussing privileged and confidential information, and that I will have access to documents, data and other information, all of which is highly confidential and may be discussed only with individuals directly involved with the admissions process.</p>
+
+      <div class="alert alert-secondary border-start border-4 border-danger">
+        <strong>I agree</strong> that I shall never, directly or indirectly, disclose to any other person or entity any information related to the admissions process or any other privileged or confidential information acquired in the course of serving as an Admissions Committee member. I also agree that I will recuse myself from voting and participating in discussions where a conflict of interest with a candidate arises.
+      </div>
+      <p>I have read and understood the confidentiality agreement herein. Furthermore, I have been given the opportunity to ask questions and have been provided with satisfactory answers to these questions.</p>
+
+      <p class="text-end text-muted small mt-3"><em>Revised 8/30/2020</em></p>
+
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next_url }}">
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" name="agree" value="1" id="agreeCheck" required>
+          <label class="form-check-label" for="agreeCheck">
+            I have read, understood, and agree to the statement above.
+          </label>
+        </div>
+        <button type="submit" class="btn btn-primary">Continue</button>
+      </form>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
