@@ -33,3 +33,6 @@ Thumbs.db
 # Environment variables / secrets
 .env
 .env.*
+
+db.sqlite3
+gradapp/db.sqlite3

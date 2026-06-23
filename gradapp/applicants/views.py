@@ -1716,17 +1716,17 @@ def export_applicants_csv(request):
     )
     writer = csv.writer(response)
     writer.writerow([
-        'First Name', 'Last Name', 'Email', 'External ID', 'Date of Birth', 'Gender',
+        'Last Name', 'First Name', 'External ID', 'Email', 'Date of Birth', 'Gender',
         'Status', 'Dataset', 'Round',
         'Total AI', 'Total NC', 'Z-Score', 'First Gen', 'Re-Applicant',
         'PB to DMD', 'Former Post Bacc', '3+4',
     ])
     for applicant in applicants:
         writer.writerow([
-            applicant.first_name,
             applicant.last_name,
-            applicant.email,
+            applicant.first_name,
             applicant.external_id or '',
+            applicant.email,
             applicant.age,
             applicant.gender,
             applicant.get_status_display(),
