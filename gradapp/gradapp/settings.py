@@ -75,6 +75,9 @@ MEDIA_ROOT = BASE_DIR / "media"
 USE_L10N = False
 DATETIME_INPUT_FORMATS = ['%Y-%m-%dT%H:%M']
 
+SESSION_COOKIE_AGE = 30 * 60          # 30 minutes, in seconds
+SESSION_SAVE_EVERY_REQUEST = True     # resets the expiry on every request
+
 DATA_UPLOAD_MAX_NUMBER_FILES = 1000
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
