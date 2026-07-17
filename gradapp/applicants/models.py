@@ -390,6 +390,21 @@ class Comment(models.Model):
         return f"Comment by {self.author.username} on {self.applicant}"
 
 
+class CandidateNote(models.Model):
+    """Private per-reviewer notes on a candidate. One note per user per applicant."""
+    applicant = models.ForeignKey(Applicant, on_delete=models.CASCADE, related_name='notes')
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='candidate_notes')
+    text = models.TextField(blank=True, default='')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('applicant', 'author')
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f"Note by {self.author.username} on {self.applicant}"
+
+
 class Notification(models.Model):
     recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
     sender = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='sent_notifications')

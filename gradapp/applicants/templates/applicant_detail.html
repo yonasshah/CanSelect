@@ -940,6 +940,22 @@
       </div>
     </div>
 
+    <!-- My Notes -->
+    <div class="card mb-4">
+      <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-journal-text me-2"></i>My Notes</span>
+        <small id="note-save-status" class="text-muted fw-normal"></small>
+      </div>
+      <div class="card-body">
+        <input type="hidden" id="note-csrf" value="{{ csrf_token }}">
+        <textarea id="candidate-note-input" class="form-control" rows="5"
+                  placeholder="Private notes visible only to you…">{{ user_note.text }}</textarea>
+        <div class="text-muted small mt-2" id="note-last-saved">
+          {% if user_note.text %}Last saved {{ user_note.updated_at|timesince }} ago{% endif %}
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- RIGHT COLUMN: Actions -->
@@ -1471,5 +1487,42 @@
 })();
 </script>
 {% endif %}
+
+<script>
+(function() {
+  const textarea = document.getElementById('candidate-note-input');
+  if (!textarea) return;
+
+  const statusEl  = document.getElementById('note-save-status');
+  const lastSaved = document.getElementById('note-last-saved');
+  const csrfToken = document.getElementById('note-csrf').value;
+  let debounceTimer = null;
+
+  textarea.addEventListener('input', function() {
+    statusEl.textContent = 'Unsaved…';
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(saveNote, 1000);
+  });
+
+  function saveNote() {
+    statusEl.textContent = 'Saving…';
+    const body = new URLSearchParams({
+      action: 'save_note',
+      text: textarea.value,
+      csrfmiddlewaretoken: csrfToken,
+    });
+    fetch(window.location.pathname, { method: 'POST', body })
+      .then(r => r.json())
+      .then(data => {
+        if (data.status === 'ok') {
+          statusEl.textContent = 'Saved ✓';
+          if (lastSaved) lastSaved.textContent = 'Last saved just now';
+          setTimeout(() => { statusEl.textContent = ''; }, 2500);
+        }
+      })
+      .catch(() => { statusEl.textContent = 'Error saving'; });
+  }
+})();
+</script>
 
 {% endblock %}

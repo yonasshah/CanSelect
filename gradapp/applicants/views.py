@@ -26,7 +26,7 @@ from collections import OrderedDict
 from .decorators import admin_required, committee_access_required
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
-from .models import Activity, Applicant, ApplicantFile, Notification, NotificationAttachment, Profile, Score, Vote, DataSet, Batch, Flag, Comment, ReviewPanel
+from .models import Activity, Applicant, ApplicantFile, Notification, NotificationAttachment, Profile, Score, Vote, DataSet, Batch, Flag, Comment, ReviewPanel, CandidateNote
 from .forms import ApplicantForm, ApplicantStatusForm, BatchAssignmentForm, BulkUploadForm, SendNotificationForm, UploadManyFilesForm, EmailLoginForm, DataSetForm, BatchForm, CommentForm, ScoreForm, ReviewPanelForm
 
 def email_login(request):
@@ -328,6 +328,7 @@ def applicant_detail(request, pk):
 
     comment_form = CommentForm()
     current_user_vote = Vote.objects.filter(applicant=applicant, voter=request.user).first()
+    user_note, _ = CandidateNote.objects.get_or_create(applicant=applicant, author=request.user)
     
     v_options = [
         ('1', 'Accept', 'btn-success' if current_user_vote and current_user_vote.value == 1 else 'btn-outline-success'),
@@ -341,6 +342,14 @@ def applicant_detail(request, pk):
         comments = applicant.comments.filter(author=request.user).select_related('author')
 
     if request.method == 'POST':
+        action = request.POST.get('action', '')
+
+        if action == 'save_note':
+            from django.http import JsonResponse
+            user_note.text = request.POST.get('text', '')
+            user_note.save()
+            return JsonResponse({'status': 'ok'})
+
         comment_form = CommentForm(request.POST)
         if comment_form.is_valid():
             new_comment = comment_form.save(commit=False)
@@ -504,6 +513,7 @@ def applicant_detail(request, pk):
         'applicant': applicant,
         'comments': comments,
         'comment_form': comment_form,
+        'user_note':    user_note,
         'current_user_vote': current_user_vote,
         'video_files': video_files,
         'application_docs': application_docs,
