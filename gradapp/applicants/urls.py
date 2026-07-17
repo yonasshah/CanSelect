@@ -73,4 +73,5 @@ urlpatterns = [
     path("analytics/", views.analytics_overview, name="analytics_overview"),
     path("analytics/<int:pk>/", views.analytics_dataset, name="analytics_dataset"),
     path('committee/progress/', views.committee_progress, name='committee_progress'),
+    path('team/toggle-active/', views.toggle_member_active, name='toggle_member_active'),
 ]

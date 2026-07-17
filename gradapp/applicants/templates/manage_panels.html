@@ -41,25 +41,37 @@
   [data-bs-theme="dark"] .batch-check:checked + .batch-toggle-card > div { background: rgba(13,110,253,0.15); border-color: rgba(13,110,253,0.5) !important; }
   [data-bs-theme="dark"] .member-toggle-card > div:hover,
   [data-bs-theme="dark"] .batch-toggle-card > div:hover { background: rgba(255,255,255,0.04); }
-
-  /* Admin reviewer toggle */
   .reviewer-toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid rgba(0,0,0,0.08); margin-bottom: 0.4rem; }
   [data-bs-theme="dark"] .reviewer-toggle-row { border-color: rgba(255,255,255,0.08); }
   .reviewer-toggle-row:last-child { margin-bottom: 0; }
+  .member-status-row { display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid rgba(0,0,0,0.08); margin-bottom: 0.4rem; }
+  [data-bs-theme="dark"] .member-status-row { border-color: rgba(255,255,255,0.08); }
+  .member-status-row:last-child { margin-bottom: 0; }
+  .member-status-row.inactive { background: rgba(220,53,69,0.04); border-color: rgba(220,53,69,0.15); }
+  [data-bs-theme="dark"] .member-status-row.inactive { background: rgba(220,53,69,0.08); }
+  .inactive-badge { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; background: rgba(220,53,69,0.1); color: #dc3545; border: 1px solid rgba(220,53,69,0.2); }
+  .member-active-btn:hover { border-color: #dc3545 !important; color: #dc3545 !important; }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
   <div>
-    <h2 class="mb-0">Review Panels</h2>
-    <p class="text-muted mb-0">Panels are mixed review teams. Each batch is assigned to one panel — all panel members review that batch independently.</p>
+    <h2 class="mb-0">Team Management</h2>
+    <p class="text-muted mb-0">Manage committee members, review panels, and reviewer access.</p>
   </div>
   <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createPanelModal">
     <i class="bi bi-plus-lg me-1"></i>New Panel
   </button>
 </div>
 
+
+<!-- ── Review Panels section ──────────────────────────────────────────────── -->
+<div class="d-flex align-items-center gap-2 mb-3">
+  <h5 class="mb-0 fw-bold"><i class="bi bi-diagram-3 me-2"></i>Review Panels</h5>
+  <hr class="flex-grow-1 m-0">
+</div>
+
 {% if not panels %}
-<div class="text-center py-5 border rounded">
+<div class="text-center py-5 border rounded mb-4">
   <i class="bi bi-people fs-1 d-block mb-3 opacity-25"></i>
   <h5 class="text-muted">No panels yet</h5>
   <p class="text-muted small">Create your first panel to start assigning reviewers and batches.</p>
@@ -68,7 +80,6 @@
   </button>
 </div>
 {% else %}
-
 <div class="row g-4 mb-4">
   {% for panel in panels %}
   <div class="col-12">
@@ -107,16 +118,20 @@
           {% if panel.members.all %}
             <div class="d-flex flex-wrap">
               {% for member in panel.members.all %}
-              <span class="member-chip">
+              <span class="member-chip {% if not member.is_active %}opacity-50{% endif %}">
                 <i class="bi bi-person-circle" style="font-size:0.75rem;"></i>
                 {{ member.get_full_name|default:member.username }}
-                {% with t=member.profile.person_type %}
-                  {% if t == 'STUDENT' %}<span class="type-badge type-student">Student</span>
-                  {% elif t == 'FACULTY' %}<span class="type-badge type-faculty">Faculty</span>
-                  {% elif t == 'STAFF' %}<span class="type-badge type-staff">Staff</span>
-                  {% elif t == 'OTHER' %}<span class="type-badge type-other">Other</span>
-                  {% endif %}
-                {% endwith %}
+                {% if not member.is_active %}
+                  <span class="inactive-badge">Inactive</span>
+                {% else %}
+                  {% with t=member.profile.person_type %}
+                    {% if t == 'STUDENT' %}<span class="type-badge type-student">Student</span>
+                    {% elif t == 'FACULTY' %}<span class="type-badge type-faculty">Faculty</span>
+                    {% elif t == 'STAFF' %}<span class="type-badge type-staff">Staff</span>
+                    {% elif t == 'OTHER' %}<span class="type-badge type-other">Other</span>
+                    {% endif %}
+                  {% endwith %}
+                {% endif %}
               </span>
               {% endfor %}
             </div>
@@ -154,16 +169,20 @@
   <p class="text-muted small mb-2">These committee members are not in any panel and won't see any candidates.</p>
   <div class="d-flex flex-wrap align-items-center">
     {% for member in unassigned_members %}
-    <span class="member-chip" style="background:rgba(108,117,125,0.08); border-color:rgba(108,117,125,0.2);">
+    <span class="member-chip {% if not member.is_active %}opacity-50{% endif %}" style="background:rgba(108,117,125,0.08); border-color:rgba(108,117,125,0.2);">
       <i class="bi bi-person-circle" style="font-size:0.75rem;"></i>
       {{ member.get_full_name|default:member.username }}
-      {% with t=member.profile.person_type %}
-        {% if t == 'STUDENT' %}<span class="type-badge type-student">Student</span>
-        {% elif t == 'FACULTY' %}<span class="type-badge type-faculty">Faculty</span>
-        {% elif t == 'STAFF' %}<span class="type-badge type-staff">Staff</span>
-        {% elif t == 'OTHER' %}<span class="type-badge type-other">Other</span>
-        {% endif %}
-      {% endwith %}
+      {% if not member.is_active %}
+        <span class="inactive-badge">Inactive</span>
+      {% else %}
+        {% with t=member.profile.person_type %}
+          {% if t == 'STUDENT' %}<span class="type-badge type-student">Student</span>
+          {% elif t == 'FACULTY' %}<span class="type-badge type-faculty">Faculty</span>
+          {% elif t == 'STAFF' %}<span class="type-badge type-staff">Staff</span>
+          {% elif t == 'OTHER' %}<span class="type-badge type-other">Other</span>
+          {% endif %}
+        {% endwith %}
+      {% endif %}
     </span>
     {% endfor %}
   </div>
@@ -215,29 +234,78 @@
   {% endif %}
 </div>
 
-<!-- Member Types section -->
+
+<!-- ── Committee Members section ─────────────────────────────────────────── -->
 <div class="unassigned-card mb-4">
-  <div class="section-label"><i class="bi bi-person-badge me-1"></i>Member Types</div>
-  <p class="text-muted small mb-3">Set the person type for each committee member.</p>
+  <div class="section-label"><i class="bi bi-people me-1"></i>Committee Members</div>
+  <p class="text-muted small mb-3">
+    Activate or deactivate committee member access. Deactivated members are immediately
+    logged out and cannot log in or access any part of the portal until reactivated.
+  </p>
+  {% if all_members %}
   <div class="row g-2">
     {% for member in all_members %}
-    <div class="col-md-4 col-lg-3">
-      <form method="post" action="{% url 'update_member_type' %}" class="d-flex align-items-center gap-2 p-2 rounded border">
-        {% csrf_token %}
-        <input type="hidden" name="user_id" value="{{ member.pk }}">
-        <div class="flex-grow-1 min-w-0">
-          <div class="small fw-semibold text-truncate">{{ member.get_full_name|default:member.username }}</div>
+    <div class="col-md-6 col-lg-4">
+      <div class="member-status-row {% if not member.is_active %}inactive{% endif %}">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-person-circle {% if member.is_active %}text-secondary{% else %}text-danger opacity-50{% endif %}"></i>
+          <div>
+            <div class="fw-semibold small">{{ member.get_full_name|default:member.username }}</div>
+            <div class="text-muted" style="font-size:0.7rem;">
+              {{ member.username }}
+              {% if not member.is_active %}
+                · <span style="color:#dc3545; font-size:0.65rem; font-weight:700; text-transform:uppercase; letter-spacing:0.04em;">Deactivated</span>
+              {% else %}
+                {% with t=member.profile.person_type %}
+                  {% if t == 'STUDENT' %} · <span class="type-badge type-student">Student</span>
+                  {% elif t == 'FACULTY' %} · <span class="type-badge type-faculty">Faculty</span>
+                  {% elif t == 'STAFF' %} · <span class="type-badge type-staff">Staff</span>
+                  {% elif t == 'OTHER' %} · <span class="type-badge type-other">Other</span>
+                  {% endif %}
+                {% endwith %}
+              {% endif %}
+            </div>
+          </div>
         </div>
-        <select name="person_type" class="type-select" onchange="this.form.submit()">
-          {% for val, label in person_type_choices %}
-            <option value="{{ val }}" {% if member.profile.person_type == val %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
-      </form>
+        <div class="d-flex align-items-center gap-2">
+          {% if member.is_active %}
+          <form method="post" action="{% url 'update_member_type' %}">
+            {% csrf_token %}
+            <input type="hidden" name="user_id" value="{{ member.pk }}">
+            <select name="person_type" class="type-select" onchange="this.form.submit()">
+              {% for val, label in person_type_choices %}
+                <option value="{{ val }}" {% if member.profile.person_type == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </form>
+          {% endif %}
+          <form method="post" action="{% url 'toggle_member_active' %}">
+            {% csrf_token %}
+            <input type="hidden" name="user_id" value="{{ member.pk }}">
+            {% if member.is_active %}
+            <button type="submit" class="btn btn-outline-secondary btn-sm member-active-btn"
+                    title="Click to deactivate"
+                    onclick="return confirm('Deactivate {{ member.get_full_name|default:member.username }}? They will be logged out immediately and unable to access the portal.')">
+              <span class="state-active"><i class="bi bi-check-circle-fill text-success me-1"></i>Active</span>
+              <span class="state-deactivate" style="display:none;"><i class="bi bi-x-circle me-1"></i>Deactivate</span>
+            </button>
+            {% else %}
+            <button type="submit" class="btn btn-outline-success btn-sm"
+                    title="Click to reactivate">
+              <i class="bi bi-x-circle-fill text-danger me-1"></i>Reactivate
+            </button>
+            {% endif %}
+          </form>
+        </div>
+      </div>
     </div>
     {% endfor %}
   </div>
+  {% else %}
+  <p class="text-muted small mb-0">No committee members found.</p>
+  {% endif %}
 </div>
+
 
 
 <!-- ── MODALS ─────────────────────────────────────────────────────────────── -->
@@ -319,6 +387,7 @@
           <p class="text-muted small mb-3">Click a reviewer to toggle them on or off this panel.</p>
           <div class="row g-2" style="max-height:420px; overflow-y:auto;">
             {% for member in all_members %}
+            {% if member.is_active %}
             <div class="col-md-6">
               <input type="checkbox" class="member-check d-none" name="member_ids" value="{{ member.pk }}"
                      id="member_{{ member.pk }}"
@@ -351,6 +420,7 @@
                 </div>
               </label>
             </div>
+            {% endif %}
             {% empty %}
             <div class="col-12 text-muted small">No committee members found.</div>
             {% endfor %}
@@ -514,6 +584,17 @@ document.getElementById('assignBatchesModal').addEventListener('show.bs.modal', 
 function selectAllBatches(checked) {
   document.querySelectorAll('.batch-check').forEach(cb => cb.checked = checked);
 }
+
+document.querySelectorAll('.member-active-btn').forEach(btn => {
+  btn.addEventListener('mouseenter', () => {
+    btn.querySelector('.state-active').style.display = 'none';
+    btn.querySelector('.state-deactivate').style.display = '';
+  });
+  btn.addEventListener('mouseleave', () => {
+    btn.querySelector('.state-active').style.display = '';
+    btn.querySelector('.state-deactivate').style.display = 'none';
+  });
+});
 </script>
 
 {% endblock %}

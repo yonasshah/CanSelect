@@ -1,9 +1,46 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Email Login</h2>
-<form method="post">
-  {% csrf_token %}
-  {{ form.as_p }}
-  <button type="submit" class="btn btn-primary">Login</button>
-</form>
+
+<div class="row justify-content-center mt-5">
+  <div class="col-sm-10 col-md-6 col-lg-4">
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <div class="text-center mb-4">
+          <i class="bi bi-person-circle fs-1 text-muted"></i>
+          <h4 class="mt-2 mb-0 fw-bold">Sign In</h4>
+          <p class="text-muted small mt-1">Kornberg Admissions Portal</p>
+        </div>
+
+        {% if deactivated %}
+        <div class="alert alert-danger d-flex align-items-start gap-2" role="alert">
+          <i class="bi bi-lock-fill flex-shrink-0 mt-1"></i>
+          <div>
+            <div class="fw-semibold">Account deactivated</div>
+            <div class="small mt-1">Your account has been deactivated. Please contact an administrator to regain access.</div>
+          </div>
+        </div>
+        {% endif %}
+
+        <form method="post">
+          {% csrf_token %}
+          {% for field in form %}
+            <div class="mb-3">
+              <label class="form-label fw-semibold small" for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% if field.errors %}
+                {% for error in field.errors %}
+                  <div class="text-danger small mt-1">{{ error }}</div>
+                {% endfor %}
+              {% endif %}
+            </div>
+          {% endfor %}
+          <div class="d-grid mt-4">
+            <button type="submit" class="btn btn-primary">Sign In</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}

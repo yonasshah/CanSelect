@@ -34,9 +34,26 @@ def email_login(request):
         form = EmailLoginForm(request.POST)
         if form.is_valid():
             email = form.cleaned_data["email"]
-            user, _ = User.objects.get_or_create(username=email, defaults={"email": email})
+ 
+            try:
+                user = User.objects.get(username=email)
+            except User.DoesNotExist:
+                form.add_error("email", "No account found with that email address.")
+                return render(request, "login.html", {"form": form})
+ 
+            if not user.is_active:
+                return render(request, "login.html", {
+                    "form": form,
+                    "deactivated": True,
+                })
+ 
             login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+ 
+            # Redirect committee members to their dashboard
+            if user.profile.role == 'COMMITTEE_MEMBER':
+                return redirect("committee_dashboard")
             return redirect("dashboard")
+ 
     else:
         form = EmailLoginForm()
     return render(request, "login.html", {"form": form})
@@ -4515,3 +4532,48 @@ def committee_progress(request):
             {'label': 'Committee Progress', 'url': ''},
         ],
     })
+    
+@login_required
+@admin_required
+@require_POST
+def toggle_member_active(request):
+    """
+    Activate or deactivate a committee member by toggling user.is_active.
+    Deactivated users are immediately blocked from all views.
+    Guards: cannot deactivate yourself, cannot deactivate admins.
+    """
+    user_id = request.POST.get('user_id')
+
+    try:
+        target = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        messages.error(request, "User not found.")
+        return redirect('manage_panels')
+
+    # Safety guards
+    if target == request.user:
+        messages.error(request, "You cannot deactivate your own account.")
+        return redirect('manage_panels')
+
+    if target.profile.role == 'ADMIN':
+        messages.error(request, "Admin accounts cannot be deactivated from this page.")
+        return redirect('manage_panels')
+
+    target.is_active = not target.is_active
+    target.save()
+
+    if target.is_active:
+        messages.success(request, f"{target.get_full_name() or target.username} has been reactivated.")
+    else:
+        # Flush their session so they're kicked out immediately
+        from django.contrib.sessions.models import Session
+        from django.utils import timezone
+        sessions = Session.objects.filter(expire_date__gte=timezone.now())
+        for session in sessions:
+            data = session.get_decoded()
+            if str(data.get('_auth_user_id')) == str(target.pk):
+                session.delete()
+
+        messages.success(request, f"{target.get_full_name() or target.username} has been deactivated and logged out.")
+
+    return redirect('manage_panels')
