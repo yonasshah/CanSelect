@@ -1,46 +1,327 @@
 {% extends "base.html" %}
+{% load static %}
 {% block content %}
 
-<div class="row justify-content-center mt-5">
-  <div class="col-sm-10 col-md-6 col-lg-4">
-    <div class="card shadow-sm">
-      <div class="card-body p-4">
-        <div class="text-center mb-4">
-          <i class="bi bi-person-circle fs-1 text-muted"></i>
-          <h4 class="mt-2 mb-0 fw-bold">Sign In</h4>
-          <p class="text-muted small mt-1">Kornberg Admissions Portal</p>
-        </div>
+<style>
+  .auth-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1050;
+    background: #0a0a0a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
 
-        {% if deactivated %}
-        <div class="alert alert-danger d-flex align-items-start gap-2" role="alert">
-          <i class="bi bi-lock-fill flex-shrink-0 mt-1"></i>
-          <div>
-            <div class="fw-semibold">Account deactivated</div>
-            <div class="small mt-1">Your account has been deactivated. Please contact an administrator to regain access.</div>
-          </div>
-        </div>
-        {% endif %}
+  .auth-bg {
+    position: absolute;
+    inset: 0;
+    background-image: url("{% static 'templedental.png' %}");
+    background-size: cover;
+    background-position: center 30%;
+    filter: brightness(0.65) saturate(0.9);
+    transform: scale(1.04);
+    transition: transform 0.1s ease-out;
+  }
 
-        <form method="post">
-          {% csrf_token %}
-          {% for field in form %}
-            <div class="mb-3">
-              <label class="form-label fw-semibold small" for="{{ field.id_for_label }}">{{ field.label }}</label>
-              {{ field }}
-              {% if field.errors %}
-                {% for error in field.errors %}
-                  <div class="text-danger small mt-1">{{ error }}</div>
-                {% endfor %}
+  .auth-bg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(157,34,53,0.3) 0%, rgba(10,10,10,0.35) 100%);
+  }
+
+  .login-card {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 420px;
+    margin: 1rem;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.08);
+    animation: cardIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateY(24px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .card-brand {
+    background: #ffffff;
+    padding: 1.4rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    border-bottom: 3px solid #9d2235;
+  }
+
+  .card-brand img {
+    height: 44px;
+    width: auto;
+    flex-shrink: 0;
+  }
+
+  .brand-divider {
+    width: 1px;
+    height: 36px;
+    background: #e0e0e0;
+    flex-shrink: 0;
+  }
+
+  .brand-text-main {
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: #9d2235;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    line-height: 1.2;
+    margin: 0;
+  }
+
+  .brand-text-sub {
+    font-size: 0.7rem;
+    color: #777;
+    margin: 2px 0 0;
+  }
+
+  .card-body-inner {
+    background: rgba(30, 8, 14, 0.72);
+    backdrop-filter: blur(24px) saturate(1.4);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
+    padding: 2.25rem 2rem 2rem;
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .login-heading {
+    color: #fff;
+    font-size: 1.55rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin: 0 0 0.2rem;
+  }
+
+  .login-sub {
+    color: rgba(255,255,255,0.3);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin: 0 0 1.75rem;
+  }
+
+  .field-wrap { margin-bottom: 1rem; }
+
+  .field-label {
+    display: block;
+    color: rgba(255,255,255,0.5);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+
+  .input-shell {
+    display: flex;
+    align-items: center;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: border-color 0.18s, box-shadow 0.18s;
+  }
+
+  .input-shell:focus-within {
+    border-color: rgba(255,255,255,0.35);
+    box-shadow: 0 0 0 3px rgba(157,34,53,0.3);
+  }
+
+  .input-icon {
+    padding: 0 0.85rem;
+    color: rgba(255,255,255,0.3);
+    font-size: 0.85rem;
+    flex-shrink: 0;
+  }
+
+  .input-shell input {
+    flex: 1;
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    color: #fff !important;
+    font-size: 0.95rem;
+    padding: 0.72rem 0.85rem 0.72rem 0;
+  }
+
+  .input-shell input::placeholder { color: rgba(255,255,255,0.2); }
+
+  .field-error {
+    margin-top: 0.4rem;
+    font-size: 0.74rem;
+    color: #ff8a9a;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .deactivated-banner {
+    background: rgba(255,255,255,0.95);
+    border-left: 4px solid #9d2235;
+    border-radius: 10px;
+    padding: 0.85rem 1rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .deactivated-banner i { color: #9d2235; font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+  .deactivated-banner .ban-title { font-size: 0.82rem; font-weight: 700; color: #1a1a1a; margin-bottom: 2px; }
+  .deactivated-banner .ban-body { font-size: 0.74rem; color: #555; line-height: 1.4; }
+
+  .btn-portal {
+    display: block;
+    width: 100%;
+    margin-top: 1.5rem;
+    padding: 0.85rem;
+    background: #9d2235;
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.18s, transform 0.15s, box-shadow 0.18s;
+    box-shadow: 0 4px 18px rgba(157,34,53,0.5);
+  }
+
+  .btn-portal:hover {
+    background: #b52a3f;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 24px rgba(157,34,53,0.65);
+  }
+
+  .btn-portal:active { transform: translateY(0); }
+
+  .card-footer-note {
+    margin-top: 1.75rem;
+    text-align: center;
+    font-size: 0.67rem;
+    color: rgba(255,255,255,0.18);
+    letter-spacing: 0.04em;
+  }
+
+  /* ── Mobile ── */
+  @media (max-width: 480px) {
+    .auth-overlay {
+      align-items: center;
+      padding: env(safe-area-inset-top, 1rem) 1rem env(safe-area-inset-bottom, 1rem);
+    }
+
+    .login-card {
+      margin: 0;
+      border-radius: 16px;
+      max-width: 100%;
+      width: 100%;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+
+    .card-brand {
+      padding: 1.1rem 1.25rem;
+    }
+
+    .card-brand img { height: 36px; }
+    .brand-divider { height: 28px; }
+    .brand-text-main { font-size: 0.72rem; }
+    .brand-text-sub { font-size: 0.65rem; }
+
+    .card-body-inner { padding: 1.5rem 1.25rem 1.5rem; }
+    .login-heading { font-size: 1.3rem; }
+  }
+
+  /* ── Tablet ── */
+  @media (min-width: 481px) and (max-width: 768px) {
+    .login-card { max-width: 400px; }
+    .card-brand { padding: 1.25rem 1.5rem; }
+    .card-body-inner { padding: 2rem 1.75rem 1.75rem; }
+  }
+</style>
+
+<div class="auth-overlay">
+  <div class="auth-bg" id="authBg"></div>
+
+  <div class="login-card">
+    <div class="card-brand">
+      <img src="{% static 'temple_logo.png' %}" alt="Temple University">
+      <div class="brand-divider"></div>
+      <div>
+        <p class="brand-text-main">Temple University</p>
+        <p class="brand-text-sub">Kornberg School of Dentistry</p>
+      </div>
+    </div>
+
+    <div class="card-body-inner">
+      <h2 class="login-heading">Sign In</h2>
+      <p class="login-sub">CanSelect Admissions Portal</p>
+
+      {% if deactivated %}
+      <div class="deactivated-banner">
+        <i class="bi bi-lock-fill"></i>
+        <div>
+          <div class="ban-title">Account Deactivated</div>
+          <div class="ban-body">Your access has been suspended. Contact an administrator to regain entry.</div>
+        </div>
+      </div>
+      {% endif %}
+
+      <form method="post">
+        {% csrf_token %}
+        {% for field in form %}
+        <div class="field-wrap">
+          <label class="field-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          <div class="input-shell">
+            <span class="input-icon">
+              {% if field.name == 'email' or field.name == 'username' %}
+                <i class="bi bi-envelope-fill"></i>
+              {% elif field.name == 'password' %}
+                <i class="bi bi-lock-fill"></i>
+              {% else %}
+                <i class="bi bi-person-fill"></i>
               {% endif %}
-            </div>
-          {% endfor %}
-          <div class="d-grid mt-4">
-            <button type="submit" class="btn btn-primary">Sign In</button>
+            </span>
+            {{ field }}
           </div>
-        </form>
+          {% for error in field.errors %}
+          <div class="field-error"><i class="bi bi-exclamation-circle-fill"></i>{{ error }}</div>
+          {% endfor %}
+        </div>
+        {% endfor %}
+
+        <button type="submit" class="btn-portal">Enter Portal</button>
+      </form>
+
+      <div class="card-footer-note">
+        &copy; {% now "Y" %} Kornberg School of Dentistry &nbsp;·&nbsp; Secure Internal System
       </div>
     </div>
   </div>
 </div>
+
+<script>
+  const bg = document.getElementById('authBg');
+  // Only enable parallax on non-touch devices
+  if (!('ontouchstart' in window)) {
+    document.addEventListener('mousemove', e => {
+      const x = (e.clientX / window.innerWidth  - 0.5) * 14;
+      const y = (e.clientY / window.innerHeight - 0.5) * 10;
+      bg.style.transform = `scale(1.04) translate(${x}px, ${y}px)`;
+    });
+  }
+</script>
 
 {% endblock %}

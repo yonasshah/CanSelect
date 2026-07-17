@@ -637,6 +637,64 @@
           margin-right: 0.5rem;
         }
       }
+      @media (max-width: 767.98px) {
+        .app-main {
+          padding-top: 1rem;
+          padding-bottom: 2rem;
+        }
+
+        /* Tighter container padding on phones */
+        .app-main .container {
+          padding-left: 0.85rem;
+          padding-right: 0.85rem;
+        }
+
+        /* Footer: stack cleanly, reduce text clutter */
+        .app-footer {
+          padding-top: 1rem;
+          padding-bottom: 1rem;
+        }
+
+        .app-footer img {
+          height: 28px;
+        }
+
+        .app-footer-title {
+          font-size: 0.85rem;
+        }
+
+        .app-footer-subtitle {
+          font-size: 0.72rem;
+        }
+
+        /* Bigger touch targets for nav links in collapsed menu */
+        .app-navbar .nav-link {
+          min-height: 44px;
+        }
+
+        /* Modals full screen on phone */
+        .modal-dialog {
+          margin: 0.5rem;
+        }
+
+        /* Alerts less padding on small screens */
+        .alert {
+          padding: 0.75rem 1rem;
+          font-size: 0.9rem;
+        }
+      }
+
+      @media (max-width: 480px) {
+        /* Cards less rounded on small screens, saves horizontal space */
+        .card {
+          border-radius: 10px;
+        }
+
+        /* Badges wrap better */
+        .badge {
+          font-size: 0.65rem;
+        }
+      }
     </style>
 
     <script>
