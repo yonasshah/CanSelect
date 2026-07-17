@@ -681,6 +681,18 @@
           </div>
         </div>
 
+        {% if total_committee_count > 0 %}
+        <div class="col-auto d-flex align-items-center pt-3">
+          <div class="form-check mb-0">
+            <input class="form-check-input" type="checkbox" name="all_committee" id="all_committee"
+                   {% if all_committee %}checked{% endif %} onchange="this.form.submit()">
+            <label class="form-check-label small" for="all_committee">
+              <i class="bi bi-people-fill me-1" style="color: #6f42c1;"></i>All committee assigned
+            </label>
+          </div>
+        </div>
+        {% endif %}
+
         <div class="col-auto d-flex align-items-center pt-3">
           <button type="button" class="btn btn-outline-secondary btn-sm advanced-btn"
                   data-bs-toggle="collapse" data-bs-target="#advanced-filters">
@@ -790,7 +802,7 @@
                 <th style="width:44px;"></th>
 
                 <th>
-                  <a href="?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}&sort=name&dir={% if sort == 'name' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link">
+                  <a href="?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&all_committee={{ all_committee|default:'' }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}&sort=name&dir={% if sort == 'name' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link">
                     Name
                     <i class="bi bi-arrow-{% if sort == 'name' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'name' %}active{% endif %}"></i>
                   </a>
@@ -801,21 +813,21 @@
                 <th>Batch</th>
 
                 <th>
-                  <a href="?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}&sort=status&dir={% if sort == 'status' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link">
+                  <a href="?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&all_committee={{ all_committee|default:'' }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}&sort=status&dir={% if sort == 'status' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link">
                     Status
                     <i class="bi bi-arrow-{% if sort == 'status' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'status' %}active{% endif %}"></i>
                   </a>
                 </th>
 
                 <th>
-                  <a href="?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}&sort=date&dir={% if sort == 'date' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link">
+                  <a href="?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&all_committee={{ all_committee|default:'' }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}&sort=date&dir={% if sort == 'date' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link">
                     Uploaded
                     <i class="bi bi-arrow-{% if sort == 'date' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'date' %}active{% endif %}"></i>
                   </a>
                 </th>
 
                 <th class="text-center">
-                  <a href="?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}&sort=score&dir={% if sort == 'score' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link justify-content-center">
+                  <a href="?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&all_committee={{ all_committee|default:'' }}&application_system={{ application_system|default:'' }}&program_type={{ program_type|default:'' }}&first_gen={{ filter_first_gen|default:'' }}&re_applicant={{ filter_re_applicant|default:'' }}&pb_to_dmd={{ filter_pb_to_dmd|default:'' }}&former_post_bacc={{ filter_former_pb|default:'' }}&three_plus_four={{ filter_three_plus_four|default:'' }}&sort=score&dir={% if sort == 'score' and direction == 'asc' %}desc{% else %}asc{% endif %}" class="sort-link justify-content-center">
                     Score / Votes
                     <i class="bi bi-arrow-{% if sort == 'score' %}{% if direction == 'asc' %}up{% else %}down{% endif %}{% else %}down-up{% endif %} sort-icon {% if sort == 'score' %}active{% endif %}"></i>
                   </a>
@@ -854,6 +866,13 @@
                   {% if request.user in a.flagged_by.all or user.profile.role == 'ADMIN' and a.flagged_by.exists %}
                     <span class="badge bg-danger ms-1" title="Flagged for discussion">
                       <i class="bi bi-flag-fill"></i>
+                    </span>
+                  {% endif %}
+
+                  {% if total_committee_count > 0 and a.assigned_committee_count == total_committee_count %}
+                    <span class="badge bg-purple ms-1" title="Assigned to all committee members"
+                          style="background-color: #6f42c1;">
+                      <i class="bi bi-people-fill"></i>
                     </span>
                   {% endif %}
                 </td>

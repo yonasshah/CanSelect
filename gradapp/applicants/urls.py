@@ -25,6 +25,7 @@ urlpatterns = [
     path("applicant/<int:pk>/update-score/", views.update_score, name="update_score"),
     path("applicant/<int:pk>/profile/", views.applicant_profile_partial, name="applicant_profile_partial"),
     path("applicant/<int:pk>/toggle-flag/", toggle_applicant_flag, name="toggle_applicant_flag"),
+    path("applicant/<int:pk>/assign-all-committee/", views.assign_all_committee, name="assign_all_committee"),
 
     # ── Datasets ──────────────────────────────────────────────────────
     path("datasets/", views.dataset_list, name="dataset_list"),

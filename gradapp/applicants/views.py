@@ -196,6 +196,7 @@ def applicant_list(request):
     search_query      = request.GET.get('q', '')
     status_filter     = request.GET.get('status', '')
     flagged_only      = request.GET.get('flagged_only', '')
+    all_committee     = request.GET.get('all_committee', '')
     sort              = request.GET.get('sort', 'date')
     direction         = request.GET.get('dir', 'desc')
     program_type      = request.GET.get('program_type', '')
@@ -218,9 +219,16 @@ def applicant_list(request):
         voter=request.user
     )
 
+    total_committee_count = User.objects.filter(profile__role='COMMITTEE_MEMBER').count()
+
     applicants_list = Applicant.objects.select_related('dataset', 'round').annotate(
         avg_score=Avg('scores__overall_score'),
-        user_has_voted=Exists(user_has_voted_subquery)
+        user_has_voted=Exists(user_has_voted_subquery),
+        assigned_committee_count=Count(
+            'assigned_reviewers',
+            filter=Q(assigned_reviewers__profile__role='COMMITTEE_MEMBER'),
+            distinct=True,
+        ),
     )
 
     if selected_batch_id:
@@ -238,6 +246,9 @@ def applicant_list(request):
 
     if flagged_only:
         applicants_list = applicants_list.filter(flagged_by__isnull=False).distinct()
+
+    if all_committee and total_committee_count > 0:
+        applicants_list = applicants_list.filter(assigned_committee_count=total_committee_count)
 
     if application_system:
         applicants_list = applicants_list.filter(dataset__application_system=application_system)
@@ -285,6 +296,8 @@ def applicant_list(request):
         'search_query':        search_query,
         'status_filter':       status_filter,
         'flagged_only':        flagged_only,
+        'all_committee':       all_committee,
+        'total_committee_count': total_committee_count,
         'sort':                sort,
         'direction':           direction,
         'program_type':        program_type,
@@ -1917,18 +1930,25 @@ def applicant_queue(request):
         applicant=OuterRef('pk'),
         voter=request.user
     )
- 
+
+    total_committee_count = User.objects.filter(profile__role='COMMITTEE_MEMBER').count()
+
     # Default: exclude yes/no/waitlist. With show_waitlist: only exclude yes/no.
     exclude_values = [1, -1] if show_waitlist else [1, -1, 0]
- 
+
     applicants_list = Applicant.objects.filter(
-        round__in=batches
+        Q(round__in=batches) | Q(assigned_reviewers=request.user)
     ).exclude(
         votes__voter=request.user,
         votes__value__in=exclude_values,
     ).select_related('dataset', 'round').annotate(
         avg_score=Avg('scores__overall_score'),
-        user_has_voted=Exists(user_has_voted_subquery)
+        user_has_voted=Exists(user_has_voted_subquery),
+        assigned_committee_count=Count(
+            'assigned_reviewers',
+            filter=Q(assigned_reviewers__profile__role='COMMITTEE_MEMBER'),
+            distinct=True,
+        ),
     ).order_by("-created_at")
  
     if selected_batch_id:
@@ -1950,7 +1970,8 @@ def applicant_queue(request):
     voted_in_scope = Vote.objects.filter(
         voter=request.user,
         value__in=[1, -1],
-        applicant__round__in=batch_filter_qs,
+    ).filter(
+        Q(applicant__round__in=batch_filter_qs) | Q(applicant__assigned_reviewers=request.user)
     )
     if search_query:
         voted_in_scope = voted_in_scope.filter(
@@ -1991,6 +2012,7 @@ def applicant_queue(request):
         'status_filter':     status_filter,
         'flagged_only':      flagged_only,
         'show_waitlist':     show_waitlist,
+        'total_committee_count': total_committee_count,
         'program_type':            '',
         'application_system':      '',
         'filter_first_gen':        '',
@@ -2318,6 +2340,30 @@ def toggle_applicant_flag(request, pk):
         messages.success(request, "Candidate flagged for discussion.")
 
     return redirect(redirect_url)
+
+
+@require_POST
+@login_required
+@admin_required
+def assign_all_committee(request, pk):
+    """Assign a single applicant to every active committee member."""
+    applicant = get_object_or_404(Applicant, pk=pk)
+    nav_params = request.POST.get('nav_params', '')
+    redirect_url = f'/applicant/{pk}/?{nav_params}' if nav_params else f'/applicant/{pk}/'
+
+    committee_members = User.objects.filter(profile__role='COMMITTEE_MEMBER')
+    applicant.assigned_reviewers.set(committee_members)
+
+    count = committee_members.count()
+    Activity.objects.create(
+        actor=request.user,
+        action_type=Activity.COMMENT_ADDED,
+        details=f"assigned to all {count} committee member(s)",
+        target_applicant=applicant,
+    )
+    messages.success(request, f"{applicant.first_name} {applicant.last_name} assigned to all {count} committee member(s).")
+    return redirect(redirect_url)
+
 
 @login_required
 def help_page(request):
