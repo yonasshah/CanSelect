@@ -9,6 +9,9 @@
     <p class="text-muted mb-0">Analytics — review progress and academic score distributions.</p>
   </div>
   <div class="d-flex gap-2">
+    <button class="btn btn-outline-secondary btn-sm" id="exportDatasetBtn">
+      <i class="bi bi-download me-1"></i>Export CSV
+    </button>
     <a href="{% url 'dataset_detail' dataset.pk %}" class="btn btn-outline-secondary btn-sm">
       <i class="bi bi-stack me-1"></i>Dataset Detail
     </a>
@@ -90,11 +93,22 @@
 
 {% if imported_count > 0 %}
 
-<!-- ── GPA Distributions ───────────────────────────────────────────────────── -->
-<h4 class="mt-4 mb-3">GPA Statistics</h4>
+<!-- ── Chart Filter Bar ────────────────────────────────────────────────────── -->
+<div class="d-flex align-items-center gap-3 mb-3 mt-4">
+  <h4 class="mb-0">GPA Statistics</h4>
+  <div class="ms-auto d-flex align-items-center gap-2">
+    <label class="text-muted small mb-0">Filter charts by batch:</label>
+    <select id="batchChartFilter" class="form-select form-select-sm" style="width:auto; min-width:180px;">
+      <option value="all">All Batches</option>
+      {% for row in batch_progress %}
+        <option value="{{ row.batch.pk }}">{{ row.batch.DisplayName }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
 
 <!-- GPA summary cards -->
-<div class="row g-3 mb-4">
+<div class="row g-3 mb-4" id="gpaSummaryCards">
   {% for label, avg, mn, mx, field in gpa_fields %}
   <div class="col-md-4">
     <div class="card border-0 bg-light">
@@ -102,14 +116,14 @@
         <div class="text-muted small mb-2">{{ label }}</div>
         <div class="d-flex justify-content-between align-items-end">
           <div>
-            <div class="fs-2 fw-bold {% if avg >= 3.5 %}text-success{% elif avg >= 3.0 %}text-warning{% else %}text-danger{% endif %}">
+            <div class="fs-2 fw-bold {% if avg >= 3.5 %}text-success{% elif avg >= 3.0 %}text-warning{% else %}text-danger{% endif %}" id="gpa-avg-{{ field }}">
               {{ avg|default:"—" }}
             </div>
             <div class="text-muted small">average</div>
           </div>
           <div class="text-end">
-            <div class="small text-muted">Min <span class="fw-semibold text-body">{{ mn|default:"—" }}</span></div>
-            <div class="small text-muted">Max <span class="fw-semibold text-body">{{ mx|default:"—" }}</span></div>
+            <div class="small text-muted">Min <span class="fw-semibold text-body" id="gpa-min-{{ field }}">{{ mn|default:"—" }}</span></div>
+            <div class="small text-muted">Max <span class="fw-semibold text-body" id="gpa-max-{{ field }}">{{ mx|default:"—" }}</span></div>
           </div>
         </div>
       </div>
@@ -200,14 +214,50 @@
 
 {% endif %}{# end imported_count > 0 #}
 
+<!-- ── Decisions & Scores ─────────────────────────────────────────────────── -->
+<h4 class="mt-4 mb-3">Decisions &amp; Scores</h4>
+<div class="row g-4 mb-4">
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header fw-semibold py-2 small">Candidate Status Breakdown</div>
+      <div class="card-body d-flex align-items-center justify-content-center">
+        <canvas id="statusChart" height="240"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header fw-semibold py-2 small d-flex justify-content-between align-items-center">
+        <span>Review Score Distribution</span>
+        <span class="text-muted fw-normal" style="font-size:0.75rem;">Overall scores given by committee</span>
+      </div>
+      <div class="card-body">
+        {% if score_distribution %}
+          <canvas id="scoreChart" height="200"></canvas>
+        {% else %}
+          <div class="text-muted small text-center py-4">No scores submitted yet.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
 {% if imported_count > 0 %}
-<!-- Candidate drill-down modal (populated on bar click) -->
+<!-- Candidate drill-down modal -->
 <div class="modal fade" id="bandModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="bandModalTitle">Candidates</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <!-- Sort controls inside modal -->
+      <div class="px-3 pt-2 pb-1 border-bottom d-flex align-items-center gap-2">
+        <span class="text-muted small">Sort:</span>
+        <button class="btn btn-sm btn-outline-secondary modal-sort-btn active" data-sort="score-desc">Score ↓</button>
+        <button class="btn btn-sm btn-outline-secondary modal-sort-btn" data-sort="score-asc">Score ↑</button>
+        <button class="btn btn-sm btn-outline-secondary modal-sort-btn" data-sort="name-asc">Name A–Z</button>
+        <button class="btn btn-sm btn-outline-secondary modal-sort-btn" data-sort="name-desc">Name Z–A</button>
       </div>
       <div class="modal-body p-0">
         <ul class="list-group list-group-flush" id="bandModalList"></ul>
@@ -225,70 +275,115 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 (function() {
-  const isDark = document.getElementById('html-root').getAttribute('data-bs-theme') === 'dark';
+  const isDark    = document.getElementById('html-root').getAttribute('data-bs-theme') === 'dark';
   const gridColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)';
-  const labelColor = isDark ? '#adb5bd' : '#6c757d';
+  const labelColor= isDark ? '#adb5bd' : '#6c757d';
 
   const bandLabels    = {{ gpa_band_labels|safe }};
   const datBandLabels = {{ dat_band_labels|safe }};
 
-  // Member lists per band — parallel to the count arrays below.
-  const members = {
+  // All member data from server
+  const allMembers = {
     gpaOverallChart: { labels: bandLabels,    title: 'Overall GPA', kind: 'gpa', groups: {{ gpa_overall_members|default:"[]"|safe }} },
     gpaScienceChart: { labels: bandLabels,    title: 'Science GPA', kind: 'gpa', groups: {{ gpa_science_members|default:"[]"|safe }} },
     gpaBcpChart:     { labels: bandLabels,    title: 'BCP GPA',     kind: 'gpa', groups: {{ gpa_bcp_members|default:"[]"|safe }} },
     datAaChart:      { labels: datBandLabels, title: 'DAT Academic Average', kind: 'dat', groups: {{ dat_aa_members|default:"[]"|safe }} },
   };
 
-  let bandModal = null;
-  function showBand(chartId, index) {
-    const cfg = members[chartId];
-    if (!cfg) return;
-    const group = (cfg.groups[index] || []).slice().sort((a, b) => {
-      const av = (a.score === null || a.score === undefined) ? -Infinity : a.score;
-      const bv = (b.score === null || b.score === undefined) ? -Infinity : b.score;
-      if (av !== bv) return bv - av;           // highest score first
-      return a.name.localeCompare(b.name);     // tie-break by name
+  // Batch membership map: candidate URL -> batch pk (string)
+  const candidateBatchMap = {{ candidate_batch_map|default:"{}"|safe }};
+
+  // ── Modal sort state ───────────────────────────────────────────────────
+  let currentModalSort  = 'score-desc';
+  let currentModalGroup = null; // raw unsorted group array
+  let currentModalCfg   = null;
+  let bandModal         = null;
+
+  function sortGroup(group, sortMode) {
+    return group.slice().sort((a, b) => {
+      if (sortMode === 'score-desc') {
+        const av = (a.score === null || a.score === undefined) ? -Infinity : a.score;
+        const bv = (b.score === null || b.score === undefined) ? -Infinity : b.score;
+        return av !== bv ? bv - av : a.name.localeCompare(b.name);
+      }
+      if (sortMode === 'score-asc') {
+        const av = (a.score === null || a.score === undefined) ? Infinity : a.score;
+        const bv = (b.score === null || b.score === undefined) ? Infinity : b.score;
+        return av !== bv ? av - bv : a.name.localeCompare(b.name);
+      }
+      if (sortMode === 'name-asc')  return a.name.localeCompare(b.name);
+      if (sortMode === 'name-desc') return b.name.localeCompare(a.name);
+      return 0;
     });
-    document.getElementById('bandModalTitle').textContent =
-      cfg.title + ' · ' + cfg.labels[index] + ' — ' + group.length +
-      ' candidate' + (group.length === 1 ? '' : 's');
+  }
+
+  function renderModalList(group, cfg) {
     const list  = document.getElementById('bandModalList');
     const empty = document.getElementById('bandModalEmpty');
     list.innerHTML = '';
-    if (group.length === 0) {
+    if (!group || group.length === 0) {
       empty.classList.remove('d-none');
-    } else {
-      empty.classList.add('d-none');
-      group.forEach(c => {
-        const a = document.createElement('a');
-        a.href = c.url;
-        a.className = 'list-group-item list-group-item-action d-flex align-items-center';
-        const icon = document.createElement('i');
-        icon.className = 'bi bi-person-circle text-secondary me-2';
-        const span = document.createElement('span');
-        span.textContent = c.name;
-        a.appendChild(icon);
-        a.appendChild(span);
-        if (c.score !== null && c.score !== undefined) {
-          const badge = document.createElement('span');
-          badge.className = 'badge bg-light text-dark border ms-auto';
-          badge.textContent = cfg.kind === 'gpa'
-            ? Number(c.score).toFixed(2)
-            : String(Math.round(Number(c.score)));
-          a.appendChild(badge);
-        }
-        list.appendChild(a);
-      });
+      return;
     }
+    empty.classList.add('d-none');
+    group.forEach(c => {
+      const a = document.createElement('a');
+      a.href = c.url;
+      a.className = 'list-group-item list-group-item-action d-flex align-items-center';
+      const icon = document.createElement('i');
+      icon.className = 'bi bi-person-circle text-secondary me-2';
+      const span = document.createElement('span');
+      span.textContent = c.name;
+      a.appendChild(icon);
+      a.appendChild(span);
+      if (c.score !== null && c.score !== undefined) {
+        const badge = document.createElement('span');
+        badge.className = 'badge bg-light text-dark border ms-auto';
+        badge.textContent = cfg.kind === 'gpa'
+          ? Number(c.score).toFixed(2)
+          : String(Math.round(Number(c.score)));
+        a.appendChild(badge);
+      }
+      list.appendChild(a);
+    });
+  }
+
+  document.querySelectorAll('.modal-sort-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.modal-sort-btn').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      currentModalSort = this.dataset.sort;
+      if (currentModalGroup && currentModalCfg) {
+        renderModalList(sortGroup(currentModalGroup, currentModalSort), currentModalCfg);
+      }
+    });
+  });
+
+  function showBand(chartId, index, filteredGroup) {
+    const cfg = allMembers[chartId];
+    if (!cfg) return;
+    const group = filteredGroup || cfg.groups[index] || [];
+    currentModalGroup = group;
+    currentModalCfg   = cfg;
+
+    document.getElementById('bandModalTitle').textContent =
+      cfg.title + ' · ' + cfg.labels[index] + ' — ' + group.length +
+      ' candidate' + (group.length === 1 ? '' : 's');
+
+    renderModalList(sortGroup(group, currentModalSort), cfg);
     if (!bandModal) bandModal = new bootstrap.Modal(document.getElementById('bandModal'));
     bandModal.show();
   }
 
-  function makeBarChart(id, labels, data, color) {
+  // ── Chart management ───────────────────────────────────────────────────
+  const chartInstances = {};
+
+  function makeBarChart(id, labels, data, color, filteredGroups) {
     const ctx = document.getElementById(id);
     if (!ctx) return;
-    new Chart(ctx, {
+    if (chartInstances[id]) chartInstances[id].destroy();
+
+    chartInstances[id] = new Chart(ctx, {
       type: 'bar',
       data: {
         labels: labels,
@@ -297,7 +392,10 @@
       options: {
         responsive: true,
         onClick: (evt, elements) => {
-          if (elements && elements.length) showBand(id, elements[0].index);
+          if (elements && elements.length) {
+            const idx = elements[0].index;
+            showBand(id, idx, filteredGroups ? filteredGroups[idx] : null);
+          }
         },
         onHover: (evt, elements) => {
           if (evt.native) evt.native.target.style.cursor = (elements && elements.length) ? 'pointer' : 'default';
@@ -314,10 +412,264 @@
     });
   }
 
-  makeBarChart('gpaOverallChart', bandLabels, {{ gpa_overall_bands|safe }}, 'rgba(13,110,253,0.6)');
-  makeBarChart('gpaScienceChart', bandLabels, {{ gpa_science_bands|safe }}, 'rgba(25,135,84,0.6)');
-  makeBarChart('gpaBcpChart',     bandLabels, {{ gpa_bcp_bands|safe }},     'rgba(108,117,125,0.6)');
-  makeBarChart('datAaChart',      datBandLabels, {{ dat_aa_bands|safe }},   'rgba(255,193,7,0.7)');
+  // ── Batch filter ───────────────────────────────────────────────────────
+  function filterGroupsByBatch(groups, batchPk) {
+    if (!batchPk || batchPk === 'all') return { groups: groups, filtered: null };
+    const filtered = groups.map(band =>
+      band.filter(c => String(candidateBatchMap[c.url]) === String(batchPk))
+    );
+    return { groups: groups, filtered };
+  }
+
+  function rebuildCharts(batchPk) {
+    const isAll = !batchPk || batchPk === 'all';
+
+    // GPA Overall
+    const ovResult = filterGroupsByBatch(allMembers.gpaOverallChart.groups, batchPk);
+    const ovData   = isAll ? {{ gpa_overall_bands|safe }} : ovResult.filtered.map(b => b.length);
+    makeBarChart('gpaOverallChart', bandLabels, ovData, 'rgba(13,110,253,0.6)', isAll ? null : ovResult.filtered);
+
+    // GPA Science
+    const sciResult = filterGroupsByBatch(allMembers.gpaScienceChart.groups, batchPk);
+    const sciData   = isAll ? {{ gpa_science_bands|safe }} : sciResult.filtered.map(b => b.length);
+    makeBarChart('gpaScienceChart', bandLabels, sciData, 'rgba(25,135,84,0.6)', isAll ? null : sciResult.filtered);
+
+    // GPA BCP
+    const bcpResult = filterGroupsByBatch(allMembers.gpaBcpChart.groups, batchPk);
+    const bcpData   = isAll ? {{ gpa_bcp_bands|safe }} : bcpResult.filtered.map(b => b.length);
+    makeBarChart('gpaBcpChart', bandLabels, bcpData, 'rgba(108,117,125,0.6)', isAll ? null : bcpResult.filtered);
+
+    // DAT AA
+    const datResult = filterGroupsByBatch(allMembers.datAaChart.groups, batchPk);
+    const datData   = isAll ? {{ dat_aa_bands|safe }} : datResult.filtered.map(b => b.length);
+    makeBarChart('datAaChart', datBandLabels, datData, 'rgba(255,193,7,0.7)', isAll ? null : datResult.filtered);
+
+    // Update summary stat cards if filtered
+    if (!isAll) {
+      updateSummaryCards(batchPk);
+    } else {
+      resetSummaryCards();
+    }
+  }
+
+  function calcStats(candidates, field) {
+    const vals = candidates.map(c => c.score).filter(v => v !== null && v !== undefined);
+    if (!vals.length) return { avg: null, min: null, max: null };
+    const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+    return {
+      avg: Math.round(avg * 100) / 100,
+      min: Math.min(...vals),
+      max: Math.max(...vals),
+    };
+  }
+
+  function updateSummaryCards(batchPk) {
+    const overallCands = allMembers.gpaOverallChart.groups.flat().filter(c => String(candidateBatchMap[c.url]) === String(batchPk));
+    const scienceCands = allMembers.gpaScienceChart.groups.flat().filter(c => String(candidateBatchMap[c.url]) === String(batchPk));
+    const bcpCands     = allMembers.gpaBcpChart.groups.flat().filter(c => String(candidateBatchMap[c.url]) === String(batchPk));
+
+    function setCard(field, stats) {
+      const avgEl = document.getElementById('gpa-avg-' + field);
+      const minEl = document.getElementById('gpa-min-' + field);
+      const maxEl = document.getElementById('gpa-max-' + field);
+      if (!avgEl) return;
+      avgEl.textContent = stats.avg !== null ? stats.avg.toFixed(2) : '—';
+      if (minEl) minEl.textContent = stats.min !== null ? stats.min.toFixed(2) : '—';
+      if (maxEl) maxEl.textContent = stats.max !== null ? stats.max.toFixed(2) : '—';
+    }
+
+    setCard('gpa_overall', calcStats(overallCands));
+    setCard('gpa_science', calcStats(scienceCands));
+    setCard('gpa_bcp',     calcStats(bcpCands));
+  }
+
+  function resetSummaryCards() {
+    // Values come from server — reload page would reset; just re-set from data attrs
+    {% for label, avg, mn, mx, field in gpa_fields %}
+    (function() {
+      const avgEl = document.getElementById('gpa-avg-{{ field }}');
+      const minEl = document.getElementById('gpa-min-{{ field }}');
+      const maxEl = document.getElementById('gpa-max-{{ field }}');
+      if (avgEl) avgEl.textContent = '{{ avg|default:"—" }}';
+      if (minEl) minEl.textContent = '{{ mn|default:"—" }}';
+      if (maxEl) maxEl.textContent = '{{ mx|default:"—" }}';
+    })();
+    {% endfor %}
+  }
+
+  // Initial render
+  rebuildCharts('all');
+
+  // Batch filter change
+  const batchFilterEl = document.getElementById('batchChartFilter');
+  if (batchFilterEl) {
+    batchFilterEl.addEventListener('change', function () {
+      rebuildCharts(this.value);
+    });
+  }
+
+  // ── Status breakdown chart ────────────────────────────────────────────────
+  (function() {
+    const statusData   = {{ status_counts|safe }};
+    const statusCtx    = document.getElementById('statusChart');
+    if (!statusCtx || !statusData) return;
+    const labels = statusData.map(s => s.label);
+    const counts = statusData.map(s => s.count);
+    const colors = statusData.map(s => s.color);
+    new Chart(statusCtx, {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{ data: counts, backgroundColor: colors, borderWidth: 2,
+                     borderColor: isDark ? '#212529' : '#fff' }],
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'right', labels: { color: labelColor, font: { size: 12 }, padding: 12 } },
+          tooltip: { callbacks: {
+            label: ctx => ` ${ctx.label}: ${ctx.parsed} candidate${ctx.parsed !== 1 ? 's' : ''}`,
+          }},
+        },
+        cutout: '60%',
+      }
+    });
+  })();
+
+  // ── Score distribution chart ──────────────────────────────────────────────
+  (function() {
+    const scoreCtx = document.getElementById('scoreChart');
+    if (!scoreCtx) return;
+    const scoreLabels = {{ score_labels|default:"[]"|safe }};
+    const scoreCounts = {{ score_counts|default:"[]"|safe }};
+    new Chart(scoreCtx, {
+      type: 'bar',
+      data: {
+        labels: scoreLabels,
+        datasets: [{
+          label: 'Candidates',
+          data: scoreCounts,
+          backgroundColor: 'rgba(111,134,255,0.65)',
+          borderRadius: 4,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { footer: () => 'Click to view candidates' } },
+        },
+        scales: {
+          x: { grid: { color: gridColor }, ticks: { color: labelColor, font: { size: 11 } },
+               title: { display: true, text: 'Score (1–10)', color: labelColor, font: { size: 11 } } },
+          y: { grid: { color: gridColor }, ticks: { color: labelColor, stepSize: 1, font: { size: 11 } },
+               beginAtZero: true,
+               title: { display: true, text: 'Candidates', color: labelColor, font: { size: 11 } } },
+        }
+      }
+    });
+  })();
+
+  // ── Export CSV ─────────────────────────────────────────────────────────
+  document.getElementById('exportDatasetBtn').addEventListener('click', function () {
+    const batchPk   = batchFilterEl ? batchFilterEl.value : 'all';
+    const isAll     = !batchPk || batchPk === 'all';
+    const datasetName = '{{ dataset.DisplayName|escapejs }}';
+    const batchLabel  = (batchFilterEl && batchFilterEl.value !== 'all')
+      ? batchFilterEl.options[batchFilterEl.selectedIndex].text
+      : 'All Batches';
+    const now = new Date().toLocaleString();
+
+    const q   = v => `"${String(v === null || v === undefined ? '' : v).replace(/"/g, '""')}"`;
+    const row = cols => cols.map(q).join(',');
+    const lines = [];
+
+    // ── Header ───────────────────────────────────────────────────────
+    lines.push(row([`${datasetName} — Analytics Export`]));
+    lines.push(row([`Batch filter: ${batchLabel}`]));
+    lines.push(row([`Exported: ${now}`]));
+    lines.push('');
+
+    // ── Section 1: Review Progress ────────────────────────────────────
+    lines.push(row(['REVIEW PROGRESS']));
+    lines.push(row(['Batch', 'Candidates', 'Reviewers', 'Votes Cast', 'Potential Votes', 'Progress %']));
+    {% for row in batch_progress %}
+    lines.push(row([
+      '{{ row.batch.DisplayName|escapejs }}',
+      {{ row.c_count }}, {{ row.r_count }},
+      {{ row.actual }}, {{ row.potential }}, {{ row.pct }},
+    ]));
+    {% endfor %}
+    lines.push('');
+
+    // ── Section 2: GPA Summary ────────────────────────────────────────
+    lines.push(row(['GPA SUMMARY (all batches, imported candidates only)']));
+    lines.push(row(['Metric', 'Average', 'Min', 'Max']));
+    {% for label, avg, mn, mx, field in gpa_fields %}
+    lines.push(row(['{{ label }}', '{{ avg|default:"" }}', '{{ mn|default:"" }}', '{{ mx|default:"" }}']));
+    {% endfor %}
+    lines.push('');
+
+    // ── Section 3: DAT Summary ────────────────────────────────────────
+    lines.push(row(['DAT SUMMARY (all batches, imported candidates only)']));
+    lines.push(row(['Score', 'Average', 'Min', 'Max']));
+    {% for label, avg, mn, mx, thresh in dat_fields %}
+    lines.push(row(['{{ label }}', '{{ avg|default:"" }}', '{{ mn|default:"" }}', '{{ mx|default:"" }}']));
+    {% endfor %}
+    lines.push('');
+
+    // ── Section 4: Candidate roster with scores ───────────────────────
+    lines.push(row(['CANDIDATE ACADEMIC SCORES' + (isAll ? '' : ` — ${batchLabel}`)]));
+    lines.push(row(['Name', 'Overall GPA', 'Science GPA', 'BCP GPA',
+                    'DAT Academic Avg', 'DAT PAT', 'DAT Quant Reasoning',
+                    'DAT Reading Comp', 'DAT Biology', 'DAT Gen Chem',
+                    'DAT Org Chem', 'DAT Total Science']));
+
+    // Build full score map from all chart member groups
+    const scoreMap = {};
+    const buildMap = (groups, key) => groups.forEach(band => band.forEach(c => {
+      scoreMap[c.url] = scoreMap[c.url] || { name: c.name };
+      scoreMap[c.url][key] = c.score;
+    }));
+    buildMap(allMembers.gpaOverallChart.groups, 'gpa_overall');
+    buildMap(allMembers.gpaScienceChart.groups, 'gpa_science');
+    buildMap(allMembers.gpaBcpChart.groups,     'gpa_bcp');
+    buildMap(allMembers.datAaChart.groups,       'dat_aa');
+
+    // DAT subscores from server
+    const datSubScores = {{ dat_subscores_map|default:"{}"|safe }};
+
+    const seen = new Set();
+    const roster = [];
+    Object.entries(scoreMap).forEach(([url, s]) => {
+      if (!isAll && String(candidateBatchMap[url]) !== String(batchPk)) return;
+      if (seen.has(url)) return;
+      seen.add(url);
+      const sub = datSubScores[url] || {};
+      roster.push([
+        s.name || '',
+        s.gpa_overall !== undefined && s.gpa_overall !== null ? Number(s.gpa_overall).toFixed(2) : '',
+        s.gpa_science !== undefined && s.gpa_science !== null ? Number(s.gpa_science).toFixed(2) : '',
+        s.gpa_bcp     !== undefined && s.gpa_bcp     !== null ? Number(s.gpa_bcp).toFixed(2)     : '',
+        s.dat_aa      !== undefined && s.dat_aa      !== null ? Math.round(Number(s.dat_aa))      : '',
+        sub.pat   || '', sub.qr  || '', sub.rc  || '',
+        sub.bio   || '', sub.gc  || '', sub.oc  || '', sub.ts  || '',
+      ]);
+    });
+    roster.sort((a, b) => a[0].localeCompare(b[0]));
+    roster.forEach(r => lines.push(row(r)));
+
+    const csv  = lines.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `${datasetName} - Analytics ${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
 })();
 </script>
 {% endif %}

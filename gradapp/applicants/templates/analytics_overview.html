@@ -1,144 +1,705 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <div>
-    <h2 class="mb-0">Analytics</h2>
-    <p class="text-muted mb-0">Review progress and academic score summaries across all active datasets.</p>
-  </div>
-</div>
+<style>
+  :root {
+    --ds-bg: #ffffff;
+    --ds-muted-bg: #f7f8fa;
+    --ds-soft-bg: #f3f5f7;
+    --ds-border: #d9dee5;
+    --ds-border-soft: #e8ebef;
+    --ds-text: #1f2933;
+    --ds-muted: #667085;
+    --ds-hover: #f6f8fa;
+    --ds-primary: #3f5bf6;
+    --ds-primary-soft: rgba(63, 91, 246, 0.08);
+    --ds-success-soft: rgba(25, 135, 84, 0.1);
+    --ds-warning-soft: rgba(255, 193, 7, 0.13);
+    --ds-danger-soft: rgba(220, 53, 69, 0.1);
+    --ds-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  }
 
-<!-- Global progress strip -->
-<div class="row g-3 mb-4">
-  <div class="col-md-3">
-    <div class="card border-0 bg-light text-center">
-      <div class="card-body py-3">
-        <div class="fs-2 fw-bold text-primary">{{ total_candidates }}</div>
-        <div class="text-muted small">Total Candidates</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-3">
-    <div class="card border-0 bg-light text-center">
-      <div class="card-body py-3">
-        <div class="fs-2 fw-bold text-success">{{ total_actual }}</div>
-        <div class="text-muted small">Votes Cast</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-3">
-    <div class="card border-0 bg-light text-center">
-      <div class="card-body py-3">
-        <div class="fs-2 fw-bold text-warning">{{ total_potential }}</div>
-        <div class="text-muted small">Potential Votes</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-3">
-    <div class="card border-0 bg-light text-center">
-      <div class="card-body py-3">
-        <div class="fs-2 fw-bold">{{ global_progress }}%</div>
-        <div class="text-muted small">Overall Completion</div>
-      </div>
-    </div>
-  </div>
-</div>
+  [data-bs-theme="dark"] {
+    --ds-bg: #212529;
+    --ds-muted-bg: #2b3035;
+    --ds-soft-bg: #252a30;
+    --ds-border: #3a4047;
+    --ds-border-soft: #343a40;
+    --ds-text: #f8f9fa;
+    --ds-muted: #adb5bd;
+    --ds-hover: #262b30;
+    --ds-primary: #6f86ff;
+    --ds-primary-soft: rgba(111, 134, 255, 0.14);
+    --ds-success-soft: rgba(25, 135, 84, 0.16);
+    --ds-warning-soft: rgba(255, 193, 7, 0.16);
+    --ds-danger-soft: rgba(220, 53, 69, 0.16);
+    --ds-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+  }
 
-<!-- Per-dataset table -->
-<div class="card">
-  <div class="card-header fw-semibold">
-    <i class="bi bi-stack me-2"></i>By Dataset
+  .analytics-page {
+    max-width: 1380px;
+    margin: 0 auto;
+  }
+
+  /* Hero Banner */
+  .analytics-hero {
+    background: var(--ds-bg);
+    border: 1px solid var(--ds-border);
+    border-radius: 14px;
+    box-shadow: var(--ds-shadow);
+    padding: 1.15rem;
+    margin-bottom: 1rem;
+  }
+
+  .analytics-hero-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: start;
+  }
+
+  .analytics-kicker {
+    color: var(--ds-muted);
+    font-size: 0.72rem;
+    font-weight: 750;
+    letter-spacing: 0.075em;
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+
+  .analytics-title {
+    color: var(--ds-text);
+    font-size: 1.75rem;
+    line-height: 1.15;
+    font-weight: 780;
+    letter-spacing: -0.025em;
+    margin: 0;
+  }
+
+  .analytics-description {
+    color: var(--ds-muted);
+    max-width: 760px;
+    margin: 0.45rem 0 0;
+    font-size: 0.95rem;
+  }
+
+  /* Panels & Cards */
+  .analytics-filter-panel,
+  .analytics-section,
+  .stat-card {
+    background: var(--ds-bg);
+    border: 1px solid var(--ds-border);
+    border-radius: 14px;
+    box-shadow: var(--ds-shadow);
+    margin-bottom: 1rem;
+    overflow: hidden;
+  }
+
+  .analytics-filter-panel {
+    padding: 1rem;
+  }
+
+  .filter-label {
+    color: var(--ds-muted);
+    font-size: 0.72rem;
+    font-weight: 750;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    margin-bottom: 0.35rem;
+  }
+
+  /* Stats Row styling matching variables */
+  .stat-card {
+    border: 1px solid var(--ds-border-soft);
+    text-align: center;
+    transition: transform 0.15s ease;
+  }
+  
+  .stat-card:hover {
+    transform: translateY(-2px);
+  }
+
+  .stat-val {
+    font-size: 1.85rem;
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 0.2rem;
+  }
+
+  .stat-label {
+    color: var(--ds-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  /* Section Styles */
+  .section-header {
+    padding: 0.9rem 1rem;
+    background: var(--ds-bg);
+    border-bottom: 1px solid var(--ds-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin: 0;
+    color: var(--ds-text);
+    font-size: 1.12rem;
+    font-weight: 780;
+  }
+
+  .section-subtitle {
+    color: var(--ds-muted);
+    font-size: 0.84rem;
+  }
+
+  /* Tables & Layout Optimization to eliminate scrolling */
+  .analytics-table {
+    margin: 0;
+  }
+
+  .analytics-table th,
+  .analytics-table td {
+    padding: 0.75rem 0.6rem !important; /* Tightened horizontal cell space */
+    font-size: 0.85rem;
+  }
+
+  .analytics-table thead th {
+    background: var(--ds-muted-bg);
+    color: var(--ds-muted);
+    border-top: 0;
+    border-bottom: 1px solid var(--ds-border);
+    font-size: 0.71rem;
+    font-weight: 780;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .analytics-table tbody td {
+    border-bottom: 1px solid var(--ds-border-soft);
+    vertical-align: middle;
+  }
+
+  .analytics-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .analytics-table tbody tr:hover {
+    background: var(--ds-hover);
+  }
+
+  .dataset-link {
+    font-weight: 760;
+    text-decoration: none;
+    color: var(--ds-text);
+  }
+
+  .dataset-link:hover {
+    color: var(--ds-primary);
+    text-decoration: underline;
+  }
+
+  /* Dynamic Column Constraining Rules */
+  .col-dataset { min-width: 160px; }
+  .col-qty { width: 90px; }
+  .col-progress { width: 135px; }
+  .col-score { width: 95px; }
+  .col-coverage { width: 110px; }
+  .col-action { width: 1%; white-space: nowrap; }
+
+  .progress-container {
+    width: 70px; /* Slims down the bar width inline */
+  }
+
+  /* Interactive Elements */
+  .sortable {
+    cursor: pointer;
+  }
+  
+  .sortable:hover {
+    background-color: var(--ds-hover) !important;
+  }
+
+  .sort-icon {
+    font-size: 0.7rem;
+    opacity: 0.4;
+    transition: opacity 0.15s ease;
+  }
+
+  .sortable.sort-asc .sort-icon,
+  .sortable.sort-desc .sort-icon {
+    opacity: 1;
+    color: var(--ds-primary);
+  }
+
+  .sortable.sort-asc .sort-icon::before  { content: "\F282"; }
+  .sortable.sort-desc .sort-icon::before { content: "\F27F"; }
+
+  /* Responsive Adjustments */
+  @media (max-width: 991.98px) {
+    .analytics-hero-main {
+      grid-template-columns: 1fr;
+    }
+    .section-header {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+  }
+
+  @media (max-width: 767.98px) {
+    .analytics-hero-actions {
+      width: 100%;
+    }
+    .analytics-hero-actions .btn {
+      width: 100%;
+    }
+    .filter-row {
+      flex-direction: column;
+      align-items: stretch !important;
+    }
+    .filter-row select, .filter-row button {
+      width: 100% !important;
+    }
+  }
+</style>
+
+<div class="analytics-page">
+
+  <!-- Hero Header -->
+  <div class="analytics-hero">
+    <div class="analytics-hero-main">
+      <div>
+        <div class="analytics-kicker">Overview</div>
+        <h2 class="analytics-title">Analytics</h2>
+        <p class="analytics-description">
+          Review progress and academic score summaries across all active datasets.
+        </p>
+      </div>
+
+      <div class="analytics-hero-actions">
+        <button class="btn btn-outline-success btn-sm" id="exportOverviewBtn">
+          <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV
+        </button>
+      </div>
+    </div>
   </div>
-  <div class="card-body p-0">
-    <table class="table table-hover align-middle mb-0">
-      <thead class="table-dark">
-        <tr>
-          <th>Dataset</th>
-          <th class="text-center">Candidates</th>
-          <th class="text-center">Reviewers</th>
-          <th style="width:200px;">Review Progress</th>
-          <th class="text-center">Avg Overall GPA</th>
-          <th class="text-center">Avg Science GPA</th>
-          <th class="text-center">Avg BCP GPA</th>
-          <th class="text-center">Avg DAT AA</th>
-          <th class="text-center">Data Coverage</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in dataset_rows %}
-        <tr>
-          <td>
-            <a href="{% url 'dataset_detail' row.dataset.pk %}" class="fw-semibold text-decoration-none">
-              {{ row.dataset.DisplayName }}
-            </a>
-          </td>
-          <td class="text-center">{{ row.cand_count }}</td>
-          <td class="text-center">{{ row.reviewer_count }}</td>
-          <td>
-            <div class="d-flex align-items-center gap-2">
-              <div class="progress flex-grow-1" style="height:7px;">
-                <div class="progress-bar {% if row.progress_pct == 100 %}bg-success{% elif row.progress_pct > 0 %}bg-primary{% else %}bg-secondary{% endif %}"
-                     style="width:{{ row.progress_pct }}%"></div>
-              </div>
-              <span class="text-muted small" style="white-space:nowrap;">
-                {{ row.actual_votes }}/{{ row.potential_votes }}
-              </span>
-            </div>
-          </td>
-          <td class="text-center">
-            {% if row.gpa_overall_avg %}
-              <span class="fw-semibold {% if row.gpa_overall_avg >= 3.5 %}text-success{% elif row.gpa_overall_avg >= 3.0 %}text-warning{% else %}text-danger{% endif %}">
-                {{ row.gpa_overall_avg }}
-              </span>
-            {% else %}<span class="text-muted">—</span>{% endif %}
-          </td>
-          <td class="text-center">
-            {% if row.gpa_science_avg %}
-              <span class="fw-semibold {% if row.gpa_science_avg >= 3.5 %}text-success{% elif row.gpa_science_avg >= 3.0 %}text-warning{% else %}text-danger{% endif %}">
-                {{ row.gpa_science_avg }}
-              </span>
-            {% else %}<span class="text-muted">—</span>{% endif %}
-          </td>
-          <td class="text-center">
-            {% if row.gpa_bcp_avg %}
-              <span class="fw-semibold {% if row.gpa_bcp_avg >= 3.5 %}text-success{% elif row.gpa_bcp_avg >= 3.0 %}text-warning{% else %}text-danger{% endif %}">
-                {{ row.gpa_bcp_avg }}
-              </span>
-            {% else %}<span class="text-muted">—</span>{% endif %}
-          </td>
-          <td class="text-center">
-            {% if row.dat_aa_avg %}
-              <span class="fw-semibold {% if row.dat_aa_avg >= 220 %}text-success{% elif row.dat_aa_avg >= 200 %}text-warning{% else %}text-danger{% endif %}">
-                {{ row.dat_aa_avg }}
-              </span>
-            {% else %}<span class="text-muted">—</span>{% endif %}
-          </td>
-          <td class="text-center">
-            {% if row.cand_count > 0 %}
-              {% widthratio row.imported_count row.cand_count 100 as cov_pct %}
-              <span class="small text-muted">{{ row.imported_count }}/{{ row.cand_count }}</span>
-              <div class="progress mt-1" style="height:4px;">
-                <div class="progress-bar bg-info" style="width:{{ cov_pct }}%"></div>
-              </div>
-            {% else %}
-              <span class="text-muted">—</span>
-            {% endif %}
-          </td>
-          <td>
-            <a href="{% url 'analytics_dataset' row.dataset.pk %}" class="btn btn-outline-primary btn-sm">
-              <i class="bi bi-bar-chart-line me-1"></i>Details
-            </a>
-          </td>
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="10" class="text-center text-muted py-4">No active datasets found.</td>
-        </tr>
+
+  <!-- Filters -->
+  <div class="analytics-filter-panel">
+    <div class="d-flex align-items-center gap-3 flex-wrap filter-row">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-funnel text-muted small"></i>
+        <span class="filter-label mb-0">Filter:</span>
+      </div>
+      
+      <select id="filterAppSystem" class="form-select form-select-sm" style="width:auto; min-width: 200px;">
+        <option value="">All Application Systems</option>
+        {% for val, label in application_system_choices %}
+          <option value="{{ val }}">{{ label }}</option>
         {% endfor %}
-      </tbody>
-    </table>
+      </select>
+      
+      <select id="filterProgramType" class="form-select form-select-sm" style="width:auto; min-width: 200px;">
+        <option value="">All Program Types</option>
+        {% for val, label in program_type_choices %}
+          <option value="{{ val }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+      
+      <button class="btn btn-outline-danger btn-sm" id="clearFilters">
+        <i class="bi bi-x-lg me-1"></i>Clear
+      </button>
+      
+      <span class="text-muted small ms-md-auto" id="filteredCount"></span>
+    </div>
+  </div>
+
+  <!-- Global Progress Strip -->
+  <div class="row g-3 mb-4" id="globalStats">
+    <div class="col-md-3 col-sm-6">
+      <div class="stat-card p-3">
+        <div class="stat-val text-primary" id="stat-candidates">{{ total_candidates }}</div>
+        <div class="stat-label">Total Candidates</div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+      <div class="stat-card p-3">
+        <div class="stat-val text-success" id="stat-votes">{{ total_actual }}</div>
+        <div class="stat-label">Votes Cast</div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+      <div class="stat-card p-3">
+        <div class="stat-val text-warning" id="stat-potential">{{ total_potential }}</div>
+        <div class="stat-label">Potential Votes</div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+      <div class="stat-card p-3">
+        <div class="stat-val text-dark" id="stat-completion">{{ global_progress }}%</div>
+        <div class="stat-label">Overall Completion</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Per-Dataset Section Table -->
+  <div class="analytics-section">
+    <div class="section-header">
+      <div>
+        <h4 class="section-title">
+          <i class="bi bi-stack"></i>By Dataset
+        </h4>
+        <div class="section-subtitle">
+          Summary values gathered across available datasets. Click column headers to sort.
+        </div>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle analytics-table m-0" id="overviewTable">
+        <thead>
+          <tr>
+            <th class="sortable col-dataset" data-col="name">
+              Dataset <i class="bi bi-arrow-down-up ms-1 sort-icon"></i>
+            </th>
+            <th class="text-center sortable col-qty" data-col="candidates">
+              Candidates <i class="bi bi-arrow-down-up ms-1 sort-icon"></i>
+            </th>
+            <th class="text-center sortable col-qty" data-col="reviewers">
+              Reviewers <i class="bi bi-arrow-down-up ms-1 sort-icon"></i>
+            </th>
+            <th class="sortable col-progress" data-col="progress">
+              Progress <i class="bi bi-arrow-down-up ms-1 sort-icon"></i>
+            </th>
+            <th class="text-center sortable col-score" data-col="gpa_overall">
+              Overall GPA <i class="bi bi-arrow-down-up ms-1 sort-icon"></i>
+            </th>
+            <th class="text-center sortable col-score" data-col="gpa_science">
+              Science GPA <i class="bi bi-arrow-down-up ms-1 sort-icon"></i>
+            </th>
+            <th class="text-center sortable col-score" data-col="gpa_bcp">
+              BCP GPA <i class="bi bi-arrow-down-up ms-1 sort-icon"></i>
+            </th>
+            <th class="text-center sortable col-score" data-col="dat_aa">
+              DAT AA <i class="bi bi-arrow-down-up ms-1 sort-icon"></i>
+            </th>
+            <th class="text-center sortable col-coverage" data-col="coverage">
+              Coverage <i class="bi bi-arrow-down-up ms-1 sort-icon"></i>
+            </th>
+            <th class="col-action"></th>
+          </tr>
+        </thead>
+        <tbody id="overviewTbody">
+          {% for row in dataset_rows %}
+          <tr data-app-system="{{ row.dataset.application_system|default:'' }}"
+              data-program-type="{{ row.dataset.program_type|default:'' }}"
+              data-name="{{ row.dataset.DisplayName|lower }}"
+              data-candidates="{{ row.cand_count }}"
+              data-reviewers="{{ row.reviewer_count }}"
+              data-progress="{{ row.progress_pct }}"
+              data-gpa-overall="{{ row.gpa_overall_avg|default:0 }}"
+              data-gpa-science="{{ row.gpa_science_avg|default:0 }}"
+              data-gpa-bcp="{{ row.gpa_bcp_avg|default:0 }}"
+              data-dat-aa="{{ row.dat_aa_avg|default:0 }}"
+              data-coverage="{% if row.cand_count > 0 %}{% widthratio row.imported_count row.cand_count 100 %}{% else %}0{% endif %}"
+              data-actual="{{ row.actual_votes }}"
+              data-potential="{{ row.potential_votes }}">
+            
+            <td>
+              <a href="{% url 'dataset_detail' row.dataset.pk %}" class="dataset-link d-block text-truncate" style="max-width: 180px;" title="{{ row.dataset.DisplayName }}">
+                {{ row.dataset.DisplayName }}
+              </a>
+              {% if row.dataset.application_system %}
+                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle mt-1" style="font-size:0.62rem; padding: 0.2em 0.4em;">
+                  {{ row.dataset.get_application_system_display }}
+                </span>
+              {% endif %}
+            </td>
+            
+            <td class="text-center fw-semibold text-muted">{{ row.cand_count }}</td>
+            <td class="text-center fw-semibold text-muted">{{ row.reviewer_count }}</td>
+            
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div class="progress progress-container" style="height:6px; border-radius: 4px;">
+                  <div class="progress-bar {% if row.progress_pct == 100 %}bg-success{% elif row.progress_pct > 0 %}bg-primary{% else %}bg-secondary{% endif %}"
+                       style="width:{{ row.progress_pct }}%"></div>
+                </div>
+                <span class="text-muted small fw-semibold" style="font-size: 0.78rem;">
+                  {{ row.actual_votes }}/{{ row.potential_votes }}
+                </span>
+              </div>
+            </td>
+            
+            <td class="text-center">
+              {% if row.gpa_overall_avg %}
+                <span class="fw-bold {% if row.gpa_overall_avg >= 3.5 %}text-success{% elif row.gpa_overall_avg >= 3.0 %}text-warning{% else %}text-danger{% endif %}">
+                  {{ row.gpa_overall_avg }}
+                </span>
+              {% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
+            
+            <td class="text-center">
+              {% if row.gpa_science_avg %}
+                <span class="fw-bold {% if row.gpa_science_avg >= 3.5 %}text-success{% elif row.gpa_science_avg >= 3.0 %}text-warning{% else %}text-danger{% endif %}">
+                  {{ row.gpa_science_avg }}
+                </span>
+              {% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
+            
+            <td class="text-center">
+              {% if row.gpa_bcp_avg %}
+                <span class="fw-bold {% if row.gpa_bcp_avg >= 3.5 %}text-success{% elif row.gpa_bcp_avg >= 3.0 %}text-warning{% else %}text-danger{% endif %}">
+                  {{ row.gpa_bcp_avg }}
+                </span>
+              {% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
+            
+            <td class="text-center">
+              {% if row.dat_aa_avg %}
+                <span class="fw-bold {% if row.dat_aa_avg >= 220 or row.dat_aa_avg >= 22.0 %}text-success{% elif row.dat_aa_avg >= 200 or row.dat_aa_avg >= 20.0 %}text-warning{% else %}text-danger{% endif %}">
+                  {{ row.dat_aa_avg }}
+                </span>
+              {% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
+            
+            <td>
+              {% if row.cand_count > 0 %}
+                {% widthratio row.imported_count row.cand_count 100 as cov_pct %}
+                <div class="d-flex align-items-center gap-2">
+                  <div class="progress progress-container" style="height:4px; border-radius: 2px;">
+                    <div class="progress-bar bg-info" style="width:{{ cov_pct }}%"></div>
+                  </div>
+                  <span class="small text-muted fw-semibold" style="font-size: 0.78rem;">{{ row.imported_count }}/{{ row.cand_count }}</span>
+                </div>
+              {% else %}
+                <div class="text-center text-muted">—</div>
+              {% endif %}
+            </td>
+            
+            <td class="text-end">
+              <a href="{% url 'analytics_dataset' row.dataset.pk %}" class="btn btn-outline-primary btn-sm px-2 py-1" style="font-size: 0.78rem;">
+                <i class="bi bi-bar-chart-line me-1"></i>Details
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="10" class="text-center text-muted py-5">
+              <i class="bi bi-stack fs-1 d-block mb-2 opacity-25"></i>
+              No active datasets found.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- No results after filter -->
+    <div id="noFilterResults" class="text-center text-muted py-5 d-none">
+      <i class="bi bi-search fs-2 d-block mb-2 opacity-25"></i>
+      No datasets match the current filters.
+    </div>
   </div>
 </div>
+
+<script>
+(function () {
+  // ── Data ────────────────────────────────────────────────────────────────
+  const tbody       = document.getElementById('overviewTbody');
+  const allRows     = Array.from(tbody.querySelectorAll('tr[data-name]'));
+  const noResults   = document.getElementById('noFilterResults');
+  const countEl     = document.getElementById('filteredCount');
+
+  const statCandidates  = document.getElementById('stat-candidates');
+  const statVotes       = document.getElementById('stat-votes');
+  const statPotential   = document.getElementById('stat-potential');
+  const statCompletion  = document.getElementById('stat-completion');
+
+  let currentSort = { col: null, dir: 'asc' };
+  let activeFilters = { appSystem: '', programType: '' };
+
+  // ── Filter ───────────────────────────────────────────────────────────────
+  function getVisibleRows() {
+    return allRows.filter(row => {
+      if (activeFilters.appSystem && row.dataset.appSystem !== activeFilters.appSystem) return false;
+      if (activeFilters.programType && row.dataset.programType !== activeFilters.programType) return false;
+      return true;
+    });
+  }
+
+  function applyFilter() {
+    const visible = getVisibleRows();
+    allRows.forEach(r => r.style.display = 'none');
+    visible.forEach(r => r.style.display = '');
+
+    noResults.classList.toggle('d-none', visible.length > 0);
+    countEl.textContent = visible.length < allRows.length
+      ? `Showing ${visible.length} of ${allRows.length} datasets`
+      : '';
+
+    // Update global stat cards
+    let totCand = 0, totActual = 0, totPotential = 0;
+    visible.forEach(r => {
+      totCand     += parseInt(r.dataset.candidates) || 0;
+      totActual   += parseInt(r.dataset.actual)     || 0;
+      totPotential+= parseInt(r.dataset.potential)  || 0;
+    });
+    statCandidates.textContent = totCand;
+    statVotes.textContent      = totActual;
+    statPotential.textContent  = totPotential;
+    statCompletion.textContent = totPotential > 0
+      ? Math.round(totActual / totPotential * 100) + '%'
+      : '0%';
+  }
+
+  document.getElementById('filterAppSystem').addEventListener('change', function () {
+    activeFilters.appSystem = this.value;
+    applyFilter();
+  });
+  document.getElementById('filterProgramType').addEventListener('change', function () {
+    activeFilters.programType = this.value;
+    applyFilter();
+  });
+  document.getElementById('clearFilters').addEventListener('click', function () {
+    activeFilters = { appSystem: '', programType: '' };
+    document.getElementById('filterAppSystem').value = '';
+    document.getElementById('filterProgramType').value = '';
+    applyFilter();
+  });
+
+  // ── Sort ─────────────────────────────────────────────────────────────────
+  const COL_KEY = {
+    name:        r => r.dataset.name,
+    candidates:  r => parseFloat(r.dataset.candidates) || 0,
+    reviewers:   r => parseFloat(r.dataset.reviewers)  || 0,
+    progress:    r => parseFloat(r.dataset.progress)   || 0,
+    gpa_overall: r => parseFloat(r.dataset.gpaOverall) || 0,
+    gpa_science: r => parseFloat(r.dataset.gpaScience) || 0,
+    gpa_bcp:     r => parseFloat(r.dataset.gpaBcp)     || 0,
+    dat_aa:      r => parseFloat(r.dataset.datAa)      || 0,
+    coverage:    r => parseFloat(r.dataset.coverage)   || 0,
+  };
+
+  document.querySelectorAll('th.sortable').forEach(th => {
+    th.addEventListener('click', function () {
+      const col = this.dataset.col;
+      if (currentSort.col === col) {
+        currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+      } else {
+        currentSort.col = col;
+        currentSort.dir = col === 'name' ? 'asc' : 'desc'; // default direction
+      }
+
+      // Update header indicators
+      document.querySelectorAll('th.sortable').forEach(h => {
+        h.classList.remove('sort-asc', 'sort-desc');
+      });
+      this.classList.add(currentSort.dir === 'asc' ? 'sort-asc' : 'sort-desc');
+
+      // Sort all rows (hidden ones too, so order persists after filter change)
+      const keyFn = COL_KEY[col] || (r => r.dataset.name);
+      allRows.sort((a, b) => {
+        const av = keyFn(a), bv = keyFn(b);
+        if (av < bv) return currentSort.dir === 'asc' ? -1 : 1;
+        if (av > bv) return currentSort.dir === 'asc' ? 1 : -1;
+        return 0;
+      });
+      allRows.forEach(r => tbody.appendChild(r));
+    });
+  });
+
+  // ── Export CSV ───────────────────────────────────────────────────────────
+  document.getElementById('exportOverviewBtn').addEventListener('click', function () {
+    const visible  = getVisibleRows();
+    const now      = new Date().toLocaleString();
+    const lines    = [];
+
+    const q = v => `"${String(v === null || v === undefined ? '' : v).replace(/"/g, '""')}"`;
+    const row = cols => cols.map(q).join(',');
+
+    // ── Section 1: Summary header ─────────────────────────────────────
+    lines.push(row(['Kornberg Admissions — Analytics Overview']));
+    lines.push(row([`Exported: ${now}`]));
+    lines.push(row([`Datasets shown: ${visible.length}`]));
+    lines.push('');
+
+    // ── Section 2: Global totals (filtered) ───────────────────────────
+    let totCand = 0, totActual = 0, totPotential = 0, totImported = 0;
+    const gpaOvVals = [], gpaSciVals = [], gpaBcpVals = [], datAaVals = [];
+    visible.forEach(r => {
+      totCand      += parseInt(r.dataset.candidates) || 0;
+      totActual    += parseInt(r.dataset.actual)     || 0;
+      totPotential += parseInt(r.dataset.potential)  || 0;
+      const cov = parseInt(r.dataset.coverage) || 0;
+      const cand = parseInt(r.dataset.candidates) || 0;
+      totImported  += Math.round(cov / 100 * cand);
+      if (parseFloat(r.dataset.gpaOverall)) gpaOvVals.push(parseFloat(r.dataset.gpaOverall));
+      if (parseFloat(r.dataset.gpaScience)) gpaSciVals.push(parseFloat(r.dataset.gpaScience));
+      if (parseFloat(r.dataset.gpaBcp))     gpaBcpVals.push(parseFloat(r.dataset.gpaBcp));
+      if (parseFloat(r.dataset.datAa))      datAaVals.push(parseFloat(r.dataset.datAa));
+    });
+    const avg = arr => arr.length ? (arr.reduce((a,b)=>a+b,0)/arr.length).toFixed(2) : '';
+    const progPct = totPotential > 0 ? Math.round(totActual / totPotential * 100) : 0;
+
+    lines.push(row(['GLOBAL TOTALS (filtered view)']));
+    lines.push(row(['Total Candidates', 'Votes Cast', 'Potential Votes', 'Overall Completion %', 'Candidates w/ Academic Data']));
+    lines.push(row([totCand, totActual, totPotential, progPct + '%', totImported]));
+    lines.push('');
+    lines.push(row(['Cross-Dataset Averages (datasets with data only)']));
+    lines.push(row(['Avg Overall GPA', 'Avg Science GPA', 'Avg BCP GPA', 'Avg DAT Academic Avg']));
+    lines.push(row([avg(gpaOvVals), avg(gpaSciVals), avg(gpaBcpVals), avg(datAaVals)]));
+    lines.push('');
+
+    // ── Section 3: Per-dataset detail ─────────────────────────────────
+    lines.push(row(['DATASET BREAKDOWN']));
+    lines.push(row([
+      'Dataset',
+      'Candidates', 'Reviewers',
+      'Votes Cast', 'Potential Votes', 'Review Progress %',
+      'Candidates w/ Data', 'Data Coverage %',
+      'Avg Overall GPA', 'Avg Science GPA', 'Avg BCP GPA',
+      'Avg DAT Academic Avg',
+    ]));
+
+    visible.forEach(r => {
+      const cand = parseInt(r.dataset.candidates) || 0;
+      const cov  = parseInt(r.dataset.coverage)   || 0;
+      lines.push(row([
+        r.querySelector('td a')?.textContent?.trim() || r.dataset.name,
+        cand,
+        r.dataset.reviewers,
+        r.dataset.actual,
+        r.dataset.potential,
+        r.dataset.progress + '%',
+        Math.round(cov / 100 * cand),
+        cov + '%',
+        r.dataset.gpaOverall || '',
+        r.dataset.gpaScience || '',
+        r.dataset.gpaBcp     || '',
+        r.dataset.datAa      || '',
+      ]));
+    });
+
+    const csv  = lines.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `Analytics Overview ${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+})();
+</script>
 
 {% endblock %}

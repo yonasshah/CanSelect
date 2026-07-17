@@ -10,43 +10,59 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 
     <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
       :root {
-        --app-bg: #f8f9fb;
+        --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        
+        /* Temple Brand & Core Accents */
+        --temple-cherry: #9D2235;
+        --temple-cherry-hover: #821c2b;
+        --temple-cherry-soft: rgba(157, 34, 53, 0.08);
+        
+        --app-bg: #f5f7fa;
         --app-surface: #ffffff;
-        --app-surface-muted: #f6f7f9;
-        --app-border: #e1e5ea;
-        --app-border-soft: rgba(0,0,0,0.06);
-        --app-text: #212529;
-        --app-muted: #667085;
-        --app-navbar: #1f2328;
-        --app-navbar-border: rgba(255,255,255,0.1);
-        --app-hover: #f1f3f5;
-        --app-primary-soft: rgba(13,110,253,0.08);
-        --app-focus: rgba(13,110,253,0.22);
-        --app-shadow-sm: 0 1px 2px rgba(16,24,40,0.04);
-        --app-shadow-md: 0 4px 12px rgba(16,24,40,0.08);
+        --app-surface-muted: #f8fafc;
+        --app-border: #e2e8f0;
+        --app-border-soft: rgba(0, 0, 0, 0.04);
+        --app-text: #0f172a;
+        --app-muted: #64748b;
+        --app-hover: #f1f5f9;
+        
+        --app-navbar: #11151c;
+        --app-navbar-border: rgba(255, 255, 255, 0.08);
+        --app-focus: rgba(157, 34, 53, 0.18);
+        
+        /* Shadows */
+        --app-shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.03), 0 1px 2px rgba(15, 23, 42, 0.06);
+        --app-shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.05), 0 10px 15px -3px rgba(15, 23, 42, 0.08);
+        --app-shadow-lg: 0 20px 25px -5px rgba(15, 23, 42, 0.08), 0 10px 10px -5px rgba(15, 23, 42, 0.04);
       }
 
       [data-bs-theme="dark"] {
-        --app-bg: #181b1f;
-        --app-surface: #212529;
-        --app-surface-muted: #2a2f34;
-        --app-border: #363b40;
-        --app-border-soft: rgba(255,255,255,0.08);
-        --app-text: #f8f9fa;
-        --app-muted: #adb5bd;
-        --app-navbar: #171a1d;
-        --app-navbar-border: rgba(255,255,255,0.1);
-        --app-hover: #262b30;
-        --app-primary-soft: rgba(13,110,253,0.15);
-        --app-focus: rgba(13,110,253,0.32);
-        --app-shadow-sm: 0 1px 2px rgba(0,0,0,0.24);
-        --app-shadow-md: 0 4px 12px rgba(0,0,0,0.28);
+        --app-bg: #090d16;
+        --app-surface: #111625;
+        --app-surface-muted: #171d2f;
+        --app-border: #222b44;
+        --app-border-soft: rgba(255, 255, 255, 0.03);
+        --app-text: #f8fafc;
+        --app-muted: #94a3b8;
+        --app-hover: #1b2337;
+        
+        --app-navbar: #070a10;
+        --app-navbar-border: rgba(255, 255, 255, 0.05);
+        --app-focus: rgba(157, 34, 53, 0.35);
+        
+        --app-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.45);
+        --app-shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
       }
 
       html,
       body {
         min-height: 100%;
+        font-family: var(--font-sans);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
       }
 
       body {
@@ -62,52 +78,59 @@
       }
 
       a {
-        text-underline-offset: 2px;
+        text-underline-offset: 3px;
+        transition: color 0.15s ease, opacity 0.15s ease;
       }
 
       code {
-        color: #d63384;
-        background: rgba(0,0,0,0.035);
-        border-radius: 4px;
-        padding: 0.1rem 0.25rem;
+        color: var(--temple-cherry);
+        background: var(--temple-cherry-soft);
+        border-radius: 6px;
+        padding: 0.15rem 0.35rem;
+        font-size: 0.85em;
+        font-weight: 600;
       }
 
       [data-bs-theme="dark"] code {
-        color: #e685b5;
-        background: #2a2f34;
+        color: #ff8fa3;
+        background: rgba(255, 143, 163, 0.1);
       }
 
+      /* ── Elegant Elevators & Card States ────────────────── */
       .card,
       .modal-content,
       .list-group-item {
         background-color: var(--app-surface);
         border-color: var(--app-border);
+        border-radius: 12px;
       }
 
       .card {
         box-shadow: var(--app-shadow-sm);
+        border: 1px solid var(--app-border);
       }
 
       .card-header {
         background-color: var(--app-surface-muted);
-        border-color: var(--app-border);
-        font-weight: 650;
+        border-bottom: 1px solid var(--app-border);
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        padding: 1rem 1.25rem;
       }
 
       .card-hover {
-        transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+        transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), 
+                    box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), 
+                    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       }
 
       .card-hover:hover {
-        transform: translateY(-1px);
-        border-color: #cfd6df;
+        transform: translateY(-2px);
+        border-color: var(--temple-cherry);
         box-shadow: var(--app-shadow-md);
       }
 
-      [data-bs-theme="dark"] .card-hover:hover {
-        border-color: #495057;
-      }
-
+      /* Tables styling */
       .table-hover tbody tr {
         transition: background-color 0.15s ease;
       }
@@ -117,8 +140,8 @@
       }
 
       .table-dark {
-        --bs-table-bg: #262b30;
-        --bs-table-border-color: #343a40;
+        --bs-table-bg: var(--app-surface-muted);
+        --bs-table-border-color: var(--app-border);
       }
 
       .table-light,
@@ -132,6 +155,7 @@
       .card-body .rounded.bg-white {
         background-color: var(--app-surface-muted) !important;
         color: var(--app-text);
+        border: 1px solid var(--app-border);
       }
 
       .text-dark {
@@ -142,60 +166,75 @@
         background-color: var(--app-surface-muted) !important;
         color: var(--app-text) !important;
         border: 1px solid var(--app-border);
+        font-weight: 600;
       }
 
+      /* Form inputs focus ring updates */
       .form-control,
       .form-select {
         background-color: var(--app-surface);
         border-color: var(--app-border);
         color: var(--app-text);
+        border-radius: 8px;
+        padding: 0.5rem 0.75rem;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
       }
 
       .form-control:focus,
       .form-select:focus {
         background-color: var(--app-surface);
-        border-color: #0d6efd;
+        border-color: var(--temple-cherry);
         color: var(--app-text);
-        box-shadow: 0 0 0 0.2rem var(--app-focus);
+        box-shadow: 0 0 0 4px var(--app-focus);
       }
 
       .progress {
         background-color: var(--app-surface-muted);
+        border-radius: 999px;
+      }
+
+      /* Alert customization matching modern alerts */
+      .alert {
+        border-radius: 12px;
+        border: 1px solid transparent;
+        padding: 1rem 1.25rem;
       }
 
       .alert-info {
-        background-color: #e8f4fb;
-        border-color: #b6e0f3;
-        color: #075985;
+        background-color: #f0f7ff;
+        border-color: #cbdcf7;
+        color: #1e40af;
       }
 
       .alert-warning {
-        background-color: #fff8e1;
-        border-color: #ffe08a;
-        color: #7d4a00;
+        background-color: #fffbeb;
+        border-color: #fde68a;
+        color: #92400e;
       }
 
       [data-bs-theme="dark"] .alert-info {
-        background-color: #1a3a4a;
-        border-color: #2a5a6a;
-        color: #8ecae6;
+        background-color: rgba(30, 64, 175, 0.15);
+        border-color: rgba(30, 64, 175, 0.3);
+        color: #93c5fd;
       }
 
       [data-bs-theme="dark"] .alert-warning {
-        background-color: #3a3520;
-        border-color: #5a5530;
-        color: #ffc107;
+        background-color: rgba(146, 64, 14, 0.15);
+        border-color: rgba(146, 64, 14, 0.3);
+        color: #fde68a;
       }
 
       .upload-zone {
         background: var(--app-surface);
-        border-color: var(--app-border);
+        border: 2px dashed var(--app-border);
+        border-radius: 12px;
         color: var(--app-text);
+        transition: border-color 0.2s ease, background-color 0.2s ease;
       }
 
       .upload-zone.dragover {
-        border-color: #0d6efd;
-        background: var(--app-primary-soft);
+        border-color: var(--temple-cherry);
+        background: var(--temple-cherry-soft);
       }
 
       .upload-zone .upload-icon {
@@ -204,60 +243,75 @@
 
       .preview-card {
         background: var(--app-surface);
-        border-left-color: #0d6efd;
+        border-left: 4px solid var(--temple-cherry);
         box-shadow: var(--app-shadow-sm);
+        border-radius: 0 12px 12px 0;
       }
 
       .batch-name-display {
         background: var(--app-surface-muted);
         color: var(--app-text);
+        border-radius: 8px;
+        padding: 0.35rem 0.75rem;
+        font-weight: 600;
+        border: 1px solid var(--app-border);
       }
 
       .dropdown-menu {
         border-color: var(--app-border);
-        box-shadow: var(--app-shadow-md);
-        padding-top: 0.4rem;
-        padding-bottom: 0.4rem;
+        box-shadow: var(--app-shadow-lg);
+        padding: 0.5rem;
+        border-radius: 12px;
+        background-color: var(--app-surface);
       }
 
       .dropdown-item {
-        border-radius: 6px;
-        margin: 0.1rem 0.35rem;
-        width: calc(100% - 0.7rem);
-        font-size: 0.94rem;
+        border-radius: 8px;
+        margin: 0.1rem 0;
+        width: 100%;
+        font-size: 0.92rem;
+        padding: 0.5rem 0.75rem;
+        color: var(--app-text);
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        transition: background-color 0.12s ease, color 0.12s ease;
       }
 
       .dropdown-item:hover {
         background-color: var(--app-hover);
+        color: var(--app-text);
       }
 
       .dropdown-item.active,
       .dropdown-item.active:hover {
-        background-color: #0d6efd;
+        background-color: var(--temple-cherry);
         color: #fff;
       }
 
       .dropdown-header {
         color: var(--app-muted);
-        font-size: 0.78rem;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        padding: 0.5rem 0.75rem;
       }
 
       .dropdown-item-text {
-        padding-left: 0.85rem;
-        padding-right: 0.85rem;
+        padding: 0.5rem 0.75rem;
       }
 
-      /* ── Navbar ─────────────────────────────────────────────── */
-
+      /* ── Modern Navigation Bar ────────────────── */
       .app-navbar {
-        min-height: 64px;
+        min-height: 72px;
         background: var(--app-navbar);
         border-bottom: 1px solid var(--app-navbar-border);
-        box-shadow: 0 1px 3px rgba(0,0,0,0.16);
+        box-shadow: var(--app-shadow-sm);
       }
 
       .app-navbar .container-fluid {
-        min-height: 64px;
+        min-height: 72px;
       }
 
       .app-brand {
@@ -266,25 +320,25 @@
       }
 
       .app-brand-logo {
-        height: 38px;
+        height: 42px;
         width: auto;
         flex-shrink: 0;
       }
 
       .app-brand-divider {
         width: 1px;
-        height: 30px;
-        background: rgba(255,255,255,0.22);
-        margin-left: 0.9rem;
-        margin-right: 0.9rem;
+        height: 28px;
+        background: rgba(255, 255, 255, 0.15);
+        margin-left: 1rem;
+        margin-right: 1rem;
         flex-shrink: 0;
       }
 
       .app-brand-text {
         color: #fff;
-        font-weight: 600;
-        font-size: 1rem;
-        letter-spacing: 0;
+        font-weight: 700;
+        font-size: 1.05rem;
+        letter-spacing: -0.01em;
         white-space: nowrap;
         min-width: 0;
       }
@@ -294,83 +348,86 @@
       }
 
       .app-nav {
-        gap: 0.18rem;
+        gap: 0.35rem; /* Generous spacing between items */
       }
 
       .app-navbar .nav-link {
-        color: rgba(255,255,255,0.84);
-        border-radius: 6px;
-        padding: 0.52rem 0.78rem;
-        line-height: 1.2;
-        font-size: 0.96rem;
-        font-weight: 500;
-        letter-spacing: 0;
+        color: rgba(255, 255, 255, 0.75);
+        border-radius: 8px;
+        padding: 0.55rem 0.85rem;
+        line-height: 1.25;
+        font-size: 0.94rem;
+        font-weight: 600;
         transition: background-color 0.12s ease, color 0.12s ease;
+        display: inline-flex;
+        align-items: center;
       }
 
       .app-navbar .nav-link:hover {
         color: #fff;
-        background-color: rgba(255,255,255,0.09);
+        background-color: rgba(255, 255, 255, 0.08);
       }
 
       .app-navbar .nav-link.active {
         color: #fff;
-        background-color: rgba(255,255,255,0.16);
+        background-color: var(--temple-cherry);
       }
 
       .app-navbar .nav-link i {
-        font-size: 1rem;
+        font-size: 1.1rem;
       }
 
       .app-navbar .dropdown-toggle::after {
-        margin-left: 0.45rem;
+        margin-left: 0.5rem; /* Spacious indicator spacing */
       }
 
       .app-icon-btn,
       .theme-toggle {
-        width: 36px;
-        height: 36px;
+        width: 38px;
+        height: 38px;
         padding: 0 !important;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        border-radius: 6px !important;
+        border-radius: 8px !important;
       }
 
       .theme-toggle {
         background: transparent;
-        border: 1px solid rgba(255,255,255,0.24);
-        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: rgba(255, 255, 255, 0.85);
         cursor: pointer;
-        transition: background-color 0.12s ease, border-color 0.12s ease;
+        transition: all 0.12s ease;
       }
 
       .theme-toggle:hover {
-        border-color: rgba(255,255,255,0.45);
-        background: rgba(255,255,255,0.08);
+        border-color: rgba(255, 255, 255, 0.35);
+        background: rgba(255, 255, 255, 0.08);
+        color: #fff;
       }
 
+      /* Role Badges */
       .role-pill {
-        font-size: 0.7rem;
-        font-weight: 700;
-        letter-spacing: 0.02em;
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
         text-transform: uppercase;
-        padding: 0.22rem 0.5rem;
+        padding: 0.25rem 0.6rem;
         border-radius: 999px;
-        color: #f8f9fa;
-        background-color: rgba(255,255,255,0.12);
-        border: 1px solid rgba(255,255,255,0.2);
+        color: #fff;
+        background-color: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
         white-space: nowrap;
       }
 
       .role-pill-admin {
-        background-color: rgba(220,53,69,0.22);
-        border-color: rgba(220,53,69,0.35);
+        background-color: rgba(220, 53, 69, 0.25);
+        border-color: rgba(220, 53, 69, 0.4);
       }
 
       .role-pill-committee {
-        background-color: rgba(13,110,253,0.3);
-        border-color: rgba(13,110,253,0.5);
+        background-color: rgba(157, 34, 53, 0.35);
+        border-color: rgba(157, 34, 53, 0.5);
       }
 
       .user-menu-name {
@@ -381,40 +438,41 @@
       }
 
       .navbar-toggler {
-        border-color: rgba(255,255,255,0.22);
-        padding: 0.38rem 0.55rem;
+        border-color: rgba(255, 255, 255, 0.12);
+        padding: 0.45rem 0.65rem;
+        border-radius: 8px;
       }
 
       .navbar-toggler:focus {
-        box-shadow: 0 0 0 0.15rem rgba(255,255,255,0.18);
+        box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.15);
       }
 
-      /* ── Main layout / footer ───────────────────────────────── */
-
+      /* ── Layout Framework ───────────────────────────────── */
       .app-main {
         width: 100%;
         background: var(--app-bg);
-        padding-top: 1.35rem;
-        padding-bottom: 2rem;
+        padding-top: 2rem;
+        padding-bottom: 3.5rem;
       }
 
       .app-alert {
-        border-radius: 10px;
+        border-radius: 12px;
         box-shadow: var(--app-shadow-sm);
       }
 
+      /* Footer Elements */
       .app-footer {
         background-color: var(--app-surface);
         color: var(--app-text);
         margin-top: auto;
-        padding-top: 0.85rem;
-        padding-bottom: 0.85rem;
+        padding-top: 1.5rem;
+        padding-bottom: 1.5rem;
         border-top: 1px solid var(--app-border);
       }
 
       .app-footer img {
-        height: 30px;
-        opacity: 0.95;
+        height: 34px;
+        width: auto;
       }
 
       .app-footer .text-muted {
@@ -422,20 +480,45 @@
       }
 
       .app-footer-title {
-        font-size: 0.9rem;
-        font-weight: 700;
-        line-height: 1.2;
+        font-size: 0.95rem;
+        font-weight: 800;
+        line-height: 1.25;
+        letter-spacing: -0.01em;
       }
 
       .app-footer-subtitle {
-        font-size: 0.76rem;
+        font-size: 0.78rem;
         color: var(--app-muted);
       }
 
       .committee-toast .toast {
-        box-shadow: var(--app-shadow-md);
+        box-shadow: var(--app-shadow-lg);
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
       }
 
+      /* Custom button accent tweaks */
+      .btn-primary {
+        background-color: var(--temple-cherry);
+        border-color: var(--temple-cherry);
+        font-weight: 600;
+      }
+      .btn-primary:hover, .btn-primary:focus, .btn-primary:active {
+        background-color: var(--temple-cherry-hover) !important;
+        border-color: var(--temple-cherry-hover) !important;
+      }
+      .btn-outline-primary {
+        color: var(--temple-cherry);
+        border-color: var(--temple-cherry);
+        font-weight: 600;
+      }
+      .btn-outline-primary:hover, .btn-outline-primary:focus, .btn-outline-primary:active {
+        background-color: var(--temple-cherry) !important;
+        border-color: var(--temple-cherry) !important;
+        color: #fff !important;
+      }
+
+      /* Responsive rules adjustments */
       @media (max-width: 1199.98px) {
         .app-navbar {
           min-height: 64px;
@@ -446,40 +529,40 @@
         }
 
         .app-brand-logo {
-          height: 36px;
+          height: 38px;
         }
 
         .app-brand-text {
-          font-size: 0.98rem;
+          font-size: 0.95rem;
         }
 
         .navbar-collapse {
-          padding-top: 0.85rem;
-          padding-bottom: 0.85rem;
+          padding-top: 1rem;
+          padding-bottom: 1rem;
         }
 
         .app-nav {
-          gap: 0.35rem;
+          gap: 0.5rem;
         }
 
         .app-navbar .nav-link {
-          padding: 0.72rem 0.85rem;
-          font-size: 0.98rem;
+          padding: 0.65rem 0.85rem;
+          font-size: 0.96rem;
         }
 
         .navbar-nav.ms-auto {
           align-items: stretch !important;
-          border-top: 1px solid rgba(255,255,255,0.1);
-          margin-top: 0.85rem;
-          padding-top: 0.85rem;
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
+          margin-top: 1rem;
+          padding-top: 1rem;
         }
 
         .app-icon-btn,
         .theme-toggle {
-          width: auto;
+          width: 100%;
           height: auto;
           justify-content: flex-start;
-          padding: 0.72rem 0.85rem !important;
+          padding: 0.65rem 0.85rem !important;
         }
 
         .theme-toggle {
@@ -489,13 +572,13 @@
 
       @media (max-width: 575.98px) {
         .app-navbar {
-          min-height: 58px;
+          min-height: 60px;
         }
 
         .app-navbar .container-fluid {
-          min-height: 58px;
-          padding-left: 0.85rem !important;
-          padding-right: 0.85rem !important;
+          min-height: 60px;
+          padding-left: 1rem !important;
+          padding-right: 1rem !important;
         }
 
         .app-brand {
@@ -505,13 +588,13 @@
         }
 
         .app-brand-logo {
-          height: 34px;
+          height: 36px;
         }
 
         .app-brand-divider {
-          height: 27px;
-          margin-left: 0.65rem;
-          margin-right: 0.65rem;
+          height: 24px;
+          margin-left: 0.75rem;
+          margin-right: 0.75rem;
         }
 
         .app-brand-text-full {
@@ -523,7 +606,7 @@
           max-width: 150px;
           overflow: hidden;
           text-overflow: ellipsis;
-          font-size: 0.95rem;
+          font-size: 0.92rem;
         }
 
         .app-brand .role-pill {
@@ -532,17 +615,17 @@
 
         .navbar-toggler {
           flex-shrink: 0;
-          padding: 0.32rem 0.5rem;
+          padding: 0.35rem 0.5rem;
         }
 
         .app-main {
-          padding-top: 1rem;
+          padding-top: 1.25rem;
         }
       }
 
       @media (max-width: 390px) {
         .app-brand-text-short {
-          max-width: 125px;
+          max-width: 110px;
         }
 
         .app-brand-logo {
@@ -550,8 +633,8 @@
         }
 
         .app-brand-divider {
-          margin-left: 0.55rem;
-          margin-right: 0.55rem;
+          margin-left: 0.5rem;
+          margin-right: 0.5rem;
         }
       }
     </style>
@@ -570,6 +653,7 @@
   </head>
 
   <body>
+    <!-- Top Glassmorphic Navigation -->
     <nav class="navbar navbar-expand-xl navbar-dark app-navbar">
       <div class="container-fluid px-3 px-lg-4">
 
@@ -603,59 +687,65 @@
               <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"
                    href="{% url 'dashboard' %}">
-                  <i class="bi bi-speedometer2 me-1"></i>Dashboard
+                  <i class="bi bi-speedometer2 me-2"></i>Dashboard
                 </a>
               </li>
 
               <li class="nav-item">
                 <a class="nav-link {% if 'dataset' in request.resolver_match.url_name|default:'' %}active{% endif %}"
                    href="{% url 'dataset_list' %}">
-                  <i class="bi bi-stack me-1"></i>DataSets
+                  <i class="bi bi-stack me-2"></i>DataSets
                 </a>
               </li>
 
               <li class="nav-item">
                 <a class="nav-link {% if 'batch' in request.resolver_match.url_name|default:'' and 'bulk' not in request.resolver_match.url_name|default:'' %}active{% endif %}"
                    href="{% url 'batch_list' %}">
-                  <i class="bi bi-collection-fill me-1"></i>Batches
+                  <i class="bi bi-collection-fill me-2"></i>Batches
                 </a>
               </li>
 
               <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'applicant_list' %}active{% endif %}"
                    href="{% url 'applicant_list' %}">
-                  <i class="bi bi-people-fill me-1"></i>Applicants
+                  <i class="bi bi-people-fill me-2"></i>Applicants
                 </a>
               </li>
 
               <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle {% if request.resolver_match.url_name in 'bulk_upload,manage_panels,send_notification,activity_feed,global_search,candidate_info_upload,analytics_overview,analytics_dataset' %}active{% endif %}"
+                <a class="nav-link dropdown-toggle {% if request.resolver_match.url_name in 'bulk_upload,manage_panels,committee_progress,send_notification,activity_feed,global_search,candidate_info_upload,analytics_overview,analytics_dataset' %}active{% endif %}"
                    href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                  <i class="bi bi-grid-3x3-gap me-1"></i>Tools
+                  <i class="bi bi-grid-3x3-gap me-2"></i>Tools
                 </a>
 
                 <ul class="dropdown-menu">
                   <li>
                     <a class="dropdown-item {% if request.resolver_match.url_name == 'bulk_upload' %}active{% endif %}" href="{% url 'bulk_upload' %}">
-                      <i class="bi bi-folder2-open me-2"></i>Bulk Upload
+                      <i class="bi bi-folder2-open me-2 text-muted"></i>Bulk Upload
                     </a>
                   </li>
 
                   <li>
                     <a class="dropdown-item {% if request.resolver_match.url_name == 'candidate_info_upload' %}active{% endif %}" href="{% url 'candidate_info_upload' %}">
-                      <i class="bi bi-file-earmark-spreadsheet me-2"></i>Candidate Info Upload
+                      <i class="bi bi-file-earmark-spreadsheet me-2 text-muted"></i>Candidate Info Upload
                     </a>
                   </li>
 
                   <li>
                     <a class="dropdown-item {% if request.resolver_match.url_name == 'manage_panels' %}active{% endif %}" href="{% url 'manage_panels' %}">
-                      <i class="bi bi-people-fill me-2"></i>Panels
+                      <i class="bi bi-people-fill me-2 text-muted"></i>Panels
+                    </a>
+                  </li>
+                  
+                  <li>
+                    <a class="dropdown-item {% if request.resolver_match.url_name == 'committee_progress' %}active{% endif %}" href="{% url 'committee_progress' %}">
+                      <i class="bi bi-people me-2 text-muted"></i>Committee Progress
                     </a>
                   </li>
 
                   <li>
                     <a class="dropdown-item {% if request.resolver_match.url_name == 'send_notification' %}active{% endif %}" href="{% url 'send_notification' %}">
-                      <i class="bi bi-send me-2"></i>Send Reminder
+                      <i class="bi bi-send me-2 text-muted"></i>Send Reminder
                     </a>
                   </li>
 
@@ -663,19 +753,19 @@
 
                   <li>
                     <a class="dropdown-item {% if request.resolver_match.url_name == 'activity_feed' %}active{% endif %}" href="{% url 'activity_feed' %}">
-                      <i class="bi bi-clock-history me-2"></i>Activity Feed
+                      <i class="bi bi-clock-history me-2 text-muted"></i>Activity Feed
                     </a>
                   </li>
 
                   <li>
                     <a class="dropdown-item {% if request.resolver_match.url_name == 'global_search' %}active{% endif %}" href="{% url 'global_search' %}">
-                      <i class="bi bi-search me-2"></i>Global Search
+                      <i class="bi bi-search me-2 text-muted"></i>Global Search
                     </a>
                   </li>
 
                   <li>
                     <a class="dropdown-item {% if request.resolver_match.url_name == 'analytics_overview' or request.resolver_match.url_name == 'analytics_dataset' %}active{% endif %}" href="{% url 'analytics_overview' %}">
-                      <i class="bi bi-bar-chart-line me-2"></i>Analytics
+                      <i class="bi bi-bar-chart-line me-2 text-muted"></i>Analytics
                     </a>
                   </li>
                 </ul>
@@ -686,35 +776,35 @@
               <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'committee_dashboard' %}active{% endif %}"
                    href="{% url 'committee_dashboard' %}">
-                  <i class="bi bi-speedometer2 me-1"></i>Dashboard
+                  <i class="bi bi-speedometer2 me-2"></i>Dashboard
                 </a>
               </li>
 
               <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'applicant_queue' %}active{% endif %}"
                    href="{% url 'applicant_queue' %}">
-                  <i class="bi bi-inbox-fill me-1"></i>My Queue
+                  <i class="bi bi-inbox-fill me-2"></i>My Queue
                 </a>
               </li>
 
               <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'my_reviews' %}active{% endif %}"
                    href="{% url 'my_reviews' %}">
-                  <i class="bi bi-star-fill me-1"></i>My Reviews
+                  <i class="bi bi-star-fill me-2"></i>My Reviews
                 </a>
               </li>
 
               <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'my_activity' %}active{% endif %}"
                    href="{% url 'my_activity' %}">
-                  <i class="bi bi-clock-history me-1"></i>My Activity
+                  <i class="bi bi-clock-history me-2"></i>My Activity
                 </a>
               </li>
 
               <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'help' %}active{% endif %}"
                    href="{% url 'help' %}">
-                  <i class="bi bi-question-circle me-1"></i>Help
+                  <i class="bi bi-question-circle me-2"></i>Help
                 </a>
               </li>
 
@@ -722,13 +812,13 @@
             {% endif %}
           </ul>
 
-          <ul class="navbar-nav ms-auto align-items-center gap-xl-1">
+          <ul class="navbar-nav ms-auto align-items-center gap-xl-2">
             {% if user.is_authenticated %}
               <li class="nav-item">
                 <a href="{% url 'notification_list' %}" class="nav-link app-icon-btn position-relative" title="Notifications">
                   <i class="bi bi-bell-fill"></i>
                   {% if unread_notification_count %}
-                  <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:0.65rem;">
+                  <span class="position-absolute top-1 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:0.6rem; padding: 0.25em 0.4em;">
                     {{ unread_notification_count }}
                   </span>
                   {% endif %}
@@ -742,9 +832,9 @@
                 </button>
               </li>
 
-              <li class="nav-item dropdown">
+              <li class="nav-item dropdown ms-xl-2">
                 <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                  <i class="bi bi-person-circle me-1"></i>
+                  <i class="bi bi-person-circle me-2"></i>
                   <span class="user-menu-name">{{ user.username }}</span>
                 </a>
 
@@ -813,10 +903,11 @@
       </div>
     </nav>
 
+    <!-- Main Container Layout Wrap -->
     <main class="app-main">
       <div class="container">
         {% if messages %}
-          <div class="mb-3">
+          <div class="mb-4">
             {% for message in messages %}
             <div class="alert alert-{{ message.tags }} alert-dismissible fade show app-alert" role="alert">
               {{ message }}
@@ -830,15 +921,16 @@
       </div>
     </main>
 
+    <!-- Elevated Native Footer Layout -->
     <footer class="app-footer">
       <div class="container">
-        <div class="row align-items-center gy-2">
+        <div class="row align-items-center gy-3">
           <div class="col-md-6">
             <div class="d-flex align-items-center">
               <img src="{% static 'temple_logo.png' %}" alt="Temple University Kornberg School of Dentistry" class="me-3">
               <div>
                 <div class="app-footer-title">Kornberg Admissions Portal</div>
-                <div class="app-footer-subtitle">Candidate review and admissions decision support</div>
+                <div class="app-footer-subtitle">Candidate review and decision support systems</div>
               </div>
             </div>
           </div>
@@ -846,12 +938,12 @@
           <div class="col-md-6 text-md-end">
             <div class="small text-muted">&copy; {% now "Y" %} Temple University Kornberg School of Dentistry</div>
             <div class="small text-muted">
-              Secure internal admissions system
+              Secure Internal Admissions Environment
               {% if user.is_authenticated %}
-                <span class="mx-1">•</span>
-                Signed in as {{ user.username }}
+                <span class="mx-2">•</span>
+                Active User: {{ user.username }}
                 {% if request.session.committee_mode %}
-                  <span class="mx-1">•</span>
+                  <span class="mx-2">•</span>
                   <span class="text-primary fw-semibold">Committee Mode</span>
                 {% endif %}
               {% endif %}
@@ -861,16 +953,17 @@
       </div>
     </footer>
 
+    <!-- Modals and System Elements -->
     <div class="modal fade" id="applicantModal" tabindex="-1" aria-labelledby="applicantModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="applicantModalLabel">Applicant Profile</h5>
+            <h5 class="modal-title fw-bold" id="applicantModalLabel">Applicant Profile</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body"><p>Loading...</p></div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
           </div>
         </div>
       </div>
@@ -878,6 +971,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
+    <!-- Modal profile fetcher script -->
     <script>
       const applicantModal = document.getElementById('applicantModal');
 
@@ -891,7 +985,7 @@
 
           if (!profileUrl || !modalBody) return;
 
-          modalBody.innerHTML = '<p class="text-center text-muted py-3">Loading applicant profile...</p>';
+          modalBody.innerHTML = '<div class="d-flex justify-content-center py-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
 
           fetch(profileUrl)
             .then(response => {
@@ -911,6 +1005,7 @@
       }
     </script>
 
+    <!-- Selection actions displays -->
     <script>
       document.addEventListener("DOMContentLoaded", function() {
         const checkboxes = document.querySelectorAll('.applicant-checkbox');
@@ -937,6 +1032,7 @@
       });
     </script>
 
+    <!-- Video control utilities logic -->
     <script>
       document.body.addEventListener('click', function(event) {
         if (event.target.classList.contains('speed-control')) {
@@ -966,6 +1062,7 @@
       });
     </script>
 
+    <!-- Table clicks logic -->
     <script>
       document.addEventListener("DOMContentLoaded", function() {
         const rows = document.querySelectorAll(".clickable-row");
@@ -988,6 +1085,7 @@
       });
     </script>
 
+    <!-- Dark Mode Theme toggle script logic -->
     <script>
       (function() {
         const html = document.getElementById('html-root');
@@ -1016,6 +1114,7 @@
       })();
     </script>
 
+    <!-- Switched Modes interactive toasts logic -->
     {% if user.is_authenticated and user.profile.role == 'ADMIN' and user.profile.is_reviewer %}
     <div class="position-fixed bottom-0 end-0 p-3 committee-toast" style="z-index: 1055;">
       <div id="committeeModeToast" class="toast align-items-center text-bg-primary border-0" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="6000">

@@ -573,6 +573,21 @@
   </div>
   {% endif %}
 
+  {% if is_queue_page and waitlist_locked %}
+  <div class="alert alert-warning d-flex align-items-start gap-3 mb-3" style="border-radius:12px;">
+    <i class="bi bi-lock-fill fs-5 mt-1 flex-shrink-0"></i>
+    <div>
+      <div class="fw-semibold mb-1">Waitlist candidates are locked</div>
+      <div class="small">
+        You have {{ total_assigned_unfiltered }} candidates assigned. You need to make a Yes or No
+        decision on at least <strong>{{ waitlist_threshold_count }}</strong> candidates before you
+        can view waitlisted ones. You've decided on
+        <strong>{{ voted_count_unfiltered }}</strong> so far.
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   <div class="applicant-filter-panel">
     {% if is_queue_page %}
     <form method="get" id="filter-form">
@@ -615,10 +630,12 @@
 
           <div class="form-check mb-0">
             <input class="form-check-input" type="checkbox" name="show_waitlist" id="q_waitlist"
-                   value="1" {% if show_waitlist %}checked{% endif %} onchange="this.form.submit()">
-            <label class="form-check-label small" for="q_waitlist">Include waitlisted</label>
+                  value="1" {% if show_waitlist %}checked{% endif %}
+                  {% if waitlist_locked %}disabled title="Make {{ waitlist_threshold_count }} Yes/No decisions first"{% else %}onchange="this.form.submit()"{% endif %}>
+            <label class="form-check-label small {% if waitlist_locked %}text-muted{% endif %}" for="q_waitlist">
+              Include waitlisted {% if waitlist_locked %}<i class="bi bi-lock-fill ms-1" style="font-size:0.65rem;"></i>{% endif %}
+            </label>
           </div>
-        </div>
 
         <div class="col-auto d-flex gap-1 align-items-end filter-button-row">
           <button type="submit" class="btn btn-outline-secondary btn-sm">
@@ -706,7 +723,10 @@
       {% if user.profile.role == 'ADMIN' %}
       <div class="collapse {% if has_advanced %}show{% endif %} mt-3" id="advanced-filters">
         <div class="advanced-filter-box">
-          <div class="row g-3 align-items-end">
+
+          <!-- Dataset & Candidate -->
+          <p class="text-muted small fw-semibold mb-2 pb-1 border-bottom">Dataset &amp; Candidate</p>
+          <div class="row g-3 mb-3">
             <div class="col-md-3">
               <label class="filter-label">Program Type</label>
               <select name="program_type" class="form-select form-select-sm">
@@ -727,45 +747,123 @@
               </select>
             </div>
 
-            <div class="col-md-6">
-              <label class="filter-label d-block">Candidate Flags</label>
-              <div class="d-flex flex-wrap gap-3">
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" name="first_gen" id="f_first_gen"
-                         {% if filter_first_gen %}checked{% endif %}>
-                  <label class="form-check-label small" for="f_first_gen">First Generation</label>
-                </div>
 
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" name="re_applicant" id="f_re_applicant"
-                         {% if filter_re_applicant %}checked{% endif %}>
-                  <label class="form-check-label small" for="f_re_applicant">Re-Applicant</label>
-                </div>
+            <div class="col-md-3">
+              <label class="filter-label">Academic Data</label>
+              <select name="data_imported" class="form-select form-select-sm">
+                <option value="">All Candidates</option>
+                <option value="1" {% if filter_data_imported == '1' %}selected{% endif %}>Has imported data</option>
+                <option value="0" {% if filter_data_imported == '0' %}selected{% endif %}>Missing data</option>
+              </select>
+            </div>
+          </div>
 
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" name="pb_to_dmd" id="f_pb_to_dmd"
-                         {% if filter_pb_to_dmd %}checked{% endif %}>
-                  <label class="form-check-label small" for="f_pb_to_dmd">PB to DMD</label>
+          <!-- Academic Score Ranges -->
+          <p class="text-muted small fw-semibold mb-2 pb-1 border-bottom">Academic Score Ranges</p>
+          <div class="row g-3 mb-3">
+            <div class="col-md-3">
+              <label class="filter-label">Overall GPA</label>
+              <div class="d-flex gap-1">
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text" style="font-size:0.72rem;min-width:26px;justify-content:center;">&#8805;</span>
+                  <input type="number" name="gpa_min" class="form-control" placeholder="Min"
+                         step="0.01" min="0" max="4" value="{{ filter_gpa_min }}">
                 </div>
-
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" name="former_post_bacc" id="f_former_pb"
-                         {% if filter_former_pb %}checked{% endif %}>
-                  <label class="form-check-label small" for="f_former_pb">Former Post Bacc</label>
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text" style="font-size:0.72rem;min-width:26px;justify-content:center;">&#8804;</span>
+                  <input type="number" name="gpa_max" class="form-control" placeholder="Max"
+                         step="0.01" min="0" max="4" value="{{ filter_gpa_max }}">
                 </div>
+              </div>
+            </div>
 
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" name="three_plus_four" id="f_3p4"
-                         {% if filter_three_plus_four %}checked{% endif %}>
-                  <label class="form-check-label small" for="f_3p4">3+4</label>
+            <div class="col-md-3">
+              <label class="filter-label">Science GPA</label>
+              <div class="d-flex gap-1">
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text" style="font-size:0.72rem;min-width:26px;justify-content:center;">&#8805;</span>
+                  <input type="number" name="gpa_science_min" class="form-control" placeholder="Min"
+                         step="0.01" min="0" max="4" value="{{ filter_gpa_science_min }}">
+                </div>
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text" style="font-size:0.72rem;min-width:26px;justify-content:center;">&#8804;</span>
+                  <input type="number" name="gpa_science_max" class="form-control" placeholder="Max"
+                         step="0.01" min="0" max="4" value="{{ filter_gpa_science_max }}">
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-3">
+              <label class="filter-label">DAT Academic Avg</label>
+              <div class="d-flex gap-1">
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text" style="font-size:0.72rem;min-width:26px;justify-content:center;">&#8805;</span>
+                  <input type="number" name="dat_min" class="form-control" placeholder="Min"
+                         step="1" min="200" max="600" value="{{ filter_dat_min }}">
+                </div>
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text" style="font-size:0.72rem;min-width:26px;justify-content:center;">&#8804;</span>
+                  <input type="number" name="dat_max" class="form-control" placeholder="Max"
+                         step="1" min="200" max="600" value="{{ filter_dat_max }}">
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-3">
+              <label class="filter-label">DAT Perceptual Ability</label>
+              <div class="d-flex gap-1">
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text" style="font-size:0.72rem;min-width:26px;justify-content:center;">&#8805;</span>
+                  <input type="number" name="dat_pat_min" class="form-control" placeholder="Min"
+                         step="1" min="200" max="600" value="{{ filter_dat_pat_min }}">
+                </div>
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text" style="font-size:0.72rem;min-width:26px;justify-content:center;">&#8804;</span>
+                  <input type="number" name="dat_pat_max" class="form-control" placeholder="Max"
+                         step="1" min="200" max="600" value="{{ filter_dat_pat_max }}">
                 </div>
               </div>
             </div>
           </div>
 
-          <div class="mt-3">
-            <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+          <!-- Candidate Flags -->
+          <p class="text-muted small fw-semibold mb-2 pb-1 border-bottom">Candidate Flags</p>
+          <div class="d-flex flex-wrap gap-3 mb-3">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="first_gen" id="f_first_gen"
+                     {% if filter_first_gen %}checked{% endif %}>
+              <label class="form-check-label small" for="f_first_gen">First Generation</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="re_applicant" id="f_re_applicant"
+                     {% if filter_re_applicant %}checked{% endif %}>
+              <label class="form-check-label small" for="f_re_applicant">Re-Applicant</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="pb_to_dmd" id="f_pb_to_dmd"
+                     {% if filter_pb_to_dmd %}checked{% endif %}>
+              <label class="form-check-label small" for="f_pb_to_dmd">PB to DMD</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="former_post_bacc" id="f_former_pb"
+                     {% if filter_former_pb %}checked{% endif %}>
+              <label class="form-check-label small" for="f_former_pb">Former Post Bacc</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="three_plus_four" id="f_3p4"
+                     {% if filter_three_plus_four %}checked{% endif %}>
+              <label class="form-check-label small" for="f_3p4">3+4</label>
+            </div>
           </div>
+
+          <div class="mt-1 d-flex align-items-center gap-2">
+            <button type="submit" class="btn btn-primary btn-sm">Apply Filters</button>
+            {% if has_advanced %}
+            <a href="{% url 'applicant_list' %}?batch={{ selected_batch_id|default:'' }}&q={{ search_query|default:'' }}&status={{ status_filter|default:'' }}&flagged_only={{ flagged_only|default:'' }}&all_committee={{ all_committee|default:'' }}"
+               class="btn btn-outline-secondary btn-sm">Clear Advanced</a>
+            {% endif %}
+          </div>
+
         </div>
       </div>
       {% endif %}

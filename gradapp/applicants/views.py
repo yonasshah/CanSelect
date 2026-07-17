@@ -192,26 +192,44 @@ def update_member_type(request):
 @login_required
 def applicant_list(request):
     batches = Batch.objects.all()
-    selected_batch_id = request.GET.get('batch')
-    search_query      = request.GET.get('q', '')
-    status_filter     = request.GET.get('status', '')
-    flagged_only      = request.GET.get('flagged_only', '')
-    all_committee     = request.GET.get('all_committee', '')
-    sort              = request.GET.get('sort', 'date')
-    direction         = request.GET.get('dir', 'desc')
-    program_type      = request.GET.get('program_type', '')
+    selected_batch_id   = request.GET.get('batch')
+    search_query        = request.GET.get('q', '')
+    status_filter       = request.GET.get('status', '')
+    flagged_only        = request.GET.get('flagged_only', '')
+    all_committee       = request.GET.get('all_committee', '')
+    sort                = request.GET.get('sort', 'date')
+    direction           = request.GET.get('dir', 'desc')
+    program_type        = request.GET.get('program_type', '')
     application_system  = request.GET.get('application_system', '')
 
-    # ── Candidate-info boolean filters ──────────────────────────────
-    filter_first_gen      = request.GET.get('first_gen', '')
-    filter_re_applicant   = request.GET.get('re_applicant', '')
-    filter_pb_to_dmd      = request.GET.get('pb_to_dmd', '')
-    filter_former_pb      = request.GET.get('former_post_bacc', '')
+    # ── Existing boolean filters ─────────────────────────────────────
+    filter_first_gen       = request.GET.get('first_gen', '')
+    filter_re_applicant    = request.GET.get('re_applicant', '')
+    filter_pb_to_dmd       = request.GET.get('pb_to_dmd', '')
+    filter_former_pb       = request.GET.get('former_post_bacc', '')
     filter_three_plus_four = request.GET.get('three_plus_four', '')
 
+    # ── New advanced filters ─────────────────────────────────────────
+    filter_gpa_min        = request.GET.get('gpa_min', '')
+    filter_gpa_max        = request.GET.get('gpa_max', '')
+    filter_dat_min        = request.GET.get('dat_min', '')
+    filter_dat_max        = request.GET.get('dat_max', '')
+    filter_gpa_science_min = request.GET.get('gpa_science_min', '')
+    filter_gpa_science_max = request.GET.get('gpa_science_max', '')
+    filter_dat_pat_min    = request.GET.get('dat_pat_min', '')
+    filter_dat_pat_max    = request.GET.get('dat_pat_max', '')
+    filter_state          = request.GET.get('state', '')
+    filter_data_imported  = request.GET.get('data_imported', '')
+
     has_advanced = any([
-        program_type, application_system, filter_first_gen, filter_re_applicant,
-        filter_pb_to_dmd, filter_former_pb, filter_three_plus_four,
+        program_type, application_system,
+        filter_first_gen, filter_re_applicant, filter_pb_to_dmd,
+        filter_former_pb, filter_three_plus_four,
+        filter_gpa_min, filter_gpa_max,
+        filter_gpa_science_min, filter_gpa_science_max,
+        filter_dat_min, filter_dat_max,
+        filter_dat_pat_min, filter_dat_pat_max,
+        filter_state, filter_data_imported,
     ])
 
     user_has_voted_subquery = Vote.objects.filter(
@@ -233,29 +251,22 @@ def applicant_list(request):
 
     if selected_batch_id:
         applicants_list = applicants_list.filter(round_id=selected_batch_id)
-
     if search_query:
         applicants_list = applicants_list.filter(
             Q(first_name__icontains=search_query) |
             Q(last_name__icontains=search_query) |
             Q(external_id__icontains=search_query)
         )
-
     if status_filter:
         applicants_list = applicants_list.filter(status=status_filter)
-
     if flagged_only:
         applicants_list = applicants_list.filter(flagged_by__isnull=False).distinct()
-
     if all_committee and total_committee_count > 0:
         applicants_list = applicants_list.filter(assigned_committee_count=total_committee_count)
-
     if application_system:
         applicants_list = applicants_list.filter(dataset__application_system=application_system)
-        
     if program_type:
         applicants_list = applicants_list.filter(dataset__program_type=program_type)
-
     if filter_first_gen:
         applicants_list = applicants_list.filter(first_gen=True)
     if filter_re_applicant:
@@ -266,6 +277,54 @@ def applicant_list(request):
         applicants_list = applicants_list.filter(former_post_bacc=True)
     if filter_three_plus_four:
         applicants_list = applicants_list.filter(three_plus_four=True)
+
+    # ── New filters ──────────────────────────────────────────────────
+    if filter_gpa_min:
+        try:
+            applicants_list = applicants_list.filter(gpa_overall__gte=float(filter_gpa_min))
+        except ValueError:
+            pass
+    if filter_gpa_max:
+        try:
+            applicants_list = applicants_list.filter(gpa_overall__lte=float(filter_gpa_max))
+        except ValueError:
+            pass
+    if filter_dat_min:
+        try:
+            applicants_list = applicants_list.filter(dat_academic_avg__gte=int(filter_dat_min))
+        except ValueError:
+            pass
+    if filter_dat_max:
+        try:
+            applicants_list = applicants_list.filter(dat_academic_avg__lte=int(filter_dat_max))
+        except ValueError:
+            pass
+    if filter_gpa_science_min:
+        try:
+            applicants_list = applicants_list.filter(gpa_science__gte=float(filter_gpa_science_min))
+        except ValueError:
+            pass
+    if filter_gpa_science_max:
+        try:
+            applicants_list = applicants_list.filter(gpa_science__lte=float(filter_gpa_science_max))
+        except ValueError:
+            pass
+    if filter_dat_pat_min:
+        try:
+            applicants_list = applicants_list.filter(dat_perceptual_ability__gte=int(filter_dat_pat_min))
+        except ValueError:
+            pass
+    if filter_dat_pat_max:
+        try:
+            applicants_list = applicants_list.filter(dat_perceptual_ability__lte=int(filter_dat_pat_max))
+        except ValueError:
+            pass
+    if filter_state:
+        applicants_list = applicants_list.filter(state_of_residence=filter_state)
+    if filter_data_imported == '1':
+        applicants_list = applicants_list.filter(candidate_info_imported=True)
+    elif filter_data_imported == '0':
+        applicants_list = applicants_list.filter(candidate_info_imported=False)
 
     sort_map = {
         'name':   'last_name',
@@ -279,14 +338,19 @@ def applicant_list(request):
     else:
         applicants_list = applicants_list.order_by(f'-{order_field}')
 
-    paginator = Paginator(applicants_list, 25)
+    paginator   = Paginator(applicants_list, 25)
     page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-
-    # ── Progress bar reflects filtered queryset ──────────────────────
-    # For the queue progress strip: count against filtered set when
-    # filters are active, otherwise all assigned.
+    page_obj    = paginator.get_page(page_number)
     total_filtered = paginator.count
+
+    # ── State dropdown: distinct values that exist in the DB ─────────
+    state_choices = (
+        Applicant.objects.exclude(state_of_residence__isnull=True)
+        .exclude(state_of_residence='')
+        .values_list('state_of_residence', flat=True)
+        .distinct()
+        .order_by('state_of_residence')
+    )
 
     context = {
         'page_obj':            page_obj,
@@ -301,15 +365,26 @@ def applicant_list(request):
         'sort':                sort,
         'direction':           direction,
         'program_type':        program_type,
-        'application_system':    application_system,
-        'filter_first_gen':       filter_first_gen,
-        'filter_re_applicant':    filter_re_applicant,
-        'filter_pb_to_dmd':       filter_pb_to_dmd,
-        'filter_former_pb':       filter_former_pb,
-        'filter_three_plus_four': filter_three_plus_four,
+        'application_system':  application_system,
+        'filter_first_gen':        filter_first_gen,
+        'filter_re_applicant':     filter_re_applicant,
+        'filter_pb_to_dmd':        filter_pb_to_dmd,
+        'filter_former_pb':        filter_former_pb,
+        'filter_three_plus_four':  filter_three_plus_four,
+        'filter_gpa_min':          filter_gpa_min,
+        'filter_gpa_max':          filter_gpa_max,
+        'filter_dat_min':          filter_dat_min,
+        'filter_dat_max':          filter_dat_max,
+        'filter_gpa_science_min':  filter_gpa_science_min,
+        'filter_gpa_science_max':  filter_gpa_science_max,
+        'filter_dat_pat_min':      filter_dat_pat_min,
+        'filter_dat_pat_max':      filter_dat_pat_max,
+        'filter_state':            filter_state,
+        'filter_data_imported':    filter_data_imported,
         'has_advanced':        has_advanced,
-        'program_type_choices': DataSet.ProgramType.choices,
+        'program_type_choices':       DataSet.ProgramType.choices,
         'application_system_choices': DataSet.ApplicationSystem.choices,
+        'state_choices':              state_choices,
     }
     return render(request, 'applicant_list.html', context)
 
@@ -1929,13 +2004,15 @@ def update_score(request, pk):
 @login_required
 @committee_access_required
 def applicant_queue(request):
+    import math
+
     batches = request.user.assigned_batches.all()
     selected_batch_id = request.GET.get('batch')
     search_query  = request.GET.get('q', '')
     status_filter = request.GET.get('status', '')
     flagged_only  = request.GET.get('flagged_only', '')
     show_waitlist = request.GET.get('show_waitlist', '')
- 
+
     user_has_voted_subquery = Vote.objects.filter(
         applicant=OuterRef('pk'),
         voter=request.user
@@ -1943,6 +2020,33 @@ def applicant_queue(request):
 
     total_committee_count = User.objects.filter(profile__role='COMMITTEE_MEMBER').count()
 
+    # ── Waitlist threshold ────────────────────────────────────────────────
+    # Rule: if reviewer has 100+ candidates assigned, they must have made
+    # a Yes/No decision on at least 10% before they can see waitlisted candidates.
+    total_assigned_unfiltered = Applicant.objects.filter(
+        Q(round__in=batches) | Q(assigned_reviewers=request.user)
+    ).distinct().count()
+
+    WAITLIST_THRESHOLD_MIN    = 100
+    WAITLIST_THRESHOLD_PCT    = 0.10
+    waitlist_threshold_active = total_assigned_unfiltered >= WAITLIST_THRESHOLD_MIN
+    waitlist_threshold_count  = math.ceil(total_assigned_unfiltered * WAITLIST_THRESHOLD_PCT) if waitlist_threshold_active else 0
+
+    voted_count_unfiltered = Vote.objects.filter(
+        voter=request.user,
+        value__in=[1, -1],
+        applicant__in=Applicant.objects.filter(
+            Q(round__in=batches) | Q(assigned_reviewers=request.user)
+        )
+    ).values('applicant').distinct().count()
+
+    waitlist_locked = waitlist_threshold_active and voted_count_unfiltered < waitlist_threshold_count
+
+    # If locked, ignore show_waitlist even if passed in URL
+    if waitlist_locked:
+        show_waitlist = ''
+
+    # ── Queue queryset ────────────────────────────────────────────────────
     # Default: exclude yes/no/waitlist. With show_waitlist: only exclude yes/no.
     exclude_values = [1, -1] if show_waitlist else [1, -1, 0]
 
@@ -1960,7 +2064,7 @@ def applicant_queue(request):
             distinct=True,
         ),
     ).order_by("-created_at")
- 
+
     if selected_batch_id:
         applicants_list = applicants_list.filter(round_id=selected_batch_id)
     if search_query:
@@ -1973,11 +2077,11 @@ def applicant_queue(request):
         applicants_list = applicants_list.filter(status=status_filter)
     if flagged_only:
         applicants_list = applicants_list.filter(flagged_by=request.user)
- 
-    # Progress — always based on yes/no regardless of show_waitlist
+
+    # ── Progress ──────────────────────────────────────────────────────────
     filtered_unvoted = applicants_list.count()
-    batch_filter_qs = batches.filter(pk=selected_batch_id) if selected_batch_id else batches
-    voted_in_scope = Vote.objects.filter(
+    batch_filter_qs  = batches.filter(pk=selected_batch_id) if selected_batch_id else batches
+    voted_in_scope   = Vote.objects.filter(
         voter=request.user,
         value__in=[1, -1],
     ).filter(
@@ -1991,11 +2095,11 @@ def applicant_queue(request):
         )
     if status_filter:
         voted_in_scope = voted_in_scope.filter(applicant__status=status_filter)
- 
-    voted_count    = voted_in_scope.count()
+
+    voted_count   = voted_in_scope.count()
     total_assigned = filtered_unvoted + voted_count
     progress_pct   = int((voted_count / total_assigned * 100)) if total_assigned > 0 else 0
- 
+
     # Per-batch remaining counts for dropdown labels
     batches_with_counts = []
     for b in batches:
@@ -2006,12 +2110,13 @@ def applicant_queue(request):
             votes__value__in=[1, -1],
         ).count()
         batches_with_counts.append(b)
- 
-    paginator   = Paginator(applicants_list, 25)
-    page_obj    = paginator.get_page(request.GET.get("page"))
- 
+
+    paginator = Paginator(applicants_list, 25)
+    page_obj  = paginator.get_page(request.GET.get("page"))
+
     context = {
         'page_obj':          page_obj,
+        'paginator_count':   paginator.count,
         'batches':           batches_with_counts,
         'selected_batch_id': selected_batch_id,
         'search_query':      search_query,
@@ -2023,6 +2128,12 @@ def applicant_queue(request):
         'flagged_only':      flagged_only,
         'show_waitlist':     show_waitlist,
         'total_committee_count': total_committee_count,
+        # Waitlist threshold
+        'waitlist_locked':           waitlist_locked,
+        'waitlist_threshold_active': waitlist_threshold_active,
+        'waitlist_threshold_count':  waitlist_threshold_count,
+        'voted_count_unfiltered':    voted_count_unfiltered,
+        # Advanced filter placeholders (not used in queue but template expects them)
         'program_type':            '',
         'application_system':      '',
         'filter_first_gen':        '',
@@ -3387,6 +3498,9 @@ def analytics_overview(request):
         'total_actual':     total_actual,
         'total_potential':  total_potential,
         'global_progress':  global_progress,
+        # ADD THESE TWO:
+        'application_system_choices': DataSet.ApplicationSystem.choices,
+        'program_type_choices':       DataSet.ProgramType.choices,
     })
  
  
@@ -3449,38 +3563,30 @@ def analytics_dataset(request, pk):
         return round(val, dp) if val is not None else None
 
     gpa_agg = imported.aggregate(
-        avg=Avg('gpa_overall'),   mn=Min('gpa_overall'),   mx=Max('gpa_overall'),
+        avg=Avg('gpa_overall'),     mn=Min('gpa_overall'),     mx=Max('gpa_overall'),
         avg_sci=Avg('gpa_science'), mn_sci=Min('gpa_science'), mx_sci=Max('gpa_science'),
-        avg_bcp=Avg('gpa_bcp'),   mn_bcp=Min('gpa_bcp'),   mx_bcp=Max('gpa_bcp'),
+        avg_bcp=Avg('gpa_bcp'),     mn_bcp=Min('gpa_bcp'),     mx_bcp=Max('gpa_bcp'),
     )
     dat_agg = imported.aggregate(
-        avg_aa=Avg('dat_academic_avg'),            mn_aa=Min('dat_academic_avg'),            mx_aa=Max('dat_academic_avg'),
-        avg_pat=Avg('dat_perceptual_ability'),      mn_pat=Min('dat_perceptual_ability'),      mx_pat=Max('dat_perceptual_ability'),
-        avg_qr=Avg('dat_quantitative_reasoning'),   mn_qr=Min('dat_quantitative_reasoning'),   mx_qr=Max('dat_quantitative_reasoning'),
-        avg_rc=Avg('dat_reading_comp'),             mn_rc=Min('dat_reading_comp'),             mx_rc=Max('dat_reading_comp'),
-        avg_bio=Avg('dat_biology'),                 mn_bio=Min('dat_biology'),                 mx_bio=Max('dat_biology'),
-        avg_gc=Avg('dat_general_chem'),             mn_gc=Min('dat_general_chem'),             mx_gc=Max('dat_general_chem'),
-        avg_oc=Avg('dat_organic_chem'),             mn_oc=Min('dat_organic_chem'),             mx_oc=Max('dat_organic_chem'),
-        avg_ts=Avg('dat_total_science'),            mn_ts=Min('dat_total_science'),            mx_ts=Max('dat_total_science'),
+        avg_aa=Avg('dat_academic_avg'),             mn_aa=Min('dat_academic_avg'),             mx_aa=Max('dat_academic_avg'),
+        avg_pat=Avg('dat_perceptual_ability'),       mn_pat=Min('dat_perceptual_ability'),       mx_pat=Max('dat_perceptual_ability'),
+        avg_qr=Avg('dat_quantitative_reasoning'),    mn_qr=Min('dat_quantitative_reasoning'),    mx_qr=Max('dat_quantitative_reasoning'),
+        avg_rc=Avg('dat_reading_comp'),              mn_rc=Min('dat_reading_comp'),              mx_rc=Max('dat_reading_comp'),
+        avg_bio=Avg('dat_biology'),                  mn_bio=Min('dat_biology'),                  mx_bio=Max('dat_biology'),
+        avg_gc=Avg('dat_general_chem'),              mn_gc=Min('dat_general_chem'),              mx_gc=Max('dat_general_chem'),
+        avg_oc=Avg('dat_organic_chem'),              mn_oc=Min('dat_organic_chem'),              mx_oc=Max('dat_organic_chem'),
+        avg_ts=Avg('dat_total_science'),             mn_ts=Min('dat_total_science'),             mx_ts=Max('dat_total_science'),
     )
 
-    # ── GPA distribution bands ───────────────────────────────────────────────
     # ── Candidate label/link helper (for chart drill-down) ───────────────────
     def _cand(a, value=None):
-        # NOTE: derives a display name defensively. If your Applicant model has a
-        # single name field, simplify this to e.g. `name = a.full_name`.
-        getfn = getattr(a, 'get_full_name', None)
-        name = getfn() if callable(getfn) else ''
-        if not name:
-            name = ' '.join(
-                str(getattr(a, f, '') or '').strip()
-                for f in ('first_name', 'last_name')
-            ).strip()
-        if not name:
-            name = str(a)
+        name = ' '.join(
+            str(getattr(a, f, '') or '').strip()
+            for f in ('first_name', 'last_name')
+        ).strip() or str(a)
         return {
-            'name': name,
-            'url': reverse('applicant_detail', args=[a.pk]),
+            'name':  name,
+            'url':   reverse('applicant_detail', args=[a.pk]),
             'score': float(value) if value is not None else None,
         }
 
@@ -3508,24 +3614,86 @@ def analytics_dataset(request, pk):
 
     # ── DAT Academic Average distribution bands (with member lists) ──────────
     dat_band_labels = ['200–239', '240–279', '280–319', '320–359', '360–399', '400–439', '440–479', '480–519', '520–559', '560–600']
-    dat_aa_members = [[] for _ in range(10)]
+    dat_aa_members  = [[] for _ in range(10)]
     for a in imported:
         v = getattr(a, 'dat_academic_avg', None)
         if v is None or v < 200 or v >= 601:
             continue
-        idx = min(9, int((v - 200) // 40))   # 40-wide bands starting at 200
+        idx = min(9, int((v - 200) // 40))
         dat_aa_members[idx].append(_cand(a, v))
     dat_aa_bands = [len(b) for b in dat_aa_members]
 
-    # ── Summary table rows for template ─────────────────────────────────────
+    # ── Candidate → batch map (for client-side batch chart filter) ───────────
+    candidate_batch_map = {}
+    for row in batch_progress:
+        b = row['batch']
+        for apk in Applicant.objects.filter(round=b).values_list('pk', flat=True):
+            url = reverse('applicant_detail', args=[apk])
+            candidate_batch_map[url] = b.pk
+
+    # ── Status breakdown (for doughnut chart) ────────────────────────────────
+    STATUS_COLORS = {
+        'INTERVIEW':           'rgba(13,110,253,0.75)',
+        'INTERVIEW_COMPLETE':  'rgba(102,16,242,0.75)',
+        'ACCEPTED':            'rgba(25,135,84,0.75)',
+        'ACCEPTED_MAILED':     'rgba(20,108,67,0.75)',
+        'ACCEPTED_NOT_MAILED': 'rgba(75,181,67,0.75)',
+        'WAITLISTED':          'rgba(255,193,7,0.85)',
+        'WAITLISTED_INTERVIEW':'rgba(255,153,0,0.85)',
+        'REJECTED':            'rgba(220,53,69,0.75)',
+        'DECLINED':            'rgba(108,117,125,0.75)',
+    }
+    status_qs = (
+        candidates.values('status')
+        .annotate(count=Count('pk'))
+        .order_by('-count')
+    )
+    status_counts = []
+    for s in status_qs:
+        if s['count'] == 0:
+            continue
+        # Get display label from choices
+        display = dict(Applicant.Status.choices).get(s['status'], s['status'])
+        status_counts.append({
+            'label': display,
+            'count': s['count'],
+            'color': STATUS_COLORS.get(s['status'], 'rgba(108,117,125,0.6)'),
+        })
+
+    # ── Score distribution (overall_score 1-10) ───────────────────────────────
+    from .models import Score
+    score_qs = (
+        Score.objects.filter(applicant__dataset=dataset, overall_score__isnull=False)
+        .values('overall_score')
+        .annotate(count=Count('pk'))
+        .order_by('overall_score')
+    )
+    score_map_raw = {int(s['overall_score']): s['count'] for s in score_qs}
+    score_labels       = list(range(1, 11))
+    score_counts_list  = [score_map_raw.get(i, 0) for i in score_labels]
+    score_distribution = any(v > 0 for v in score_counts_list)
+
+    # ── DAT subscores map (url -> {pat, qr, rc, bio, gc, oc, ts}) ─────────────
+    dat_subscores_map = {}
+    for a in imported:
+        url = reverse('applicant_detail', args=[a.pk])
+        dat_subscores_map[url] = {
+            'pat': a.dat_perceptual_ability,
+            'qr':  a.dat_quantitative_reasoning,
+            'rc':  a.dat_reading_comp,
+            'bio': a.dat_biology,
+            'gc':  a.dat_general_chem,
+            'oc':  a.dat_organic_chem,
+            'ts':  a.dat_total_science,
+        }
+
+    # ── Summary table rows for template ──────────────────────────────────────
     gpa_fields = [
         ('Overall GPA', safe_round(gpa_agg['avg']),     safe_round(gpa_agg['mn']),     safe_round(gpa_agg['mx']),     'gpa_overall'),
         ('Science GPA', safe_round(gpa_agg['avg_sci']), safe_round(gpa_agg['mn_sci']), safe_round(gpa_agg['mx_sci']), 'gpa_science'),
         ('BCP GPA',     safe_round(gpa_agg['avg_bcp']), safe_round(gpa_agg['mn_bcp']), safe_round(gpa_agg['mx_bcp']), 'gpa_bcp'),
     ]
 
-    # dat_fields: (label, avg, min, max, good_threshold)
-    # good_threshold — at or above this score we colour green
     dat_fields = [
         ('Academic Average',       safe_round(dat_agg['avg_aa'],  1), dat_agg['mn_aa'],  dat_agg['mx_aa'],  400),
         ('Perceptual Ability',     safe_round(dat_agg['avg_pat'], 1), dat_agg['mn_pat'], dat_agg['mx_pat'], 380),
@@ -3546,7 +3714,7 @@ def analytics_dataset(request, pk):
         'gpa_fields':     gpa_fields,
         # DAT summary
         'dat_fields':     dat_fields,
-        # Individual agg values (still used for the stat cards in template)
+        # Individual agg values
         'gpa_overall_avg': safe_round(gpa_agg['avg']),
         'gpa_overall_min': safe_round(gpa_agg['mn']),
         'gpa_overall_max': safe_round(gpa_agg['mx']),
@@ -3581,16 +3749,26 @@ def analytics_dataset(request, pk):
         'dat_ts_min':      dat_agg['mn_ts'],
         'dat_ts_max':      dat_agg['mx_ts'],
         # Chart data (JSON for Chart.js)
-        'gpa_band_labels':   _json.dumps(gpa_band_labels),
-        'gpa_overall_bands': _json.dumps(gpa_overall_bands),
-        'gpa_science_bands': _json.dumps(gpa_science_bands),
-        'gpa_bcp_bands':     _json.dumps(gpa_bcp_bands),
-        'dat_band_labels':   _json.dumps(dat_band_labels),
-        'dat_aa_bands':      _json.dumps(dat_aa_bands),
+        'gpa_band_labels':     _json.dumps(gpa_band_labels),
+        'gpa_overall_bands':   _json.dumps(gpa_overall_bands),
+        'gpa_science_bands':   _json.dumps(gpa_science_bands),
+        'gpa_bcp_bands':       _json.dumps(gpa_bcp_bands),
+        'dat_band_labels':     _json.dumps(dat_band_labels),
+        'dat_aa_bands':        _json.dumps(dat_aa_bands),
         'gpa_overall_members': _json.dumps(gpa_overall_members),
         'gpa_science_members': _json.dumps(gpa_science_members),
         'gpa_bcp_members':     _json.dumps(gpa_bcp_members),
         'dat_aa_members':      _json.dumps(dat_aa_members),
+        # Batch filter support
+        'candidate_batch_map':  _json.dumps(candidate_batch_map),
+        # Status breakdown chart
+        'status_counts':        _json.dumps(status_counts),
+        # Score distribution chart
+        'score_distribution':   score_distribution,
+        'score_labels':         _json.dumps(score_labels),
+        'score_counts':         _json.dumps(score_counts_list),
+        # DAT subscores for CSV export
+        'dat_subscores_map':    _json.dumps(dat_subscores_map),
         'crumbs': [
             {'label': 'Analytics',         'url': '/analytics/'},
             {'label': dataset.DisplayName, 'url': ''},
@@ -4153,3 +4331,187 @@ def mark_notification_read(request, pk):
         return redirect('notification_list')
     notification.delete()
     return redirect('notification_list')
+
+@login_required
+@admin_required
+def committee_progress(request):
+    """
+    Admin-only page showing every committee member's review progress,
+    vote breakdown, and a batch × member coverage heatmap.
+    """
+    import json as _json
+    from django.db.models import Count, Q
+
+    # ── Filters ──────────────────────────────────────────────────────────────
+    filter_dataset  = request.GET.get('dataset_id', '')
+    filter_panel    = request.GET.get('panel_id', '')
+    filter_progress = request.GET.get('progress', '')
+
+    all_datasets = DataSet.objects.filter(Active=True).order_by('DisplayName')
+    all_panels   = ReviewPanel.objects.order_by('name')
+
+    # ── Members to show ───────────────────────────────────────────────────────
+    members_qs = User.objects.filter(
+        Q(profile__role='COMMITTEE_MEMBER') |
+        Q(profile__role='ADMIN', profile__is_reviewer=True)
+    ).select_related('profile').order_by('last_name', 'first_name', 'username')
+
+    if filter_panel:
+        try:
+            panel = ReviewPanel.objects.get(pk=filter_panel)
+            members_qs = members_qs.filter(pk__in=panel.members.values_list('pk', flat=True))
+        except ReviewPanel.DoesNotExist:
+            pass
+
+    # ── Batches in scope (optionally dataset-filtered) ────────────────────────
+    batches_qs = Batch.objects.select_related('DataSet').filter(Active=True)
+    if filter_dataset:
+        batches_qs = batches_qs.filter(DataSet_id=filter_dataset)
+    batches_qs = batches_qs.order_by('DataSet__DisplayName', 'DisplayName')
+    all_batches = list(batches_qs)
+
+    # Panel name lookup: member pk -> panel name
+    panel_map = {}
+    for p in ReviewPanel.objects.prefetch_related('members'):
+        for m in p.members.all():
+            panel_map[m.pk] = p.name
+
+    # ── Build per-member rows ─────────────────────────────────────────────────
+    member_rows = []
+    for member in members_qs:
+        # Batches this member is assigned to (filtered by scope)
+        assigned = [b for b in all_batches if member in b.assigned_reviewers.all()]
+        if not assigned and filter_dataset:
+            # Still show member but with zeroes if filtering
+            pass
+
+        # Their votes within scoped batches
+        votes = Vote.objects.filter(
+            voter=member,
+            applicant__round__in=assigned,
+        )
+
+        total     = sum(Applicant.objects.filter(round=b).count() for b in assigned)
+        voted     = votes.values('applicant').distinct().count()
+        remaining = max(0, total - voted)
+        pct       = round(voted / total * 100) if total > 0 else 0
+
+        yes_ct     = votes.filter(value=1).count()
+        no_ct      = votes.filter(value=-1).count()
+        wait_ct    = votes.filter(value=0).count()
+        flagged_ct = Flag.objects.filter(
+            user=member,
+            applicant__round__in=assigned,
+        ).count()
+
+        # Per-batch % for heatmap
+        batch_pcts = {}
+        for b in assigned:
+            b_total = Applicant.objects.filter(round=b).count()
+            b_voted = votes.filter(applicant__round=b).values('applicant').distinct().count()
+            batch_pcts[str(b.pk)] = round(b_voted / b_total * 100) if b_total > 0 else 0
+
+        member_rows.append({
+            'member':      member,
+            'panel_name':  panel_map.get(member.pk, ''),
+            'batch_count': len(assigned),
+            'total':       total,
+            'voted':       voted,
+            'remaining':   remaining,
+            'pct':         pct,
+            'yes':         yes_ct,
+            'no':          no_ct,
+            'waitlist':    wait_ct,
+            'flagged':     flagged_ct,
+            'batch_pcts':  batch_pcts,
+        })
+
+    # ── Apply progress filter ────────────────────────────────────────────────
+    if filter_progress == 'complete':
+        member_rows = [r for r in member_rows if r['pct'] == 100]
+    elif filter_progress == 'in_progress':
+        member_rows = [r for r in member_rows if 0 < r['pct'] < 100]
+    elif filter_progress == 'not_started':
+        member_rows = [r for r in member_rows if r['pct'] == 0]
+
+    # ── Global stats ──────────────────────────────────────────────────────────
+    total_members      = len(member_rows)
+    global_votes_cast  = sum(r['voted']   for r in member_rows)
+    global_votes_potential = sum(r['total'] for r in member_rows)
+    global_pct = (
+        round(global_votes_cast / global_votes_potential * 100)
+        if global_votes_potential > 0 else 0
+    )
+    complete_members    = sum(1 for r in member_rows if r['pct'] == 100)
+    not_started_members = sum(1 for r in member_rows if r['pct'] == 0 and r['total'] > 0)
+
+    # ── Heatmap batches: only batches at least one visible member is assigned ──
+    visible_member_pks = {r['member'].pk for r in member_rows}
+    heatmap_batches = [
+        b for b in all_batches
+        if b.assigned_reviewers.filter(pk__in=visible_member_pks).exists()
+    ]
+
+    # ── Export JSON ───────────────────────────────────────────────────────────
+    export_json = _json.dumps({
+        'summary': {
+            'total_members':    total_members,
+            'votes_cast':       global_votes_cast,
+            'votes_potential':  global_votes_potential,
+            'global_pct':       global_pct,
+            'complete':         complete_members,
+            'not_started':      not_started_members,
+        },
+        'members': [
+            {
+                'name':        r['member'].get_full_name() or r['member'].username,
+                'panel':       r['panel_name'],
+                'type':        r['member'].profile.get_person_type_display() if hasattr(r['member'], 'profile') else '',
+                'batch_count': r['batch_count'],
+                'total':       r['total'],
+                'voted':       r['voted'],
+                'remaining':   r['remaining'],
+                'pct':         r['pct'],
+                'yes':         r['yes'],
+                'no':          r['no'],
+                'waitlist':    r['waitlist'],
+                'flagged':     r['flagged'],
+            }
+            for r in member_rows
+        ],
+        'heatmap': {
+            'members': [r['member'].get_full_name() or r['member'].username for r in member_rows],
+            'batches': [b.DisplayName for b in heatmap_batches],
+            'rows': [
+                {
+                    'batch':   b.DisplayName,
+                    'dataset': b.DataSet.DisplayName,
+                    'pcts': [
+                        r['batch_pcts'].get(str(b.pk), None)
+                        for r in member_rows
+                    ],
+                }
+                for b in heatmap_batches
+            ],
+        },
+    })
+
+    return render(request, 'committee_progress.html', {
+        'member_rows':           member_rows,
+        'heatmap_batches':       heatmap_batches,
+        'total_members':         total_members,
+        'global_votes_cast':     global_votes_cast,
+        'global_votes_potential':global_votes_potential,
+        'global_pct':            global_pct,
+        'complete_members':      complete_members,
+        'not_started_members':   not_started_members,
+        'all_datasets':          all_datasets,
+        'all_panels':            all_panels,
+        'filter_dataset':        filter_dataset,
+        'filter_panel':          filter_panel,
+        'filter_progress':       filter_progress,
+        'export_json':           export_json,
+        'crumbs': [
+            {'label': 'Committee Progress', 'url': ''},
+        ],
+    })

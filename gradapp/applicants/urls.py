@@ -72,4 +72,5 @@ urlpatterns = [
     path("profile/", views.profile_settings, name="profile_settings"),
     path("analytics/", views.analytics_overview, name="analytics_overview"),
     path("analytics/<int:pk>/", views.analytics_dataset, name="analytics_dataset"),
+    path('committee/progress/', views.committee_progress, name='committee_progress'),
 ]

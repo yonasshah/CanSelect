@@ -1,0 +1,629 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+  :root {
+    --cp-bg: #ffffff;
+    --cp-muted-bg: #f7f8fa;
+    --cp-border: #d9dee5;
+    --cp-border-soft: #e8ebef;
+    --cp-text: #1f2933;
+    --cp-muted: #667085;
+    --cp-hover: #f6f8fa;
+    --cp-primary: #3f5bf6;
+    --cp-primary-soft: rgba(63,91,246,0.08);
+    --cp-success-soft: rgba(25,135,84,0.10);
+    --cp-warning-soft: rgba(255,193,7,0.13);
+    --cp-danger-soft: rgba(220,53,69,0.10);
+    --cp-shadow: 0 1px 2px rgba(16,24,40,0.04);
+  }
+  [data-bs-theme="dark"] {
+    --cp-bg: #212529;
+    --cp-muted-bg: #2b3035;
+    --cp-border: #3a4047;
+    --cp-border-soft: #343a40;
+    --cp-text: #f8f9fa;
+    --cp-muted: #adb5bd;
+    --cp-hover: #262b30;
+    --cp-primary: #6f86ff;
+    --cp-primary-soft: rgba(111,134,255,0.14);
+    --cp-success-soft: rgba(25,135,84,0.16);
+    --cp-warning-soft: rgba(255,193,7,0.16);
+    --cp-danger-soft: rgba(220,53,69,0.16);
+    --cp-shadow: 0 1px 2px rgba(0,0,0,0.22);
+  }
+
+  .cp-page { max-width: 1400px; margin: 0 auto; }
+
+  /* Hero */
+  .cp-hero {
+    background: var(--cp-bg);
+    border: 1px solid var(--cp-border);
+    border-radius: 14px;
+    box-shadow: var(--cp-shadow);
+    padding: 1.15rem;
+    margin-bottom: 1rem;
+  }
+  .cp-hero-main {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) auto;
+    gap: 1rem;
+    align-items: start;
+  }
+  .cp-kicker {
+    color: var(--cp-muted);
+    font-size: 0.72rem;
+    font-weight: 750;
+    letter-spacing: 0.075em;
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+  .cp-title {
+    color: var(--cp-text);
+    font-size: 1.75rem;
+    font-weight: 780;
+    letter-spacing: -0.025em;
+    margin: 0;
+  }
+  .cp-desc {
+    color: var(--cp-muted);
+    margin: 0.4rem 0 0;
+    font-size: 0.95rem;
+  }
+
+  /* Stat cards row */
+  .cp-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0,1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  .cp-stat {
+    background: var(--cp-bg);
+    border: 1px solid var(--cp-border);
+    border-radius: 12px;
+    padding: 1rem;
+  }
+  .cp-stat-lbl {
+    color: var(--cp-muted);
+    font-size: 0.7rem;
+    font-weight: 750;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+  .cp-stat-val {
+    color: var(--cp-text);
+    font-size: 1.75rem;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 0.3rem;
+  }
+  .cp-stat-note { color: var(--cp-muted); font-size: 0.82rem; }
+
+  /* Filter bar */
+  .cp-filter {
+    background: var(--cp-bg);
+    border: 1px solid var(--cp-border);
+    border-radius: 14px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: var(--cp-shadow);
+  }
+  .cp-filter-label {
+    color: var(--cp-muted);
+    font-size: 0.7rem;
+    font-weight: 750;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    margin-bottom: 0.3rem;
+  }
+
+  /* Main panel */
+  .cp-panel {
+    background: var(--cp-bg);
+    border: 1px solid var(--cp-border);
+    border-radius: 14px;
+    box-shadow: var(--cp-shadow);
+    overflow: hidden;
+    margin-bottom: 1rem;
+  }
+  .cp-panel-header {
+    padding: 0.9rem 1rem;
+    background: var(--cp-muted-bg);
+    border-bottom: 1px solid var(--cp-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .cp-panel-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 780;
+    color: var(--cp-text);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .cp-panel-title i { color: var(--cp-muted); }
+
+  /* Member table */
+  .cp-table { margin: 0; font-size: 0.88rem; }
+  .cp-table thead th {
+    background: var(--cp-muted-bg);
+    color: var(--cp-muted);
+    font-size: 0.7rem;
+    font-weight: 780;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    padding: 0.8rem 1rem;
+    border-bottom: 1px solid var(--cp-border);
+    white-space: nowrap;
+    border-top: 0;
+  }
+  .cp-table tbody td {
+    padding: 0.9rem 1rem;
+    border-bottom: 1px solid var(--cp-border-soft);
+    vertical-align: middle;
+  }
+  .cp-table tbody tr:last-child td { border-bottom: 0; }
+  .cp-table tbody tr:hover { background: var(--cp-hover); }
+
+  /* Member name cell */
+  .cp-member {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+  }
+  .cp-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--cp-primary-soft);
+    border: 1px solid var(--cp-border);
+    color: var(--cp-primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+  .cp-member-name { font-weight: 700; color: var(--cp-text); }
+  .cp-member-meta { color: var(--cp-muted); font-size: 0.78rem; }
+
+  /* Progress bar cell */
+  .cp-prog-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    min-width: 200px;
+  }
+  .cp-prog {
+    flex: 1;
+    height: 7px;
+    background: var(--cp-border-soft);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .cp-prog-bar {
+    height: 100%;
+    border-radius: 999px;
+  }
+  .cp-prog-count {
+    color: var(--cp-muted);
+    font-size: 0.8rem;
+    white-space: nowrap;
+    min-width: 52px;
+    text-align: right;
+  }
+
+  /* Vote breakdown mini-bar */
+  .cp-vote-bar {
+    height: 6px;
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--cp-border-soft);
+    display: flex;
+    min-width: 100px;
+  }
+
+  /* Batch heatmap */
+  .cp-heatmap-wrap { overflow-x: auto; }
+  .cp-heatmap {
+    border-collapse: collapse;
+    font-size: 0.8rem;
+    min-width: 100%;
+  }
+  .cp-heatmap th, .cp-heatmap td {
+    padding: 0.5rem 0.65rem;
+    border: 1px solid var(--cp-border-soft);
+    white-space: nowrap;
+    vertical-align: middle;
+  }
+  .cp-heatmap thead th {
+    background: var(--cp-muted-bg);
+    color: var(--cp-muted);
+    font-size: 0.68rem;
+    font-weight: 750;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-align: center;
+  }
+  .cp-heatmap thead th:first-child { text-align: left; }
+  .cp-heatmap tbody th {
+    background: var(--cp-muted-bg);
+    font-weight: 700;
+    color: var(--cp-text);
+    text-align: left;
+  }
+  .cp-hm-cell {
+    text-align: center;
+    font-size: 0.78rem;
+    font-weight: 700;
+    border-radius: 6px;
+    padding: 0.3rem 0.5rem;
+  }
+  .cp-hm-100  { background: rgba(25,135,84,0.20);  color: #0f5132; }
+  .cp-hm-high { background: rgba(25,135,84,0.12);  color: #146c43; }
+  .cp-hm-mid  { background: rgba(255,193,7,0.18);  color: #7a5800; }
+  .cp-hm-low  { background: rgba(220,53,69,0.12);  color: #842029; }
+  .cp-hm-none { background: var(--cp-border-soft); color: var(--cp-muted); }
+  .cp-hm-na   { background: transparent;           color: var(--cp-border); }
+  [data-bs-theme="dark"] .cp-hm-100  { color: #75b798; }
+  [data-bs-theme="dark"] .cp-hm-high { color: #75b798; }
+  [data-bs-theme="dark"] .cp-hm-mid  { color: #ffc107; }
+  [data-bs-theme="dark"] .cp-hm-low  { color: #ea868f; }
+
+  /* Empty state */
+  .cp-empty {
+    padding: 2.5rem 1rem;
+    text-align: center;
+    color: var(--cp-muted);
+  }
+  .cp-empty i { font-size: 2rem; opacity: 0.4; display: block; margin-bottom: 0.5rem; }
+  .cp-empty-title { font-weight: 700; color: var(--cp-text); }
+
+  @media (max-width: 1199.98px) { .cp-stats-grid { grid-template-columns: repeat(3,1fr); } }
+  @media (max-width: 991.98px)  { .cp-hero-main { grid-template-columns: 1fr; } }
+  @media (max-width: 767.98px)  { .cp-stats-grid { grid-template-columns: repeat(2,1fr); } .cp-prog-wrap { min-width: 140px; } }
+  @media (max-width: 575.98px)  { .cp-stats-grid { grid-template-columns: 1fr; } }
+</style>
+
+<div class="cp-page">
+
+  {% include "partials/breadcrumbs.html" with crumbs=crumbs %}
+
+  <!-- Hero -->
+  <div class="cp-hero mb-3">
+    <div class="cp-hero-main">
+      <div>
+        <div class="cp-kicker">Admin · Committee</div>
+        <h2 class="cp-title">Committee Progress</h2>
+        <p class="cp-desc">Review completion, vote breakdowns, and batch coverage for every committee member.</p>
+      </div>
+      <div class="d-flex gap-2 flex-wrap justify-content-end">
+        <button class="btn btn-outline-secondary btn-sm" id="exportCpBtn">
+          <i class="bi bi-download me-1"></i>Export CSV
+        </button>
+        <a href="{% url 'manage_panels' %}" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-people me-1"></i>Manage Panels
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Global stat strip -->
+  <div class="cp-stats-grid">
+    <div class="cp-stat">
+      <div class="cp-stat-lbl">Committee Members</div>
+      <div class="cp-stat-val">{{ total_members }}</div>
+      <div class="cp-stat-note">Active reviewers</div>
+    </div>
+    <div class="cp-stat">
+      <div class="cp-stat-lbl">Total Votes Cast</div>
+      <div class="cp-stat-val text-primary">{{ global_votes_cast }}</div>
+      <div class="cp-stat-note">of {{ global_votes_potential }} possible</div>
+    </div>
+    <div class="cp-stat">
+      <div class="cp-stat-lbl">Overall Completion</div>
+      <div class="cp-stat-val">{{ global_pct }}%</div>
+      <div class="cp-stat-note">Across all batches</div>
+    </div>
+    <div class="cp-stat" style="background:var(--cp-success-soft);">
+      <div class="cp-stat-lbl">Fully Complete</div>
+      <div class="cp-stat-val text-success">{{ complete_members }}</div>
+      <div class="cp-stat-note">member{{ complete_members|pluralize }} at 100%</div>
+    </div>
+    <div class="cp-stat" style="background:var(--cp-warning-soft);">
+      <div class="cp-stat-lbl">Not Started</div>
+      <div class="cp-stat-val" style="color:#997404;">{{ not_started_members }}</div>
+      <div class="cp-stat-note">member{{ not_started_members|pluralize }} at 0%</div>
+    </div>
+  </div>
+
+  <!-- Filter bar -->
+  <div class="cp-filter">
+    <form method="get" class="row g-2 align-items-end flex-wrap">
+      <div class="col-md-3">
+        <div class="cp-filter-label">Dataset</div>
+        <select name="dataset_id" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="">All Datasets</option>
+          {% for ds in all_datasets %}
+            <option value="{{ ds.pk }}" {% if ds.pk|stringformat:"s" == filter_dataset %}selected{% endif %}>
+              {{ ds.DisplayName }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <div class="cp-filter-label">Panel</div>
+        <select name="panel_id" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="">All Panels</option>
+          {% for panel in all_panels %}
+            <option value="{{ panel.pk }}" {% if panel.pk|stringformat:"s" == filter_panel %}selected{% endif %}>
+              {{ panel.name }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <div class="cp-filter-label">Progress</div>
+        <select name="progress" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="">All</option>
+          <option value="complete"     {% if filter_progress == 'complete' %}selected{% endif %}>Complete (100%)</option>
+          <option value="in_progress"  {% if filter_progress == 'in_progress' %}selected{% endif %}>In Progress</option>
+          <option value="not_started"  {% if filter_progress == 'not_started' %}selected{% endif %}>Not Started</option>
+        </select>
+      </div>
+      <div class="col-auto d-flex gap-1 align-items-end">
+        <a href="{% url 'committee_progress' %}" class="btn btn-outline-danger btn-sm">Clear</a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Member progress table -->
+  <div class="cp-panel">
+    <div class="cp-panel-header">
+      <h4 class="cp-panel-title">
+        <i class="bi bi-people"></i>Member Progress
+      </h4>
+      <span class="text-muted small">{{ member_rows|length }} member{{ member_rows|length|pluralize }}</span>
+    </div>
+
+    {% if member_rows %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle cp-table" id="memberTable">
+        <thead>
+          <tr>
+            <th style="min-width:200px;">Member</th>
+            <th style="min-width:220px;">Progress</th>
+            <th class="text-center">Voted</th>
+            <th class="text-center">Remaining</th>
+            <th class="text-center">Yes</th>
+            <th class="text-center">No</th>
+            <th class="text-center">Waitlist</th>
+            <th style="min-width:120px;">Vote Breakdown</th>
+            <th class="text-center">Flagged</th>
+            <th class="text-center">Batches</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in member_rows %}
+          <tr data-pct="{{ row.pct }}" data-name="{{ row.member.get_full_name|default:row.member.username|lower }}">
+            <td>
+              <div class="cp-member">
+                <div class="cp-avatar">
+                  {{ row.member.first_name|first|upper }}{{ row.member.last_name|first|upper }}
+                </div>
+                <div>
+                  <div class="cp-member-name">
+                    {{ row.member.get_full_name|default:row.member.username }}
+                  </div>
+                  <div class="cp-member-meta">
+                    {{ row.member.profile.get_person_type_display|default:"Committee" }}
+                    {% if row.panel_name %} · {{ row.panel_name }}{% endif %}
+                  </div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <div class="cp-prog-wrap">
+                <div class="cp-prog">
+                  <div class="cp-prog-bar
+                    {% if row.pct == 100 %}bg-success
+                    {% elif row.pct >= 50 %}bg-primary
+                    {% elif row.pct > 0 %}bg-warning
+                    {% else %}bg-secondary{% endif %}"
+                    style="width:{{ row.pct }}%">
+                  </div>
+                </div>
+                <span class="cp-prog-count">{{ row.pct }}%</span>
+              </div>
+            </td>
+            <td class="text-center fw-semibold">{{ row.voted }}</td>
+            <td class="text-center">
+              <span class="{% if row.remaining == 0 %}text-success fw-semibold{% else %}text-muted{% endif %}">
+                {{ row.remaining }}
+              </span>
+            </td>
+            <td class="text-center">
+              <span class="badge bg-success bg-opacity-75">{{ row.yes }}</span>
+            </td>
+            <td class="text-center">
+              <span class="badge bg-danger bg-opacity-75">{{ row.no }}</span>
+            </td>
+            <td class="text-center">
+              <span class="badge bg-warning text-dark">{{ row.waitlist }}</span>
+            </td>
+            <td>
+              {% if row.voted > 0 %}
+              <div class="cp-vote-bar" title="Yes: {{ row.yes }} · No: {{ row.no }} · Waitlist: {{ row.waitlist }}">
+                <div style="width:{% widthratio row.yes row.voted 100 %}%; background:#198754;"></div>
+                <div style="width:{% widthratio row.no row.voted 100 %}%; background:#dc3545;"></div>
+                <div style="width:{% widthratio row.waitlist row.voted 100 %}%; background:#ffc107;"></div>
+              </div>
+              {% else %}
+              <span class="text-muted small">—</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if row.flagged > 0 %}
+                <span class="badge bg-danger bg-opacity-75">
+                  <i class="bi bi-flag-fill me-1"></i>{{ row.flagged }}
+                </span>
+              {% else %}
+                <span class="text-muted small">—</span>
+              {% endif %}
+            </td>
+            <td class="text-center text-muted">{{ row.batch_count }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="cp-empty">
+      <i class="bi bi-people"></i>
+      <div class="cp-empty-title">No members match current filters</div>
+      <div>Try adjusting the dataset, panel, or progress filter.</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Batch × Member heatmap (JS-rendered from export_json) -->
+  <div class="cp-panel" id="heatmapPanel" style="display:none;">
+    <div class="cp-panel-header">
+      <h4 class="cp-panel-title">
+        <i class="bi bi-grid-3x3"></i>Batch Coverage Heatmap
+      </h4>
+      <span class="text-muted small">% of candidates voted per reviewer per batch</span>
+    </div>
+    <div class="cp-heatmap-wrap p-3">
+      <div id="heatmapTableWrap"></div>
+      <div class="d-flex gap-3 mt-3 flex-wrap" style="font-size:0.75rem; color:var(--cp-muted);">
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:rgba(25,135,84,0.5);margin-right:4px;"></span>100%</span>
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:rgba(25,135,84,0.28);margin-right:4px;"></span>60–99%</span>
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:rgba(255,193,7,0.4);margin-right:4px;"></span>30–59%</span>
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:rgba(220,53,69,0.28);margin-right:4px;"></span>1–29%</span>
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--cp-border-soft);margin-right:4px;"></span>0%</span>
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;border:1px solid var(--cp-border-soft);margin-right:4px;"></span>Not assigned</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Hidden data for CSV export + heatmap rendering -->
+<script id="cp-export-data" type="application/json">
+{{ export_json|safe }}
+</script>
+<script>
+window.__heatmapBatchUrls = {
+  {% for batch in heatmap_batches %}
+  {{ forloop.counter0 }}: "{% url 'batch_detail' batch.pk %}",
+  {% endfor %}
+};
+</script>
+
+<script>
+(function () {
+  // ── Heatmap (JS-rendered, no custom filter needed) ───────────────────────
+  (function () {
+    const raw = JSON.parse(document.getElementById('cp-export-data').textContent);
+    const hm  = raw.heatmap;
+    if (!hm || !hm.rows.length) return;
+
+    const panel = document.getElementById('heatmapPanel');
+    const wrap  = document.getElementById('heatmapTableWrap');
+    panel.style.display = '';
+
+    function cellClass(pct) {
+      if (pct === null)  return 'cp-hm-na';
+      if (pct === 100)   return 'cp-hm-100';
+      if (pct >= 60)     return 'cp-hm-high';
+      if (pct >= 30)     return 'cp-hm-mid';
+      if (pct > 0)       return 'cp-hm-low';
+      return 'cp-hm-none';
+    }
+
+    // Build batch URL map from heatmap_batch_urls injected below
+    const batchUrls = window.__heatmapBatchUrls || {};
+
+    let html = '<table class="cp-heatmap"><thead><tr><th>Batch</th>';
+    hm.members.forEach(name => {
+      html += `<th title="${name}">${name.split(' ')[0]}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+
+    hm.rows.forEach((r, i) => {
+      const url = batchUrls[i] || '#';
+      html += `<tr><th>
+        <a href="${url}" class="text-decoration-none" style="color:var(--cp-text);">${r.batch}</a>
+        <div class="text-muted" style="font-size:0.7rem;font-weight:400;">${r.dataset}</div>
+      </th>`;
+      r.pcts.forEach(pct => {
+        const cls  = cellClass(pct);
+        const text = pct === null ? '—' : pct + '%';
+        html += `<td><div class="cp-hm-cell ${cls}">${text}</div></td>`;
+      });
+      html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+  })();
+
+  // ── Export CSV ────────────────────────────────────────────────────────────
+  document.getElementById('exportCpBtn').addEventListener('click', function () {
+    const raw  = JSON.parse(document.getElementById('cp-export-data').textContent);
+    const now  = new Date().toLocaleString();
+    const q    = v => `"${String(v === null || v === undefined ? '' : v).replace(/"/g, '""')}"`;
+    const row  = cols => cols.map(q).join(',');
+    const lines = [];
+
+    lines.push(row(['Kornberg Admissions — Committee Progress Report']));
+    lines.push(row([`Exported: ${now}`]));
+    lines.push('');
+
+    // Global summary
+    lines.push(row(['SUMMARY']));
+    lines.push(row(['Total Members', 'Votes Cast', 'Potential Votes', 'Overall Completion %', 'Complete (100%)', 'Not Started (0%)']));
+    lines.push(row([raw.summary.total_members, raw.summary.votes_cast, raw.summary.votes_potential,
+                    raw.summary.global_pct + '%', raw.summary.complete, raw.summary.not_started]));
+    lines.push('');
+
+    // Per-member detail
+    lines.push(row(['MEMBER BREAKDOWN']));
+    lines.push(row(['Member', 'Panel', 'Person Type', 'Batches', 'Total Assigned',
+                    'Voted', 'Remaining', 'Progress %', 'Yes', 'No', 'Waitlist', 'Flagged']));
+    raw.members.forEach(m => {
+      lines.push(row([m.name, m.panel, m.type, m.batch_count,
+                      m.total, m.voted, m.remaining, m.pct + '%',
+                      m.yes, m.no, m.waitlist, m.flagged]));
+    });
+    lines.push('');
+
+    // Heatmap section
+    if (raw.heatmap && raw.heatmap.batches.length) {
+      lines.push(row(['BATCH COVERAGE HEATMAP (% voted per reviewer)']));
+      lines.push(row(['Batch', 'Dataset', ...raw.heatmap.members]));
+      raw.heatmap.rows.forEach(r => {
+        lines.push(row([r.batch, r.dataset, ...r.pcts.map(p => p === null ? '—' : p + '%')]));
+      });
+    }
+
+    const csv  = lines.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `Committee Progress ${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+})();
+</script>
+
+{% endblock %}
